@@ -67,15 +67,15 @@ export const HomePage: React.FC = () => {
             <img
               src="/images/hero-graduate-sunset.jpg"
               alt="Graduate in Cap and Gown overlooking Campus"
-              className="w-full h-full object-cover object-[75%_25%] sm:object-[center_25%] select-none"
+              className="w-full h-full object-cover object-[85%_25%] sm:object-[center_25%] opacity-30 sm:opacity-100 select-none transition-opacity"
             />
           </div>
 
           {/* Directional Soft Gradient Overlay for Text Readability on Left & Vivid Sunset on Right */}
-          <div className="absolute inset-0 pointer-events-none z-0 bg-gradient-to-r from-[#E6F4F3]/98 via-[#FFFDF8]/95 sm:via-[#FFFDF8]/90 to-[#FFFDF8]/40 sm:to-transparent sm:to-[65%]" />
+          <div className="absolute inset-0 pointer-events-none z-0 bg-gradient-to-b from-white/95 via-[#FFFDF8]/90 to-[#EAF5F7]/95 sm:bg-gradient-to-r sm:from-[#E6F4F3]/98 sm:via-[#FFFDF8]/90 sm:to-[#FFFDF8]/30 sm:to-[65%]" />
 
           {/* Soft mint/cyan curved wave shape at bottom-left */}
-          <div className="absolute left-0 bottom-0 top-0 w-1/3 pointer-events-none z-0">
+          <div className="absolute left-0 bottom-0 top-0 w-1/3 pointer-events-none z-0 hidden sm:block">
             <svg className="w-full h-full" viewBox="0 0 500 360" preserveAspectRatio="none">
               <path
                 d="M0,230 C120,260 180,300 260,285 C340,270 400,320 480,360 L0,360 Z"
@@ -112,19 +112,19 @@ export const HomePage: React.FC = () => {
           <div className="w-full px-4 sm:px-8 lg:px-12 py-2 relative z-10">
             <div className="w-full sm:w-[65%] lg:w-[56%] text-left space-y-3 sm:space-y-3">
               {/* Framework Pill Badge */}
-              <div className="inline-flex items-center gap-1.5 bg-[#FFF9F3] border border-[#FF7A00]/50 text-[#0B2A5B] px-3 py-1 sm:py-0.5 rounded-full text-[10px] sm:text-[11.5px] font-bold shadow-2xs">
+              <div className="inline-flex items-center gap-1.5 bg-[#FFF9F3] border border-[#FF7A00]/50 text-[#0B2A5B] px-2.5 sm:px-3 py-1 sm:py-0.5 rounded-full text-[10px] sm:text-[11.5px] font-bold shadow-2xs">
                 <span className="text-[#FF7A00] font-bold">✦</span>
                 <span className="tracking-tight">National Internship Transformation Framework • Govt of India</span>
               </div>
 
               {/* Main Bold Heading */}
-              <h1 className="text-2xl sm:text-4xl lg:text-[45px] font-black text-[#0B2A5B] tracking-tight leading-[1.12] sm:leading-[1.07]">
+              <h1 className="text-2xl sm:text-4xl lg:text-[45px] font-black text-[#0B2A5B] tracking-tight leading-[1.15] sm:leading-[1.07]">
                 Connecting Education <br className="hidden sm:inline" />
                 with Industry
               </h1>
 
               {/* Supporting Description */}
-              <p className="text-xs sm:text-[13.5px] text-[#334155] max-w-[580px] font-normal leading-relaxed">
+              <p className="text-xs sm:text-[13.5px] text-[#1E293B] max-w-[580px] font-medium sm:font-normal leading-relaxed">
                 The centralized, two-sided institutional collaboration platform enabling formal proposal reviews, auditable batch creation, verified attendance, and government-recognized internship certifications.
               </p>
 
