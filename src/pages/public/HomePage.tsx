@@ -60,19 +60,19 @@ export const HomePage: React.FC = () => {
     <div className="w-full pb-10">
       {/* 1. HERO SECTION (Curved Cornered Banner Card with minimal side gap) */}
       <div className="w-full px-2 sm:px-4 pt-2 sm:pt-3">
-        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80 h-[330px] sm:h-[345px] lg:h-[360px] flex items-center bg-[#EAF5F7]">
+        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80 min-h-[380px] sm:min-h-[345px] lg:h-[360px] py-6 sm:py-4 flex items-center bg-[#EAF5F7]">
           
           {/* Full-width Panoramic Campus & Graduate Background Image */}
           <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
             <img
               src="/images/hero-graduate-sunset.jpg"
               alt="Graduate in Cap and Gown overlooking Campus"
-              className="w-full h-full object-cover object-[center_25%] select-none"
+              className="w-full h-full object-cover object-[75%_25%] sm:object-[center_25%] select-none"
             />
           </div>
 
           {/* Directional Soft Gradient Overlay for Text Readability on Left & Vivid Sunset on Right */}
-          <div className="absolute inset-0 pointer-events-none z-0 bg-gradient-to-r from-[#E6F4F3] via-[#FFFDF8]/95 sm:via-[#FFFDF8]/90 to-transparent to-[65%]" />
+          <div className="absolute inset-0 pointer-events-none z-0 bg-gradient-to-r from-[#E6F4F3]/98 via-[#FFFDF8]/95 sm:via-[#FFFDF8]/90 to-[#FFFDF8]/40 sm:to-transparent sm:to-[65%]" />
 
           {/* Soft mint/cyan curved wave shape at bottom-left */}
           <div className="absolute left-0 bottom-0 top-0 w-1/3 pointer-events-none z-0">
@@ -89,7 +89,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Better Skills Brighter Future Calligraphy Text in open sky (Top-Right) */}
-          <div className="absolute top-4 right-5 sm:top-5 sm:right-8 lg:top-6 lg:right-14 text-right select-none z-20 pointer-events-none">
+          <div className="absolute top-4 right-5 sm:top-5 sm:right-8 lg:top-6 lg:right-14 text-right select-none z-20 pointer-events-none hidden md:block">
             <span
               className="block text-xl sm:text-2xl lg:text-[28px] font-bold text-[#0B2A5B] leading-none tracking-tight drop-shadow-sm -rotate-6"
               style={{ fontFamily: "'Caveat', cursive" }}
@@ -109,17 +109,17 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Hero Left Content Container */}
-          <div className="w-full px-4 sm:px-8 lg:px-12 py-4 relative z-10">
-            <div className="w-full sm:w-[65%] lg:w-[56%] text-left space-y-2.5 sm:space-y-3">
+          <div className="w-full px-4 sm:px-8 lg:px-12 py-2 relative z-10">
+            <div className="w-full sm:w-[65%] lg:w-[56%] text-left space-y-3 sm:space-y-3">
               {/* Framework Pill Badge */}
-              <div className="inline-flex items-center gap-1.5 bg-[#FFF9F3] border border-[#FF7A00]/50 text-[#0B2A5B] px-3 py-0.5 rounded-full text-[10.5px] sm:text-[11.5px] font-bold shadow-2xs">
+              <div className="inline-flex items-center gap-1.5 bg-[#FFF9F3] border border-[#FF7A00]/50 text-[#0B2A5B] px-3 py-1 sm:py-0.5 rounded-full text-[10px] sm:text-[11.5px] font-bold shadow-2xs">
                 <span className="text-[#FF7A00] font-bold">✦</span>
                 <span className="tracking-tight">National Internship Transformation Framework • Govt of India</span>
               </div>
 
               {/* Main Bold Heading */}
-              <h1 className="text-3xl sm:text-4xl lg:text-[45px] font-black text-[#0B2A5B] tracking-tight leading-[1.07]">
-                Connecting Education <br />
+              <h1 className="text-2xl sm:text-4xl lg:text-[45px] font-black text-[#0B2A5B] tracking-tight leading-[1.12] sm:leading-[1.07]">
+                Connecting Education <br className="hidden sm:inline" />
                 with Industry
               </h1>
 
@@ -129,10 +129,10 @@ export const HomePage: React.FC = () => {
               </p>
 
               {/* Two Primary Side-by-Side CTA Buttons */}
-              <div className="pt-1 flex flex-wrap items-center gap-3">
+              <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
                 <Link
                   to="/register?type=institution"
-                  className="w-full sm:w-[205px] h-[44px] rounded-[9px] bg-[#0B2A5B] hover:bg-[#14336F] text-white font-bold text-xs sm:text-[13px] shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-between px-4 group"
+                  className="w-full sm:w-[205px] h-[46px] sm:h-[44px] rounded-[10px] bg-[#0B2A5B] hover:bg-[#14336F] text-white font-bold text-xs sm:text-[13px] shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-98 transition-all flex items-center justify-between px-4 group"
                 >
                   <div className="flex items-center gap-2">
                     <School className="w-4 h-4 text-[#FF7A00]" />
@@ -143,7 +143,7 @@ export const HomePage: React.FC = () => {
 
                 <Link
                   to="/register?type=company"
-                  className="w-full sm:w-[205px] h-[44px] rounded-[9px] bg-[#FF7A00] hover:bg-[#E66E00] text-white font-bold text-xs sm:text-[13px] shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all flex items-center justify-between px-4 group"
+                  className="w-full sm:w-[205px] h-[46px] sm:h-[44px] rounded-[10px] bg-[#FF7A00] hover:bg-[#E66E00] text-white font-bold text-xs sm:text-[13px] shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-98 transition-all flex items-center justify-between px-4 group"
                 >
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-white" />
@@ -165,34 +165,34 @@ export const HomePage: React.FC = () => {
       </div>
 
       {/* REST OF HOMEPAGE CONTENT SECTIONS */}
-      <div className="space-y-10 sm:space-y-12 pt-6 sm:pt-8">
+      <div className="space-y-8 sm:space-y-12 pt-5 sm:pt-8">
         {/* 2. PLATFORM METRICS */}
         <div className="w-full px-2 sm:px-4">
-          <section className="w-full bg-[#0E2350] text-white py-10 sm:py-12 rounded-2xl sm:rounded-3xl shadow-sm border border-[#14336F] overflow-hidden">
-            <div className="w-full px-4 sm:px-8 lg:px-12">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-                <div className="p-4 bg-[#102A60] rounded-xl border border-[#14336F]">
-                  <School className="w-8 h-8 text-[#F07421] mx-auto mb-2" />
-                  <p className="text-3xl sm:text-4xl font-extrabold text-white">{registeredCollegesCount}+</p>
-                  <p className="text-xs text-[#DCE5F5] font-semibold mt-1">Government Colleges Registered</p>
+          <section className="w-full bg-[#0E2350] text-white py-8 sm:py-12 rounded-2xl sm:rounded-3xl shadow-sm border border-[#14336F] overflow-hidden">
+            <div className="w-full px-3 sm:px-8 lg:px-12">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 text-center">
+                <div className="p-3.5 sm:p-4 bg-[#102A60] rounded-xl sm:rounded-2xl border border-[#14336F]">
+                  <School className="w-6 h-6 sm:w-8 sm:h-8 text-[#F07421] mx-auto mb-1.5" />
+                  <p className="text-2xl sm:text-4xl font-extrabold text-white">{registeredCollegesCount}+</p>
+                  <p className="text-[11px] sm:text-xs text-[#DCE5F5] font-semibold mt-0.5">Government Colleges Registered</p>
                 </div>
 
-                <div className="p-4 bg-[#102A60] rounded-xl border border-[#14336F]">
-                  <Building2 className="w-8 h-8 text-[#1C8A3C] mx-auto mb-2" />
-                  <p className="text-3xl sm:text-4xl font-extrabold text-white">{verifiedCompaniesCount}+</p>
-                  <p className="text-xs text-[#DCE5F5] font-semibold mt-1">Verified Corporate Partners</p>
+                <div className="p-3.5 sm:p-4 bg-[#102A60] rounded-xl sm:rounded-2xl border border-[#14336F]">
+                  <Building2 className="w-6 h-6 sm:w-8 sm:h-8 text-[#1C8A3C] mx-auto mb-1.5" />
+                  <p className="text-2xl sm:text-4xl font-extrabold text-white">{verifiedCompaniesCount}+</p>
+                  <p className="text-[11px] sm:text-xs text-[#DCE5F5] font-semibold mt-0.5">Verified Corporate Partners</p>
                 </div>
 
-                <div className="p-4 bg-[#102A60] rounded-xl border border-[#14336F]">
-                  <Users className="w-8 h-8 text-[#FFE5D3] mx-auto mb-2" />
-                  <p className="text-3xl sm:text-4xl font-extrabold text-white">{activeInternsCount.toLocaleString()}+</p>
-                  <p className="text-xs text-[#DCE5F5] font-semibold mt-1">Students Digitally Placed</p>
+                <div className="p-3.5 sm:p-4 bg-[#102A60] rounded-xl sm:rounded-2xl border border-[#14336F]">
+                  <Users className="w-6 h-6 sm:w-8 sm:h-8 text-[#FFE5D3] mx-auto mb-1.5" />
+                  <p className="text-2xl sm:text-4xl font-extrabold text-white">{activeInternsCount.toLocaleString()}+</p>
+                  <p className="text-[11px] sm:text-xs text-[#DCE5F5] font-semibold mt-0.5">Students Digitally Placed</p>
                 </div>
 
-                <div className="p-4 bg-[#102A60] rounded-xl border border-[#14336F]">
-                  <TrendingUp className="w-8 h-8 text-[#F07421] mx-auto mb-2" />
-                  <p className="text-3xl sm:text-4xl font-extrabold text-white">{activeBatchesCount.toLocaleString()}+</p>
-                  <p className="text-xs text-[#DCE5F5] font-semibold mt-1">Active Internship Cohorts</p>
+                <div className="p-3.5 sm:p-4 bg-[#102A60] rounded-xl sm:rounded-2xl border border-[#14336F]">
+                  <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-[#F07421] mx-auto mb-1.5" />
+                  <p className="text-2xl sm:text-4xl font-extrabold text-white">{activeBatchesCount.toLocaleString()}+</p>
+                  <p className="text-[11px] sm:text-xs text-[#DCE5F5] font-semibold mt-0.5">Active Internship Cohorts</p>
                 </div>
               </div>
             </div>

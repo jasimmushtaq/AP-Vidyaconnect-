@@ -112,28 +112,28 @@ export const PromotionalBannerCarousel: React.FC = () => {
               />
             </Link>
           ) : (
-            <div className={`relative w-full bg-gradient-to-r ${gradientClass} min-h-[190px] sm:min-h-[220px] flex flex-col justify-between py-5`}>
+            <div className={`relative w-full bg-gradient-to-r ${gradientClass} min-h-[210px] sm:min-h-[220px] flex flex-col justify-between pt-4 sm:pt-5 pb-12 sm:pb-6`}>
               <div className="w-full px-4 sm:px-8 lg:px-12 flex items-start justify-between gap-4">
-                <div className="space-y-2 max-w-2xl">
+                <div className="space-y-1.5 sm:space-y-2 max-w-2xl">
                   {currentBanner.vertical_tag && (
-                    <span className="inline-block text-[10px] font-black uppercase tracking-widest text-white/90 bg-black/20 px-2 py-0.5 rounded">
+                    <span className="inline-block text-[9.5px] sm:text-[10px] font-black uppercase tracking-widest text-white/95 bg-black/25 backdrop-blur-xs px-2 py-0.5 rounded">
                       {currentBanner.vertical_tag}
                     </span>
                   )}
-                  <h2 className="text-2xl sm:text-3xl font-black text-white leading-tight">
+                  <h2 className="text-lg sm:text-3xl font-black text-white leading-snug tracking-tight">
                     {currentBanner.title}
                   </h2>
                   {currentBanner.subtitle && (
-                    <p className="text-xs sm:text-sm font-semibold text-white/90">
+                    <p className="text-[11px] sm:text-sm font-semibold text-white/90 leading-tight">
                       {currentBanner.subtitle}
                     </p>
                   )}
                   {currentBanner.bullet_points && (
-                    <ul className="space-y-1 text-xs text-white/95">
+                    <ul className="space-y-1 sm:space-y-1.5 text-[11px] sm:text-xs text-white/95 pt-0.5">
                       {currentBanner.bullet_points.map((b, i) => (
-                        <li key={i} className="flex items-center gap-1.5">
-                          <Check className="w-3.5 h-3.5 text-white" />
-                          <span>{b}</span>
+                        <li key={i} className="flex items-start sm:items-center gap-1.5">
+                          <Check className="w-3.5 h-3.5 text-white shrink-0 mt-0.5 sm:mt-0" />
+                          <span className="leading-tight">{b}</span>
                         </li>
                       ))}
                     </ul>
@@ -175,16 +175,16 @@ export const PromotionalBannerCarousel: React.FC = () => {
 
           {/* Carousel Footer: Slide Indicators (Left) & Navigation Arrows (Right) */}
           <div className="absolute bottom-2.5 inset-x-0 z-10 pointer-events-none">
-            <div className="w-full px-4 sm:px-8 lg:px-12 flex items-center justify-between">
+            <div className="w-full px-3 sm:px-8 lg:px-12 flex items-center justify-between">
               {/* Pagination Dots */}
-              <div className="flex items-center gap-1.5 pointer-events-auto bg-black/35 backdrop-blur-xs px-2.5 py-1 rounded-full">
+              <div className="flex items-center gap-1.5 pointer-events-auto bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full shadow-md">
                 {activeBanners.map((_, idx) => (
                   <button
                     key={idx}
                     onClick={() => setCurrentIndex(idx)}
                     className={`h-1.5 rounded-full transition-all duration-300 ${
                       currentIndex === idx
-                        ? 'w-6 bg-white shadow'
+                        ? 'w-5 sm:w-6 bg-white shadow'
                         : 'w-1.5 bg-white/50 hover:bg-white'
                     }`}
                     title={`Slide ${idx + 1}`}
@@ -193,17 +193,17 @@ export const PromotionalBannerCarousel: React.FC = () => {
               </div>
 
               {/* Navigation Arrows (< and >) */}
-              <div className="flex items-center gap-2 pointer-events-auto">
+              <div className="flex items-center gap-1.5 sm:gap-2 pointer-events-auto">
                 <button
                   onClick={handlePrev}
-                  className="w-7 h-7 rounded-full bg-white/85 hover:bg-white text-[#0B2A5B] hover:text-[#0B2A5B] flex items-center justify-center transition-all shadow-md border border-gray-200"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/90 hover:bg-white text-[#0B2A5B] flex items-center justify-center transition-all shadow-md border border-gray-200 active:scale-95"
                   title="Previous Announcement"
                 >
                   <ChevronLeft className="w-4 h-4 stroke-[2.5]" />
                 </button>
                 <button
                   onClick={handleNext}
-                  className="w-7 h-7 rounded-full bg-white/85 hover:bg-white text-[#0B2A5B] hover:text-[#0B2A5B] flex items-center justify-center transition-all shadow-md border border-gray-200"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-white/90 hover:bg-white text-[#0B2A5B] flex items-center justify-center transition-all shadow-md border border-gray-200 active:scale-95"
                   title="Next Announcement"
                 >
                   <ChevronRight className="w-4 h-4 stroke-[2.5]" />
