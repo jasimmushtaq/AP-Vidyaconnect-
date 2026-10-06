@@ -4,6 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
 import { Company } from '../../types/database';
 import { PartnerCard } from '../../components/common/PartnerCard';
+import { CanonicalWorkflowShowcase } from '../../components/common/CanonicalWorkflowShowcase';
 import {
   Building2,
   Search,
@@ -277,6 +278,11 @@ export const PartnersPage: React.FC = () => {
           ))}
         </div>
       )}
+
+      {/* CANONICAL WORKFLOW TIMELINE */}
+      <div className="pt-6 border-t border-gray-100">
+        <CanonicalWorkflowShowcase />
+      </div>
     </div>
   );
 };

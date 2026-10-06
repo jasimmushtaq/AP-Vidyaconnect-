@@ -9,7 +9,6 @@ import { db } from '../../services/dbStore';
 import { useAuth } from '../../context/AuthContext';
 import { PartnerCard } from '../../components/common/PartnerCard';
 import { InstitutionCard } from '../../components/common/InstitutionCard';
-import { CanonicalWorkflowShowcase } from '../../components/common/CanonicalWorkflowShowcase';
 import { PromotionalBannerCarousel } from '../../components/common/PromotionalBannerCarousel';
 import {
   Building2,
@@ -162,13 +161,6 @@ export const HomePage: React.FC = () => {
       <div className="w-full px-2 sm:px-4 mt-2.5 sm:mt-3">
         <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80 block">
           <PromotionalBannerCarousel />
-        </section>
-      </div>
-
-      {/* 1.2 CANONICAL WORKFLOW TIMELINE (Exact Same Width and Curved Edges as Promotional Banner) */}
-      <div className="w-full px-2 sm:px-4 mt-6 sm:mt-8">
-        <section className="w-full block">
-          <CanonicalWorkflowShowcase />
         </section>
       </div>
 

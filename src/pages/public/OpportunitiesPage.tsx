@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../context/ModalContext';
 import { db } from '../../services/dbStore';
 import { InternshipOpportunity } from '../../types/database';
+import { CanonicalWorkflowShowcase } from '../../components/common/CanonicalWorkflowShowcase';
 import {
   Building2,
   Search,
@@ -322,6 +323,11 @@ export const OpportunitiesPage: React.FC = () => {
               );
             })
           )}
+        </div>
+
+        {/* CANONICAL WORKFLOW TIMELINE */}
+        <div className="pt-8 border-t border-gray-100">
+          <CanonicalWorkflowShowcase />
         </div>
 
         {/* MODAL 1: FULL OPPORTUNITY DETAILS */}

@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { CanonicalWorkflowShowcase } from '../../components/common/CanonicalWorkflowShowcase';
 import {
   GraduationCap,
   ShieldCheck,
@@ -56,6 +57,11 @@ export const ForStudentsPage: React.FC = () => {
             <ArrowRight className="w-4 h-4 text-[#2A4E96]" />
           </Link>
         </div>
+      </section>
+
+      {/* CANONICAL WORKFLOW TIMELINE */}
+      <section className="w-full">
+        <CanonicalWorkflowShowcase />
       </section>
 
       {/* 2. THE 6-STEP STUDENT LIFECYCLE */}
