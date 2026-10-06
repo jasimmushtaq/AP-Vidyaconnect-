@@ -1,0 +1,112 @@
+@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@700&display=swap');
+@import 'leaflet/dist/leaflet.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Official AP VidyaConnect Color Palette */
+  --kd-navy-900: #0E2350;
+  --kd-navy-700: #14336F;
+  --kd-navy-500: #2A4E96;
+  --kd-navy-50:  #EEF2FA;
+  
+  --kd-saffron:    #F07421;
+  --kd-saffron-50: #FFF3EA;
+  
+  --kd-green:    #1C8A3C;
+  --kd-green-50: #EAF6EE;
+  
+  --kd-grey-050: #FAFAF8;
+  --kd-grey-200: #E3E6EB;
+  --kd-grey-500: #6B7280;
+  --kd-grey-900: #111827;
+  
+  --kd-success: #1C8A3C;
+  --kd-warning: #B45309;
+  --kd-danger:  #B42318;
+  --kd-info:    #2A4E96;
+}
+
+body {
+  font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--kd-grey-050);
+  color: var(--kd-grey-900);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Tabular Numerals for Data Tables & Codes */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom Scrollbar for Dense Tables */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #F6F7F9;
+}
+::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}
+
+/* Print Styles for Certificate, MoU & Reports */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  /* Completely hide all app navigation, headers, sidebars, buttons, backgrounds, and overlays */
+  header,
+  aside,
+  footer,
+  nav,
+  button,
+  .role-switcher-bar,
+  [role="dialog"],
+  .modal-overlay,
+  [class*="print:hidden"],
+  .print-hidden {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+  }
+
+  body, html, #root {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    min-width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .mou-page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+}

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" width="100%" height="100%" fill="none">
+  <!-- Kaushal Disha Monochrome Navy Mark -->
+  <g transform="translate(200, 200)">
+    <g transform="translate(-50, -45)">
+      <circle cx="0" cy="0" r="82" stroke="#0E2350" stroke-width="4" fill="none" stroke-dasharray="2 3" opacity="0.3" />
+      <circle cx="0" cy="0" r="76" stroke="#0E2350" stroke-width="3" fill="none" opacity="0.75" />
+      <g stroke="#0E2350" stroke-width="2.2" opacity="0.6">
+        <line x1="0" y1="-76" x2="0" y2="76" />
+        <line x1="-76" y1="0" x2="76" y2="0" />
+        <line x1="-53.7" y1="-53.7" x2="53.7" y2="53.7" />
+        <line x1="-53.7" y1="53.7" x2="53.7" y2="-53.7" />
+        <line x1="-29.1" y1="-70.2" x2="29.1" y2="70.2" />
+        <line x1="-70.2" y1="-29.1" x2="70.2" y2="29.1" />
+        <line x1="-70.2" y1="29.1" x2="70.2" y2="-29.1" />
+        <line x1="-29.1" y1="70.2" x2="29.1" y2="-70.2" />
+      </g>
+      <circle cx="0" cy="0" r="14" fill="#0E2350" />
+    </g>
+
+    <path d="M -145,0 A 145 145 0 0 1 50,-136" fill="none" stroke="#0E2350" stroke-width="16" stroke-linecap="round" />
+    <path d="M 50,136 A 145 145 0 0 1 -115,88" fill="none" stroke="#0E2350" stroke-width="16" stroke-linecap="round" />
+    <circle cx="-35" cy="-55" r="18" fill="#0E2350" />
+
+    <path d="M -90,75 C -40,75 10,25 45,-35 C 70,-80 85,-110 95,-125" fill="none" stroke="#0E2350" stroke-width="14" stroke-linecap="round" opacity="0.7" />
+    <path d="M -100,50 C -55,45 -5,0 30,-55 C 55,-95 72,-125 82,-140" fill="none" stroke="#0E2350" stroke-width="14" stroke-linecap="round" opacity="0.85" />
+    <path d="M -95,-15 C -65,-30 -35,-20 0,-70 C 30,-115 50,-140 70,-160" fill="none" stroke="#0E2350" stroke-width="22" stroke-linecap="round" />
+    <polygon points="50,-175 110,-155 85,-100 72,-132" fill="#0E2350" />
+    <path d="M -145,30 C -135,70 -100,120 -40,125 C -10,128 30,110 50,85 C 35,90 10,95 -15,90 C -55,80 -80,50 -90,25 C -95,15 -105,15 -115,30 C -125,45 -135,45 -145,30 Z" fill="#0E2350" />
+  </g>
+</svg>
