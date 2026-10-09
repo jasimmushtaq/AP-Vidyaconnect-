@@ -82,31 +82,31 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
 
   return (
     <header className="bg-white border-b border-[#E3E6EB] sticky top-0 z-30 shadow-2xs">
-      <div className="w-full max-w-[1540px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-[76px] gap-2">
+      <div className="w-full max-w-[1540px] mx-auto px-2.5 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-[64px] sm:h-[76px] gap-1.5 sm:gap-2">
           {/* Left: Brand Logo Lockup & Pixel Wind Technology Logo */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button
               onClick={() => {
                 if (onMenuToggle) onMenuToggle();
                 setMobileDrawerOpen(!mobileDrawerOpen);
               }}
-              className="xl:hidden p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+              className="xl:hidden p-1.5 sm:p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
               title="Toggle Menu"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            <Link to="/" className="flex items-center gap-2.5 sm:gap-3.5 group">
-              <BrandLogo variant="lockup" size={182} />
+            <Link to="/" className="flex items-center gap-1.5 sm:gap-3 group">
+              <BrandLogo className="h-7 sm:h-9.5 w-auto" />
 
-              <div className="h-8 w-[1px] bg-[#D1D5DB] shrink-0 hidden sm:block" />
+              <div className="h-5 sm:h-7 w-[1px] bg-[#D1D5DB] shrink-0" />
 
-              <div className="hidden sm:flex items-center shrink-0">
+              <div className="flex items-center shrink-0">
                 <img
                   src="/brand/pixelwind-logo.png"
                   alt="Pixel Wind Technology"
-                  className="h-7 sm:h-8.5 w-auto object-contain transition-transform duration-300 group-hover:scale-105 select-none shrink-0"
+                  className="h-5 sm:h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 select-none shrink-0"
                   title="Pixel Wind Technology"
                 />
               </div>
@@ -411,16 +411,16 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-3.5 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3.5">
                 <Link
                   to="/login"
-                  className="text-sm sm:text-[15px] font-bold text-gray-700 hover:text-[#0E2350] transition-colors py-1.5 px-1"
+                  className="text-xs sm:text-[14.5px] font-bold text-gray-700 hover:text-[#0E2350] transition-colors py-1 px-1 sm:py-1.5"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/register"
-                  className="px-6 sm:px-7 py-2.5 rounded-xl bg-[#0E2350] hover:bg-[#14336F] text-white text-sm sm:text-[15px] font-extrabold shadow-md hover:shadow-lg transition-all active:scale-95 tracking-wide"
+                  className="px-3 sm:px-6 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-[#0E2350] hover:bg-[#14336F] text-white text-xs sm:text-[14.5px] font-extrabold shadow-sm hover:shadow-md transition-all active:scale-95 tracking-wide whitespace-nowrap"
                 >
                   Register
                 </Link>

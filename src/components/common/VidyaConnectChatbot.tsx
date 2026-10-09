@@ -977,7 +977,7 @@ How can I assist your educational or corporate journey today?`,
     <>
       {/* 1. FLOATING ACTION TRIGGER BUTTON */}
       {!isOpen && (
-        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-50 flex items-end gap-3 print:hidden">
+        <div className="fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50 flex items-end gap-3 print:hidden">
           {/* Animated Mascot Badge Pill */}
           <div
             onClick={() => setIsOpen(true)}
@@ -993,21 +993,21 @@ How can I assist your educational or corporate journey today?`,
           {/* 3D Mascot Floating Character (Transparent PNG without box frame) */}
           <div className="relative group cursor-pointer" onClick={() => setIsOpen(true)}>
             {/* Ground Shadow */}
-            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-10 sm:w-12 h-2.5 sm:h-3 bg-black/25 rounded-full blur-[2px] group-hover:w-14 group-hover:bg-black/35 transition-all duration-300 pointer-events-none" />
+            <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 sm:w-12 h-2 sm:h-3 bg-black/25 rounded-full blur-[2px] group-hover:w-14 group-hover:bg-black/35 transition-all duration-300 pointer-events-none" />
 
             {/* Glowing Aura */}
             <div className="absolute inset-0 bg-gradient-to-t from-blue-500/20 via-cyan-400/20 to-transparent rounded-full blur-md opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
 
             {/* 3D Robot Character */}
-            <div className="relative w-14 h-16 sm:w-16 sm:h-20 max-w-[64px] max-h-[80px] flex items-center justify-center transition-all duration-300 transform group-hover:scale-110 group-hover:-translate-y-1 active:scale-95">
+            <div className="relative w-11 h-13 sm:w-16 sm:h-20 flex items-center justify-center transition-all duration-300 transform group-hover:scale-110 group-hover:-translate-y-1 active:scale-95">
               <img
                 src="/brand/idyabot-3d.png"
                 alt="VidyaBot 3D AI Assistant Mascot"
-                className="w-full h-full max-w-[64px] max-h-[80px] object-contain filter drop-shadow-[0_8px_16px_rgba(14,35,80,0.45)] select-none pointer-events-auto"
+                className="w-full h-full object-contain filter drop-shadow-[0_6px_14px_rgba(14,35,80,0.35)] select-none pointer-events-auto"
               />
 
               {/* Online Status Dot */}
-              <span className="absolute top-1 right-0.5 w-3 h-3 bg-emerald-400 border-2 border-white rounded-full shadow-md animate-pulse" />
+              <span className="absolute top-0.5 right-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-emerald-400 border-2 border-white rounded-full shadow-md animate-pulse" />
             </div>
           </div>
         </div>

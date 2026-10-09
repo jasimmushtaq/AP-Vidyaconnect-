@@ -72,8 +72,8 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
     <img
       src={transparentColorLogo}
       alt="AP VidyaConnect"
-      className={`inline-block object-contain ${className}`}
-      style={{ height: 46, width: 'auto', maxHeight: 50 }}
+      className={`inline-block object-contain h-8 sm:h-10 w-auto ${className}`}
+      style={size ? { height: size, width: 'auto' } : undefined}
     />
   );
 };
