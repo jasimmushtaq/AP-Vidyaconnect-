@@ -60,18 +60,49 @@ export const HomePage: React.FC = () => {
     <div className="w-full pb-10">
       {/* 1. HERO SECTION (Curved Cornered Banner Card with minimal side gap) */}
       <div className="w-full px-2 sm:px-4 pt-2 sm:pt-3">
-        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80 min-h-[380px] sm:min-h-[345px] lg:h-[360px] py-6 sm:py-4 flex items-center bg-[#EAF5F7]">
+        {/* Mobile-Only Dedicated Visual Banner: Graduate overlooking City Campus with Calligraphy */}
+        <div className="sm:hidden mb-2 rounded-2xl overflow-hidden relative shadow-sm border border-slate-200/80 h-[195px] w-full bg-[#0B2A5B]">
+          <img
+            src="/images/hero-graduate-sunset.jpg"
+            alt="Graduate in Cap and Gown overlooking Campus"
+            className="w-full h-full object-cover object-[62%_25%] select-none"
+          />
+          {/* Subtle Directional Gradient for contrast */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none" />
+
+          {/* Better Skills Brighter Future Calligraphy on Mobile */}
+          <div className="absolute top-3 right-3 text-right select-none z-10 pointer-events-none">
+            <span
+              className="block text-[22px] font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-none tracking-tight -rotate-6"
+              style={{ fontFamily: "'Caveat', cursive" }}
+            >
+              Better Skills
+            </span>
+            <span
+              className="block text-[22px] font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-none tracking-tight -rotate-6 mt-1"
+              style={{ fontFamily: "'Caveat', cursive" }}
+            >
+              Brighter Future
+            </span>
+            {/* Curved Swoosh under calligraphy */}
+            <svg className="w-24 h-2.5 text-white ml-auto mt-0.5 -rotate-6 drop-shadow" viewBox="0 0 140 12" fill="none">
+              <path d="M2 3C40 10 95 11 138 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+            </svg>
+          </div>
+        </div>
+
+        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80 min-h-[320px] sm:min-h-[345px] lg:h-[360px] py-5 sm:py-4 flex items-center bg-[#EAF5F7]">
           
-          {/* Full-width Panoramic Campus & Graduate Background Image */}
-          <div className="absolute inset-0 w-full h-full pointer-events-none z-0">
+          {/* Full-width Panoramic Campus & Graduate Background Image (Desktop) */}
+          <div className="absolute inset-0 w-full h-full pointer-events-none z-0 hidden sm:block">
             <img
               src="/images/hero-graduate-sunset.jpg"
               alt="Graduate in Cap and Gown overlooking Campus"
-              className="w-full h-full object-cover object-[85%_25%] sm:object-[center_25%] opacity-30 sm:opacity-100 select-none transition-opacity"
+              className="w-full h-full object-cover object-[85%_25%] sm:object-[center_25%] opacity-100 select-none transition-opacity"
             />
           </div>
 
-          {/* Directional Soft Gradient Overlay for Text Readability on Left & Vivid Sunset on Right */}
+          {/* Directional Soft Gradient Overlay for Text Readability */}
           <div className="absolute inset-0 pointer-events-none z-0 bg-gradient-to-b from-white/95 via-[#FFFDF8]/90 to-[#EAF5F7]/95 sm:bg-gradient-to-r sm:from-[#E6F4F3]/98 sm:via-[#FFFDF8]/90 sm:to-[#FFFDF8]/30 sm:to-[65%]" />
 
           {/* Soft mint/cyan curved wave shape at bottom-left */}
@@ -88,8 +119,8 @@ export const HomePage: React.FC = () => {
             </svg>
           </div>
 
-          {/* Better Skills Brighter Future Calligraphy Text in open sky (Top-Right) */}
-          <div className="absolute top-4 right-5 sm:top-5 sm:right-8 lg:top-6 lg:right-14 text-right select-none z-20 pointer-events-none hidden md:block">
+          {/* Better Skills Brighter Future Calligraphy Text in open sky (Desktop Top-Right) */}
+          <div className="absolute top-4 right-5 sm:top-5 sm:right-8 lg:top-6 lg:right-14 text-right select-none z-20 pointer-events-none hidden sm:block">
             <span
               className="block text-xl sm:text-2xl lg:text-[28px] font-bold text-[#0B2A5B] leading-none tracking-tight drop-shadow-sm -rotate-6"
               style={{ fontFamily: "'Caveat', cursive" }}
