@@ -6,9 +6,14 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "cap:sync": "npm run build && npx cap sync android",
+    "build:apk": "npm run cap:sync && powershell -Command \"cd android; .\\gradlew.bat assembleDebug; cd ..; Copy-Item android\\app\\build\\outputs\\apk\\debug\\app-debug.apk -Destination ap-vidyaconnect.apk -Force\""
   },
   "dependencies": {
+    "@capacitor/android": "^8.5.2",
+    "@capacitor/cli": "^8.5.2",
+    "@capacitor/core": "^8.5.2",
     "@hookform/resolvers": "^3.3.4",
     "@supabase/supabase-js": "^2.116.0",
     "@tanstack/react-query": "^5.28.4",

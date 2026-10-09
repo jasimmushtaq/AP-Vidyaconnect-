@@ -31,3 +31,6 @@ dist-ssr
 .env.production.local
 
 .vercel
+*.apk
+android/
+scripts/generate-icons.ps1

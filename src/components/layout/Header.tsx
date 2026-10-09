@@ -84,7 +84,7 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
     <header className="bg-white border-b border-[#E3E6EB] sticky top-0 z-30 shadow-2xs">
       <div className="w-full max-w-[1540px] mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-[76px] gap-2">
-          {/* Left: Brand Logo Lockup & AP Govt Emblem */}
+          {/* Left: Brand Logo Lockup & Pixel Wind Technology Logo */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <button
               onClick={() => {
@@ -97,26 +97,18 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
               <Menu className="w-5 h-5" />
             </button>
 
-            <Link to="/" className="flex items-center gap-2 sm:gap-3 group">
+            <Link to="/" className="flex items-center gap-2.5 sm:gap-3.5 group">
               <BrandLogo variant="lockup" size={182} />
 
-              <div className="h-9 w-[1px] bg-[#D1D5DB] shrink-0 hidden sm:block" />
+              <div className="h-8 w-[1px] bg-[#D1D5DB] shrink-0 hidden sm:block" />
 
-              <div className="hidden sm:flex items-center gap-2 shrink-0">
+              <div className="hidden sm:flex items-center shrink-0">
                 <img
-                  src="/brand/ap-govt-emblem.svg"
-                  alt="Government of Andhra Pradesh"
-                  className="h-11 w-auto max-w-[48px] object-contain transition-transform duration-300 group-hover:scale-105 select-none shrink-0"
-                  title="Government of Andhra Pradesh"
+                  src="/brand/pixelwind-logo.png"
+                  alt="Pixel Wind Technology"
+                  className="h-7 sm:h-8.5 w-auto object-contain transition-transform duration-300 group-hover:scale-105 select-none shrink-0"
+                  title="Pixel Wind Technology"
                 />
-                <div className="hidden lg:flex flex-col text-left leading-tight">
-                  <span className="text-[10px] font-bold text-[#4B5563] tracking-wider uppercase">
-                    Government of
-                  </span>
-                  <span className="text-[11.5px] font-black text-[#16844A] tracking-wider uppercase">
-                    Andhra Pradesh
-                  </span>
-                </div>
               </div>
             </Link>
           </div>
@@ -330,8 +322,8 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
             </Link>
           </nav>
 
-          {/* Right: Notifications & Profile / Sign In */}
-          <div className="flex items-center gap-2.5">
+          {/* Right: Notifications / Profile or Sign In / Register */}
+          <div className="flex items-center gap-3.5 sm:gap-4">
             {/* Realtime Notification Center Dropdown — Authenticated Sessions Only */}
             {isAuthenticated && currentUser && (
               <>

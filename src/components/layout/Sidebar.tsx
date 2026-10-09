@@ -205,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
               Helpdesk & SOP
             </p>
             <p className="text-gray-300 text-[10px] leading-relaxed">
-              Toll-free portal helpline: 1800-425-0012
+              Toll-free helpline: 1800-425-0012
             </p>
           </div>
         )}

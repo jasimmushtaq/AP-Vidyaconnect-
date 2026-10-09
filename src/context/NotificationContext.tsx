@@ -236,7 +236,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       try {
         new Notification(notif.title || 'AP VidyaConnect Alert', {
           body: notif.message,
-          icon: '/brand/ap-govt-emblem.svg',
+          icon: '/brand/pixelwind-logo.png',
           badge: '/favicon.ico',
           tag: notif.id
         });
