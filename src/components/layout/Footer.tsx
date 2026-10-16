@@ -1,13 +1,50 @@
 // ============================================================================
 // AP VIDYACONNECT — FOOTER COMPONENT
+// Visible on website; automatically hidden in native Android / Capacitor APK
 // ============================================================================
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { BrandLogo } from '../common/BrandLogo';
 import { Link } from 'react-router-dom';
 import { ShieldCheck, Phone, Mail, MapPin, ExternalLink, Globe, Linkedin } from 'lucide-react';
 
 export const Footer: React.FC = () => {
+  // Check if running inside mobile APK / Capacitor native platform
+  const [isApk, setIsApk] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      Capacitor.isNativePlatform() ||
+      Capacitor.getPlatform() === 'android' ||
+      Capacitor.getPlatform() === 'ios' ||
+      !!(window as any).Capacitor?.isNativePlatform?.() ||
+      /Capacitor|MobileApp/i.test(navigator.userAgent) ||
+      window.location.search.includes('platform=apk')
+    );
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const isNative =
+        Capacitor.isNativePlatform() ||
+        Capacitor.getPlatform() === 'android' ||
+        Capacitor.getPlatform() === 'ios' ||
+        !!(window as any).Capacitor?.isNativePlatform?.() ||
+        document.documentElement.classList.contains('plt-mobile') ||
+        document.documentElement.classList.contains('plt-capacitor') ||
+        /Capacitor|MobileApp/i.test(navigator.userAgent) ||
+        window.location.search.includes('platform=apk');
+      if (isNative) {
+        setIsApk(true);
+      }
+    }
+  }, []);
+
+  // When running inside the Android APK, completely hide the website footer
+  if (isApk) {
+    return null;
+  }
+
   return (
     <footer className="bg-[#0E2350] text-white border-t-4 border-[#F07421]">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
