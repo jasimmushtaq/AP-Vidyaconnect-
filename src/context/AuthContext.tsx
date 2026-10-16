@@ -5,6 +5,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Profile, UserRole, Institution, Company, Student } from '../types/database';
 import { db } from '../services/dbStore';
+import { cloudSync } from '../services/cloudSyncService';
 
 interface AuthContextType {
   currentUser: Profile;
@@ -78,10 +79,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   useEffect(() => {
+    cloudSync.init();
     const unsub = db.subscribe(() => {
       setUsers([...db.profiles]);
     });
-    return unsub;
+    const handleCloudSyncUpdated = () => {
+      setUsers([...db.profiles]);
+    };
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleCloudSyncUpdated);
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleCloudSyncUpdated);
+    };
   }, []);
 
   const loginWithEmail = (email: string, password?: string) => {
@@ -335,13 +344,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     db.persist('institutions');
     db.persist('profiles');
 
-    db.logAudit('institution_register_with_admin', 'institution', instId, null, {
-      code: newInst.code,
-      name: newInst.name,
-      adminEmail: newProfile.email
-    }, { id: newProfile.id, name: newProfile.full_name, role: 'institution_admin' });
+    const auditEntry = {
+      id: `audit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      actor_id: newProfile.id,
+      actor_name: newProfile.full_name,
+      actor_role: 'institution_admin' as any,
+      action: 'institution_register_with_admin',
+      entity_type: 'institution',
+      entity_id: instId,
+      before: null,
+      after: {
+        code: newInst.code,
+        name: newInst.name,
+        adminEmail: newProfile.email
+      },
+      ip: '103.14.120.45',
+      created_at: new Date().toISOString()
+    };
+    db.auditLogs.unshift(auditEntry);
+    db.persist('audit_logs');
 
-    db.sendNotification(
+    const notif = db.sendNotification(
       'user-super-admin',
       'system_alert',
       `New College Registration: ${newInst.name}`,
@@ -358,6 +381,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       db.passwords[adminData.email.toLowerCase().trim()] = adminData.password.trim();
       db.persist('passwords');
     }
+
+    // Broadcast in real-time across all active browsers & persist to Supabase Cloud
+    cloudSync.syncInstitutionRegistrationToCloud(
+      newInst,
+      newProfile,
+      adminData.password,
+      auditEntry,
+      notif
+    );
 
     // Unverified registrant is NOT auto-logged in to operational portal
     localStorage.removeItem('kd_active_user_id');
@@ -425,13 +457,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       db.persist('passwords');
     }
 
-    db.logAudit('company_register_with_admin', 'company', compId, null, {
-      cin: newComp.cin,
-      name: newComp.name,
-      adminEmail: newProfile.email
-    }, { id: newProfile.id, name: newProfile.full_name, role: 'company_admin' });
+    const auditEntry = {
+      id: `audit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+      actor_id: newProfile.id,
+      actor_name: newProfile.full_name,
+      actor_role: 'company_admin' as any,
+      action: 'company_register_with_admin',
+      entity_type: 'company',
+      entity_id: compId,
+      before: null,
+      after: {
+        cin: newComp.cin,
+        name: newComp.name,
+        adminEmail: newProfile.email
+      },
+      ip: '103.14.120.45',
+      created_at: new Date().toISOString()
+    };
+    db.auditLogs.unshift(auditEntry);
+    db.persist('audit_logs');
 
-    db.sendNotification(
+    const notif = db.sendNotification(
       'user-super-admin',
       'system_alert',
       `New Company Registration: ${newComp.name}`,
@@ -442,6 +488,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         recipient_user_id: 'user-super-admin',
         metadata: { company_id: compId }
       }
+    );
+
+    // Broadcast in real-time across all active browsers & persist to Supabase Cloud
+    cloudSync.syncCompanyRegistrationToCloud(
+      newComp,
+      newProfile,
+      adminData.password,
+      auditEntry,
+      notif
     );
 
     // Unverified registrant is NOT auto-logged in to operational portal

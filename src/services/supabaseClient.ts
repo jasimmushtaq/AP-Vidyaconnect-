@@ -1,15 +1,15 @@
 // ============================================================================
-// AP VIDYACONNECT — SUPABASE CLIENT INITIALIZATION
+// AP VIDYACONNECT — SUPABASE CLIENT INITIALIZATION & CLOUD KEYS
 // ============================================================================
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl =
+export const supabaseUrl =
   import.meta.env.VITE_SUPABASE_URL ||
   import.meta.env.NEXT_PUBLIC_SUPABASE_URL ||
   'https://zkcgaxgrbrcykcmgmsnp.supabase.co';
 
-const supabaseAnonKey =
+export const supabaseAnonKey =
   import.meta.env.VITE_SUPABASE_ANON_KEY ||
   import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
   import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||

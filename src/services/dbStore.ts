@@ -575,6 +575,21 @@ class DatabaseStore {
       }
     );
 
+    // Broadcast live decision across browsers
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vidyaconnect:entity_decision', {
+          detail: {
+            entityType: 'institution',
+            id: instId,
+            status,
+            notes: inst.verification_notes,
+            adminName: actor?.name || 'Dr. Varun Surya, IAS'
+          }
+        }));
+      }
+    } catch {}
+
     return inst;
   }
 
@@ -626,6 +641,21 @@ class DatabaseStore {
         metadata: { company_id: compId, status }
       }
     );
+
+    // Broadcast live decision across browsers
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vidyaconnect:entity_decision', {
+          detail: {
+            entityType: 'company',
+            id: compId,
+            status,
+            notes: comp.verification_notes,
+            adminName: actor?.name || 'Dr. Varun Surya, IAS'
+          }
+        }));
+      }
+    } catch {}
 
     return comp;
   }

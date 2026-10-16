@@ -248,12 +248,19 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setToasts(prev => prev.filter(t => t.id !== toastId));
   }, []);
 
-  // 1. Listen to Local Database Store state updates
+  // 1. Listen to Local Database Store state updates & Cloud Sync updates
   useEffect(() => {
     const unsub = db.subscribe(() => {
       setAllNotifications([...db.notifications]);
     });
-    return unsub;
+    const handleCloudSync = () => {
+      setAllNotifications([...db.notifications]);
+    };
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleCloudSync);
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleCloudSync);
+    };
   }, []);
 
   // 2. Listen to Window Custom Events
