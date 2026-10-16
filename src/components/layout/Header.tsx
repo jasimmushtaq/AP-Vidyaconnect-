@@ -396,6 +396,17 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
                         <Bell className="w-4 h-4 text-emerald-600" />
                         Notification Center
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowProfileMenu(false);
+                          (window as any).replayApkSplash?.();
+                        }}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-blue-700 hover:bg-blue-50 transition-colors font-medium text-left"
+                      >
+                        <Sparkles className="w-4 h-4 text-blue-600" />
+                        Preview Mobile Launch Animation
+                      </button>
                     </div>
 
                     <div className="border-t border-gray-100 pt-1">
@@ -487,6 +498,18 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
               <Scale className="w-4 h-4 text-gray-500" />
               Terms & Legal Regulatory Framework
             </Link>
+
+            <button
+              type="button"
+              onClick={() => {
+                setMobileDrawerOpen(false);
+                (window as any).replayApkSplash?.();
+              }}
+              className="p-2.5 bg-blue-50/80 rounded-xl text-blue-800 col-span-2 flex items-center justify-center gap-2 font-semibold text-xs"
+            >
+              <Sparkles className="w-4 h-4 text-blue-600" />
+              Preview Mobile Launch Animation
+            </button>
           </div>
         </div>
       )}

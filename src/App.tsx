@@ -2,14 +2,16 @@
 // AP VIDYACONNECT — MAIN ROUTING APPLICATION
 // ============================================================================
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { AuthProvider } from './context/AuthContext';
 import { ModalProvider } from './context/ModalContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { NotificationToaster } from './components/notifications/NotificationToaster';
 import { PublicLayout } from './components/layout/PublicLayout';
 import { AppLayout } from './components/layout/AppLayout';
+import { AppSplashScreen } from './components/common/AppSplashScreen';
 
 // Public Pages
 import { HomePage } from './pages/public/HomePage';
@@ -57,13 +59,70 @@ import { NotificationsPage } from './pages/notifications/NotificationsPage';
 import { VidyaConnectChatbot } from './components/common/VidyaConnectChatbot';
 
 export function App() {
+  // Check if running in mobile APK environment (Android / iOS / Capacitor / testing param)
+  const [showSplash, setShowSplash] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const isApk =
+      Capacitor.isNativePlatform() ||
+      Capacitor.getPlatform() === 'android' ||
+      Capacitor.getPlatform() === 'ios' ||
+      !!(window as any).Capacitor?.isNativePlatform?.() ||
+      document.documentElement.classList.contains('plt-mobile') ||
+      document.documentElement.classList.contains('plt-capacitor') ||
+      /platform=apk|splash|show_splash/i.test(window.location.search);
+    return isApk;
+  });
+
+  const [isSplashComplete, setIsSplashComplete] = useState<boolean>(() => !showSplash);
+  const [isAppVisible, setIsAppVisible] = useState<boolean>(() => !showSplash);
+
+  // Global event listener to replay splash animation on demand (e.g., from dev tools or chatbot)
+  useEffect(() => {
+    const handleReplay = () => {
+      setShowSplash(true);
+      setIsSplashComplete(false);
+      setIsAppVisible(false);
+    };
+
+    window.addEventListener('replay-ap-splash', handleReplay);
+    (window as any).replayApkSplash = handleReplay;
+
+    return () => {
+      window.removeEventListener('replay-ap-splash', handleReplay);
+      delete (window as any).replayApkSplash;
+    };
+  }, []);
+
   return (
     <AuthProvider>
       <NotificationProvider>
         <ModalProvider>
-          <BrowserRouter>
-            {/* Global Realtime Floating Toaster */}
-            <NotificationToaster />
+          {/* Mobile APK Animated Launch Splash Screen */}
+          {showSplash && !isSplashComplete && (
+            <AppSplashScreen
+              onStartExit={() => {
+                setIsAppVisible(true);
+              }}
+              onComplete={() => {
+                setIsSplashComplete(true);
+                setShowSplash(false);
+                setIsAppVisible(true);
+              }}
+            />
+          )}
+
+          {/* Main App Content - Hidden while APK launch animation runs */}
+          <div
+            id="ap-vidyaconnect-app-shell"
+            className={`min-h-screen transition-opacity duration-500 ease-out ${
+              isAppVisible
+                ? 'opacity-100 pointer-events-auto visible'
+                : 'opacity-0 pointer-events-none invisible'
+            }`}
+          >
+            <BrowserRouter>
+              {/* Global Realtime Floating Toaster */}
+              <NotificationToaster />
             <Routes>
               {/* Public Portal Routes */}
               <Route element={<PublicLayout />}>
@@ -138,6 +197,7 @@ export function App() {
             {/* Global AP VidyaConnect AI Assistant & Interactive Website Guide */}
             <VidyaConnectChatbot />
           </BrowserRouter>
+        </div>
         </ModalProvider>
       </NotificationProvider>
     </AuthProvider>
