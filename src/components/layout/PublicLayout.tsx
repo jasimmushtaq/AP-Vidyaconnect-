@@ -5,6 +5,7 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
 import { Header } from './Header';
+import { Footer } from './Footer';
 import { GovernmentTechBackground } from '../common/GovernmentTechBackground';
 
 export const PublicLayout: React.FC = () => {
@@ -17,6 +18,7 @@ export const PublicLayout: React.FC = () => {
       <main className="flex-1 relative">
         <Outlet />
       </main>
+      <Footer />
     </div>
   );
 };
