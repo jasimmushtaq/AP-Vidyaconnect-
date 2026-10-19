@@ -199,7 +199,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const notifications = React.useMemo(() => {
     if (!isAuthenticated || !currentUser) return [];
     return allNotifications.filter(n =>
-      nMatchesUser(n, currentUser.id, currentRole, currentUser.student_id)
+      nMatchesUser(n, currentUser.id, currentRole || undefined, currentUser.student_id)
     );
   }, [allNotifications, currentUser, currentRole, isAuthenticated]);
 
@@ -214,7 +214,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     if (!isAuthenticated || !currentUser) return;
 
     // Check if notification is strictly intended for this active user/role
-    const isForMe = nMatchesUser(notif, currentUser.id, currentRole, currentUser.student_id);
+    const isForMe = nMatchesUser(notif, currentUser.id, currentRole || undefined, currentUser.student_id);
 
     if (!isForMe) return;
 
@@ -390,7 +390,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const markAllAsRead = useCallback(() => {
     if (!currentUser) return;
-    db.markAllNotificationsRead(currentUser.id, currentRole);
+    db.markAllNotificationsRead(currentUser.id, currentRole || undefined);
     setAllNotifications([...db.notifications]);
   }, [currentUser, currentRole]);
 
@@ -401,7 +401,7 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   const clearAllRead = useCallback(() => {
     if (!currentUser) return;
-    db.clearReadNotifications(currentUser.id, currentRole);
+    db.clearReadNotifications(currentUser.id, currentRole || undefined);
     setAllNotifications([...db.notifications]);
   }, [currentUser, currentRole]);
 

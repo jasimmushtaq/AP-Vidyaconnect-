@@ -63,8 +63,8 @@ export const ProposalsListPage: React.FC = () => {
     }
   };
 
-  const instId = currentInstitution?.id || currentUser.institution_id;
-  const compId = currentCompany?.id || currentUser.company_id;
+  const instId = currentInstitution?.id || currentUser?.institution_id;
+  const compId = currentCompany?.id || currentUser?.company_id;
 
   // Role Scoped Proposals strictly
   const scopedProposals = useMemo(() => {

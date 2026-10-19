@@ -129,7 +129,7 @@ export const SuperAdminDashboard: React.FC = () => {
             </h1>
 
             <p className="text-xs sm:text-sm text-blue-200/90 max-w-3xl leading-relaxed">
-              Logged in as <strong className="text-white font-bold">{currentUser.full_name}</strong> (State Nodal Officer) • Centralized statutory accreditation, real-time institutional proposal oversight, and verified cohort governance.
+              Logged in as <strong className="text-white font-bold">{currentUser?.full_name || 'Administrator'}</strong> (State Nodal Officer) • Centralized statutory accreditation, real-time institutional proposal oversight, and verified cohort governance.
             </p>
           </div>
 

@@ -40,7 +40,7 @@ export const FacultyCoordinatorsPage: React.FC = () => {
   const [formConfirmPassword, setFormConfirmPassword] = useState('password123');
 
   const loadData = () => {
-    const myInstId = currentInstitution?.id || currentUser.institution_id;
+    const myInstId = currentInstitution?.id || currentUser?.institution_id;
     let list: FacultyCoordinator[] = [];
     if (currentRole === 'super_admin') {
       list = db.facultyCoordinators;
@@ -69,6 +69,7 @@ export const FacultyCoordinatorsPage: React.FC = () => {
 
   const handleGenerateFacultyUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) return;
     if (formPassword !== formConfirmPassword) {
       await showAlert({
         title: 'Password Mismatch',
@@ -120,10 +121,12 @@ export const FacultyCoordinatorsPage: React.FC = () => {
   };
 
   const handleToggleStatus = (facId: string) => {
+    if (!currentUser) return;
     db.toggleFacultyStatus(facId, currentUser);
   };
 
   const handleDelete = async (facId: string, name: string) => {
+    if (!currentUser) return;
     const confirmed = await showConfirm({
       title: 'Remove Faculty Coordinator?',
       subtitle: name,

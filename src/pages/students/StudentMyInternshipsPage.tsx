@@ -51,7 +51,7 @@ export const StudentMyInternshipsPage: React.FC = () => {
     return unsub;
   }, []);
 
-  const studentEmail = currentStudent?.email?.toLowerCase() || currentUser.email.toLowerCase();
+  const studentEmail = currentStudent?.email?.toLowerCase() || currentUser?.email?.toLowerCase() || '';
   const studentId = currentStudent?.id || 'stu-001';
 
   // Find all batches this student is enrolled in
@@ -378,9 +378,9 @@ export const StudentMyInternshipsPage: React.FC = () => {
           batch={displayBatches.find(b => b.id === selectedBatchId) || displayBatches[0]}
           studentId={studentId}
           studentUser={{
-            id: currentUser.id,
-            email: currentUser.email,
-            full_name: currentStudent?.full_name || currentUser.full_name || 'Student'
+            id: currentUser?.id || 'stu-user',
+            email: currentUser?.email || '',
+            full_name: currentStudent?.full_name || currentUser?.full_name || 'Student'
           }}
           onClose={() => setShowAttendanceModal(false)}
           onSuccess={() => {

@@ -227,10 +227,10 @@ export const RegisterPage: React.FC = () => {
           <div className="bg-[#FFF3EA] border border-[#F07421]/30 p-4 rounded-xl text-xs space-y-2">
             <div className="flex items-center gap-2 text-[#F07421] font-bold">
               <ShieldCheck className="w-4 h-4" />
-              Statutory Security & Credential Audit Policy
+              Registration Completed Successfully
             </div>
             <p className="text-gray-700 leading-relaxed">
-              Your registration application and uploaded statutory accreditation documents have been securely transmitted to the State Super Admin desk. As per state security regulations, portal login is temporarily locked until the Super Admin audits and approves your compliance dossier.
+              Your account has been registered in the AP VidyaConnect network. You can sign in immediately using your registered official email and password to access your dedicated workspace and dashboard. State Super Admin (Dr. Varun Surya, IAS) will audit statutory credentials in the background.
             </p>
           </div>
 
@@ -246,7 +246,7 @@ export const RegisterPage: React.FC = () => {
               to="/login"
               className="px-6 py-2.5 bg-[#0E2350] hover:bg-[#14336F] text-white rounded-xl text-xs font-bold shadow-md transition-all flex items-center gap-2"
             >
-              Go to Sign In Portal
+              Sign In to Your Dashboard
               <ArrowRight className="w-4 h-4 text-[#F07421]" />
             </Link>
           </div>

@@ -134,7 +134,7 @@ export const CreateMoUPage: React.FC = () => {
   const previewMoU: MoUAgreement = {
     id: createdMoU?.id || 'mou-draft',
     mou_code: createdMoU?.mou_code || `MOU-${effectiveYear}-PW-UDC-${Math.floor(100 + Math.random() * 900)}`,
-    company_id: currentCompany?.id || currentUser.company_id || 'comp-001',
+    company_id: currentCompany?.id || currentUser?.company_id || 'comp-001',
     company: currentCompany || {
       id: 'comp-001',
       name: companyName,
@@ -151,8 +151,8 @@ export const CreateMoUPage: React.FC = () => {
     },
     institution_id: selectedInstId,
     institution: institutions.find((i) => i.id === selectedInstId),
-    created_by: currentUser.id,
-    created_by_name: currentUser.full_name,
+    created_by: currentUser?.id || 'system',
+    created_by_name: currentUser?.full_name || 'System',
     effective_day: effectiveDay,
     effective_month: effectiveMonth,
     effective_year: effectiveYear,
@@ -186,6 +186,7 @@ export const CreateMoUPage: React.FC = () => {
   };
 
   const handleSaveAndSign = async (sig: MoUSignature) => {
+    if (!currentUser) return;
     setCompanySignature(sig);
     const newMoU = db.createMoU(
       {
@@ -200,7 +201,7 @@ export const CreateMoUPage: React.FC = () => {
   };
 
   const handleDispatchEmail = async (email: string) => {
-    if (!createdMoU) return;
+    if (!createdMoU || !currentUser) return;
     db.sendMoUByEmail(createdMoU.id, email, currentUser);
     navigate(`/mous/${createdMoU.id}?sent=true`);
   };

@@ -30,11 +30,31 @@ export const LoginPage: React.FC = () => {
     setError(null);
 
     const res = loginWithEmail(email, password);
-    if (res.success) {
+    if (res.success && res.user) {
       if (res.requirePasswordChange) {
         navigate('/change-password', { replace: true });
       } else {
-        navigate('/dashboard');
+        // Immediately navigate to the user's verified database role dashboard
+        const role = res.role || res.user.role;
+        switch (role) {
+          case 'company_admin':
+          case 'mentor':
+            navigate('/company/dashboard', { replace: true });
+            break;
+          case 'institution_admin':
+          case 'faculty_coordinator':
+            navigate('/institution/dashboard', { replace: true });
+            break;
+          case 'student':
+            navigate('/student/dashboard', { replace: true });
+            break;
+          case 'super_admin':
+            navigate('/admin/dashboard', { replace: true });
+            break;
+          default:
+            navigate('/dashboard', { replace: true });
+            break;
+        }
       }
     } else {
       setError(res.message || 'Invalid email or password.');

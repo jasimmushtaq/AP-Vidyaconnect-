@@ -95,11 +95,13 @@ export const ProposalDetailPage: React.FC = () => {
   );
 
   const handleStartReview = () => {
+    if (!currentUser) return;
     db.startCompanyReview(proposal.id, currentUser);
   };
 
   const handleCompanySubmitResponse = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) return;
     const decisionsArray = Object.entries(studentDecisions).map(([studentId, accepted]) => ({
       studentId,
       accepted,
@@ -122,6 +124,7 @@ export const ProposalDetailPage: React.FC = () => {
   };
 
   const handleInstitutionFinalAccept = () => {
+    if (!currentUser) return;
     const res = db.institutionFinalAccept(proposal.id, currentUser);
     setBatchCreatedModal({
       batchId: res.batch_id,
@@ -131,6 +134,7 @@ export const ProposalDetailPage: React.FC = () => {
 
   const handleInstitutionReject = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) return;
     setRejecting(true);
     try {
       db.institutionReject(

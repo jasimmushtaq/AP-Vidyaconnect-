@@ -138,7 +138,7 @@ export const StudentManagementPage: React.FC = () => {
       return;
     }
 
-    const myInstId = currentInstitution?.id || currentUser.institution_id;
+    const myInstId = currentInstitution?.id || currentUser?.institution_id;
     if (!myInstId) {
       await showAlert({
         title: 'Institution Required',
@@ -163,7 +163,7 @@ export const StudentManagementPage: React.FC = () => {
         skills: formSkills.split(',').map(s => s.trim()).filter(Boolean),
         is_placed: formIsPlaced,
       },
-      currentUser
+      currentUser || undefined
     );
 
     setShowAddModal(false);
@@ -204,7 +204,7 @@ export const StudentManagementPage: React.FC = () => {
         skills: formSkills.split(',').map(s => s.trim()).filter(Boolean),
         is_placed: formIsPlaced,
       },
-      currentUser
+      currentUser || undefined
     );
 
     if (formPassword.trim()) {
@@ -230,7 +230,7 @@ export const StudentManagementPage: React.FC = () => {
     });
 
     if (confirmed) {
-      db.deleteStudent(stu.id, currentUser);
+      db.deleteStudent(stu.id, currentUser || undefined);
       setToastMsg(`Deleted student record for "${stu.full_name}".`);
       setTimeout(() => setToastMsg(null), 4000);
     }
@@ -255,7 +255,7 @@ export const StudentManagementPage: React.FC = () => {
     const res = db.generateStudentCredentials(
       selectedStudentForCreds.id,
       { customEmail: credsEmail.trim(), customPassword: credsPassword.trim() },
-      currentUser
+      currentUser || undefined
     );
     setShowSingleCredModal(false);
     setToastMsg(`Generated & activated portal credentials for ${res.student.full_name} (${res.email})!`);
@@ -264,7 +264,7 @@ export const StudentManagementPage: React.FC = () => {
 
   // Bulk Generate Credentials for All Students strictly for current institution
   const handleGenerateAllCredentials = async () => {
-    const myInstId = currentInstitution?.id || currentUser.institution_id;
+    const myInstId = currentInstitution?.id || currentUser?.institution_id;
     if (!myInstId || filteredStudents.length === 0) {
       await showAlert({
         title: 'No Students in Roster',
@@ -274,7 +274,7 @@ export const StudentManagementPage: React.FC = () => {
       });
       return;
     }
-    const result = db.generateAllStudentsCredentials(myInstId, currentUser);
+    const result = db.generateAllStudentsCredentials(myInstId, currentUser || undefined);
     setGeneratedBatchCreds(result.credentials);
     setShowBatchCredsModal(true);
     setToastMsg(`Generated email and password credentials for ${result.count} students!`);
@@ -339,8 +339,8 @@ export const StudentManagementPage: React.FC = () => {
 
   const handleConfirmImport = () => {
     if (previewRows.length === 0) return;
-    const myInstId = currentInstitution?.id || currentUser.institution_id || '';
-    db.bulkImportStudents(myInstId, previewRows, currentUser);
+    const myInstId = currentInstitution?.id || currentUser?.institution_id || '';
+    db.bulkImportStudents(myInstId, previewRows, currentUser || undefined);
     setToastMsg(`Successfully imported ${previewRows.length} students into college database with auto-generated login passwords!`);
     setTimeout(() => setToastMsg(null), 4000);
     setShowImportModal(false);
@@ -348,12 +348,12 @@ export const StudentManagementPage: React.FC = () => {
     setImportErrors([]);
   };
 
-  const myInstId = currentInstitution?.id || currentUser.institution_id;
+  const myInstId = currentInstitution?.id || currentUser?.institution_id;
   const myCohortStudents = useMemo(() => {
-    if (currentUser.role === 'super_admin') return students;
+    if (currentUser?.role === 'super_admin') return students;
     if (!myInstId) return [];
     return students.filter(s => s.institution_id === myInstId);
-  }, [students, myInstId, currentUser.role]);
+  }, [students, myInstId, currentUser?.role]);
 
   const filteredStudents = useMemo(() => {
     return myCohortStudents.filter(s => {

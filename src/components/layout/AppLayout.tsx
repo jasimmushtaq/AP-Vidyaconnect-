@@ -27,11 +27,11 @@ export const AppLayout: React.FC = () => {
     currentCompany &&
     currentCompany.verification_status !== 'verified';
 
-  if (isInstitutionUnderReview || isCompanyUnderReview) {
-    const isRejected =
-      (isInstitutionUnderReview && currentInstitution?.verification_status === 'rejected') ||
-      (isCompanyUnderReview && currentCompany?.verification_status === 'rejected');
+  const isRejected =
+    (isInstitutionUnderReview && currentInstitution?.verification_status === 'rejected') ||
+    (isCompanyUnderReview && currentCompany?.verification_status === 'rejected');
 
+  if (isRejected) {
     const entityName = isInstitutionUnderReview ? currentInstitution?.name : currentCompany?.name;
     const entityCode = isInstitutionUnderReview ? currentInstitution?.code : currentCompany?.cin;
     const entityTypeLabel = isInstitutionUnderReview ? 'Higher Education Institution' : 'Industry Partner';
@@ -59,22 +59,18 @@ export const AppLayout: React.FC = () => {
           </div>
         </header>
 
-        {/* Pending Verification Body */}
+        {/* Rejection Body */}
         <main className="flex-1 flex items-center justify-center p-4 sm:p-6 lg:p-8 relative z-10">
           <div className="max-w-2xl w-full bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 sm:p-10 space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-              <div className={`w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-inner ${
-                isRejected ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700'
-              }`}>
-                {isRejected ? <AlertCircle className="w-9 h-9" /> : <Clock className="w-9 h-9" />}
+              <div className="w-16 h-16 rounded-2xl flex items-center justify-center shrink-0 shadow-inner bg-rose-100 text-rose-700">
+                <AlertCircle className="w-9 h-9" />
               </div>
               <div className="space-y-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider ${
-                    isRejected ? 'bg-rose-50 text-rose-800 border border-rose-300' : 'bg-amber-50 text-amber-800 border border-amber-300'
-                  }`}>
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-extrabold uppercase tracking-wider bg-rose-50 text-rose-800 border border-rose-300">
                     <ShieldAlert className="w-3.5 h-3.5" />
-                    {isRejected ? 'Registration Application Rejected' : 'Under State Super Admin Verification'}
+                    Registration Application Rejected
                   </span>
                   <span className="px-2.5 py-0.5 rounded bg-slate-100 text-slate-600 text-[10px] font-mono font-bold">
                     {entityCode}
@@ -89,66 +85,9 @@ export const AppLayout: React.FC = () => {
               </div>
             </div>
 
-            {/* Audit Status Steps */}
-            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 space-y-3">
-              <h3 className="text-xs font-bold text-[#0E2350] uppercase tracking-wider flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                Live State Credential Audit Progress
-              </h3>
-
-              <div className="space-y-3 pt-2">
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 text-xs font-bold">
-                    ✓
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">Registration Dossier & Compliance Documents Submitted</p>
-                    <p className="text-[11px] text-slate-500">Statutory credentials and certificates successfully uploaded to the state vault.</p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${
-                    isRejected ? 'bg-rose-100 text-rose-700' : 'bg-amber-100 text-amber-700 animate-pulse'
-                  }`}>
-                    {isRejected ? '✗' : '2'}
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-slate-800">
-                      State Super Admin Document Verification & AISHE/CIN Audit
-                    </p>
-                    <p className="text-[11px] text-slate-500">
-                      {isRejected
-                        ? `Audit Failed: ${notes || 'Statutory documentation rejected by nodal desk.'}`
-                        : 'Desk of Dr. Varun Surya, IAS (State Super Admin) is actively auditing your affiliation certificates.'}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-start gap-3">
-                  <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-400 flex items-center justify-center shrink-0 text-xs font-bold">
-                    3
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-slate-400">Portal Authorization & Multi-Batch Provisioning</p>
-                    <p className="text-[11px] text-slate-400">Batches, proposals, and student cohort management unlock automatically upon approval.</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Helpdesk Notice */}
-            <div className="bg-[#FFF3EA] border border-[#F07421]/30 p-4 rounded-xl text-xs space-y-1.5">
-              <div className="flex items-center gap-2 text-[#F07421] font-bold">
-                <PhoneCall className="w-4 h-4" />
-                Need expedited clearance or assistance?
-              </div>
-              <p className="text-slate-700 leading-relaxed">
-                Contact the Andhra Pradesh State Council of Higher Education (APSCHE) Nodal Desk at{' '}
-                <strong className="text-slate-900">1800-425-0012</strong> or email{' '}
-                <strong className="text-slate-900">nodal-support@apsche.ap.gov.in</strong> quoting reference{' '}
-                <strong className="font-mono text-[#0E2350]">{entityCode}</strong>.
-              </p>
+            <div className="bg-rose-50 border border-rose-200 rounded-2xl p-5 space-y-2 text-xs text-rose-800">
+              <p className="font-bold">Audit Decision Notes:</p>
+              <p>{notes || 'Statutory documentation rejected by State Nodal Desk.'}</p>
             </div>
 
             <div className="pt-2 flex justify-end">
@@ -202,6 +141,30 @@ export const AppLayout: React.FC = () => {
           </div>
 
           <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full">
+            {/* Inline Verification Status Banner for Pending Audits */}
+            {(isInstitutionUnderReview || isCompanyUnderReview) && (
+              <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-start sm:items-center gap-3.5">
+                  <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shrink-0 shadow-inner">
+                    <Clock className="w-5 h-5 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-xs uppercase tracking-wider text-amber-800">
+                        State Super Admin Credential Audit Pending
+                      </span>
+                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-800 text-[10px] font-mono font-bold">
+                        {isInstitutionUnderReview ? currentInstitution?.code : currentCompany?.cin}
+                      </span>
+                    </div>
+                    <p className="text-xs text-amber-700 mt-1 leading-relaxed">
+                      Registration submitted for <strong>{isInstitutionUnderReview ? currentInstitution?.name : currentCompany?.name}</strong>. Desk of Dr. Varun Surya, IAS (State Super Admin) is reviewing statutory accreditation documents. You have full access to your {currentRole === 'company_admin' ? 'Company Dashboard' : 'Institution Dashboard'}.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Page Router Outlet */}
             <Outlet />
           </main>

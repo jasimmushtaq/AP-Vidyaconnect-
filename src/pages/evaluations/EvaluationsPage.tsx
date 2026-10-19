@@ -60,6 +60,7 @@ export const EvaluationsPage: React.FC = () => {
 
   const handleSaveEvaluation = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) return;
     const stu = db.students.find(s => s.id === selectedStudentId);
 
     db.saveEvaluation({

@@ -47,11 +47,11 @@ export const MoUListPage: React.FC = () => {
   // Filter based on logged-in context
   const contextMous = useMemo(() => {
     if (currentRole === 'company_admin' || currentRole === 'mentor') {
-      const compId = currentCompany?.id || currentUser.company_id;
+      const compId = currentCompany?.id || currentUser?.company_id;
       return mous.filter((m) => !compId || m.company_id === compId);
     }
     if (currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
-      const instId = currentInstitution?.id || currentUser.institution_id;
+      const instId = currentInstitution?.id || currentUser?.institution_id;
       return mous.filter((m) => !instId || m.institution_id === instId);
     }
     return mous; // Super Admin sees all state-wide MoUs

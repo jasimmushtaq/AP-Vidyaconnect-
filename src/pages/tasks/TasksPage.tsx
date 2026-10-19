@@ -56,7 +56,7 @@ export const TasksPage: React.FC = () => {
 
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTitle) return;
+    if (!newTitle || !currentUser) return;
 
     db.createTask('batch-001', {
       title: newTitle,
@@ -104,7 +104,7 @@ export const TasksPage: React.FC = () => {
 
   const handleGradeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedSubmissionForGrade) return;
+    if (!selectedSubmissionForGrade || !currentUser) return;
 
     db.gradeTaskSubmission(
       selectedSubmissionForGrade.task.id,

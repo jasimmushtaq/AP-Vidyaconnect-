@@ -185,6 +185,7 @@ export const MoUDetailPage: React.FC = () => {
 
   // Actions
   const handleCollegeAccept = () => {
+    if (!currentUser) return;
     db.reviewMoUByCollege(mou.id, 'accept', 'College Principal approved the MoU terms.', currentUser);
     setActionSuccessMsg('MoU terms accepted by College! You can now affix your digital signature.');
     setSignPartyTarget('first_party');
@@ -192,13 +193,14 @@ export const MoUDetailPage: React.FC = () => {
   };
 
   const handleCollegeRequestChanges = () => {
-    if (!changesText.trim()) return;
+    if (!changesText.trim() || !currentUser) return;
     db.reviewMoUByCollege(mou.id, 'request_changes', changesText, currentUser);
     setIsChangesModalOpen(false);
     setActionSuccessMsg('Feedback & requested changes submitted to Company.');
   };
 
   const handleCollegeReject = () => {
+    if (!currentUser) return;
     if (window.confirm('Are you sure you want to decline this MoU proposal?')) {
       db.reviewMoUByCollege(mou.id, 'reject', 'College declined the MoU proposal at this time.', currentUser);
       setActionSuccessMsg('MoU declined.');
@@ -206,11 +208,13 @@ export const MoUDetailPage: React.FC = () => {
   };
 
   const handleSignConfirm = (sig: MoUSignature) => {
+    if (!currentUser) return;
     db.signMoU(mou.id, signPartyTarget, sig, currentUser);
     setActionSuccessMsg('Digital signature verified and permanently affixed to official record!');
   };
 
   const handleSendEmailConfirm = (recipient: string) => {
+    if (!currentUser) return;
     db.sendMoUByEmail(mou.id, recipient, currentUser);
     setActionSuccessMsg(`Official MoU email transmitted successfully to ${recipient}!`);
   };

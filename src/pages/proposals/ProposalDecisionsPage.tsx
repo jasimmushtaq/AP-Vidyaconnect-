@@ -49,7 +49,7 @@ export const ProposalDecisionsPage: React.FC = () => {
     return unsub;
   }, []);
 
-  const instId = currentInstitution?.id || currentUser.institution_id;
+  const instId = currentInstitution?.id || currentUser?.institution_id;
 
   // Filter proposals strictly relevant to this institution
   const myProposals = useMemo(() => {
@@ -78,6 +78,7 @@ export const ProposalDecisionsPage: React.FC = () => {
 
   // Handlers
   const handleFinalAccept = (proposal: InternshipProposal) => {
+    if (!currentUser) return;
     setIsProcessing(true);
     try {
       const res = db.institutionFinalAccept(proposal.id, currentUser);
@@ -94,7 +95,7 @@ export const ProposalDecisionsPage: React.FC = () => {
   };
 
   const handleFinalReject = () => {
-    if (!rejectingProposal) return;
+    if (!rejectingProposal || !currentUser) return;
     setIsProcessing(true);
     try {
       db.institutionReject(

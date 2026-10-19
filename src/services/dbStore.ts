@@ -206,10 +206,31 @@ class DatabaseStore {
           }
         });
       });
+      // Collect all known non-student emails to protect them from student mapping
+      const nonStudentEmails = new Set<string>();
+      this.profiles.forEach(p => {
+        if (p.email && p.role && p.role !== 'student') {
+          nonStudentEmails.add(p.email.toLowerCase().trim());
+        }
+      });
+      this.institutions.forEach(i => {
+        if (i.official_email) nonStudentEmails.add(i.official_email.toLowerCase().trim());
+      });
+      this.companies.forEach(c => {
+        if (c.official_email) nonStudentEmails.add(c.official_email.toLowerCase().trim());
+      });
+      this.facultyCoordinators.forEach(f => {
+        if (f.email) nonStudentEmails.add(f.email.toLowerCase().trim());
+      });
+      this.mentors.forEach(m => {
+        if (m.email) nonStudentEmails.add(m.email.toLowerCase().trim());
+      });
+
       this.emailLogs.forEach(l => {
         if (l.recipient_email) {
           const clean = l.recipient_email.toLowerCase().trim();
-          if (!studentMap.has(clean)) {
+          // Never convert administrative, institutional or corporate contacts into students
+          if (!nonStudentEmails.has(clean) && !studentMap.has(clean)) {
             studentMap.set(clean, { id: l.student_id || `stu-${Date.now()}`, name: l.student_name || 'Student Candidate', batch_id: l.batch_id });
           }
         }
@@ -217,6 +238,8 @@ class DatabaseStore {
 
       let profilesFixed = false;
       studentMap.forEach((info, email) => {
+        if (nonStudentEmails.has(email)) return;
+
         let stu = this.students.find(s => s.email.toLowerCase().trim() === email);
         if (!stu) {
           const newStudent: Student = {
@@ -242,9 +265,9 @@ class DatabaseStore {
         const validStudent: Student = stu;
         let prof = this.profiles.find(p => p.email.toLowerCase().trim() === email);
         if (prof) {
-          // Strictly protect admin roles from being converted to student
-          if (prof.role !== 'institution_admin' && prof.role !== 'company_admin' && prof.role !== 'super_admin') {
-            if (prof.role !== 'student' || prof.full_name.startsWith('Prof.')) {
+          // Strictly protect admin, company, and institutional roles from ever being converted to student
+          if (prof.role !== 'institution_admin' && prof.role !== 'company_admin' && prof.role !== 'super_admin' && prof.role !== 'faculty_coordinator' && prof.role !== 'mentor') {
+            if (prof.role !== 'student') {
               prof.role = 'student';
               prof.student_id = validStudent.id;
               prof.full_name = validStudent.full_name;
@@ -268,12 +291,30 @@ class DatabaseStore {
         }
       });
 
-      // Explicitly fix and cleanse any profile with 23341a05a4
+      // Self-heal any profiles whose roles were accidentally mutated:
       this.profiles.forEach(p => {
-        if (p.email && p.email.toLowerCase().includes('23341a05a4')) {
-          p.full_name = 'Hoor';
-          p.role = 'student';
-          p.student_id = 'stu-hoor';
+        const clean = p.email?.toLowerCase().trim();
+        if (!clean) return;
+
+        // Check if matching company
+        const compMatch = this.companies.find(c => c.official_email?.toLowerCase().trim() === clean || c.id === p.company_id);
+        if (compMatch && p.role !== 'company_admin' && p.role !== 'mentor') {
+          p.role = 'company_admin';
+          p.company_id = compMatch.id;
+          profilesFixed = true;
+        }
+
+        // Check if matching institution
+        const instMatch = this.institutions.find(i => i.official_email?.toLowerCase().trim() === clean || i.id === p.institution_id);
+        if (instMatch && p.role !== 'institution_admin' && p.role !== 'faculty_coordinator') {
+          p.role = 'institution_admin';
+          p.institution_id = instMatch.id;
+          profilesFixed = true;
+        }
+
+        // Check super admin
+        if ((clean === 'varunsurya@gmail.com' || p.id === 'user-super-admin') && p.role !== 'super_admin') {
+          p.role = 'super_admin';
           profilesFixed = true;
         }
       });
@@ -281,7 +322,7 @@ class DatabaseStore {
       // Cleanse any spurious student records erroneously created for institution/company admin emails
       const adminEmails = new Set(
         this.profiles
-          .filter(p => p.role === 'institution_admin' || p.role === 'company_admin' || p.role === 'super_admin')
+          .filter(p => p.role === 'institution_admin' || p.role === 'company_admin' || p.role === 'super_admin' || p.role === 'faculty_coordinator' || p.role === 'mentor')
           .map(p => p.email.toLowerCase().trim())
       );
       const prevStudentCount = this.students.length;

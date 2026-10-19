@@ -74,8 +74,8 @@ export const ProposalBuilderPage: React.FC = () => {
       institution: currentInstitution,
       company_id: selectedCompanyId,
       company: selectedCompany,
-      created_by: currentUser.id,
-      created_by_name: currentUser.full_name,
+      created_by: currentUser?.id || 'system',
+      created_by_name: currentUser?.full_name || 'Faculty Coordinator',
       domain,
       internship_type: internshipType,
       mode,
@@ -93,7 +93,7 @@ export const ProposalBuilderPage: React.FC = () => {
           proposal_id: `prop-${Date.now()}`,
           version_number: 1,
           snapshot: { domain, stipendRequested, durationWeeks, studentCount: selectedStudentIds.length },
-          changed_by_name: currentUser.full_name,
+          changed_by_name: currentUser?.full_name || 'Faculty Coordinator',
           change_summary: asDraft ? 'Draft proposal created' : 'Proposal formally submitted to company',
           created_at: new Date().toISOString()
         }
@@ -111,7 +111,7 @@ export const ProposalBuilderPage: React.FC = () => {
       newProposal.id,
       null,
       { code: newProposal.proposal_code, status: newProposal.status },
-      { id: currentUser.id, name: currentUser.full_name, role: currentUser.role }
+      { id: currentUser?.id || 'system', name: currentUser?.full_name || 'System', role: currentUser?.role || 'institution_admin' }
     );
 
     if (!asDraft) {
