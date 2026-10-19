@@ -5,7 +5,7 @@
 
 import { supabase, supabaseUrl, supabaseAnonKey } from './supabaseClient';
 import { db } from './dbStore';
-import { Institution, Company, Profile, AppNotification, AuditLog } from '../types/database';
+import { Institution, Company, Profile, AppNotification, AuditLog, InternshipProposal, Student } from '../types/database';
 
 export interface EntityRegistrationPayload {
   entityType: 'institution' | 'company';
@@ -29,9 +29,12 @@ class CloudSyncService {
   private channel: any = null;
   private isInitialized = false;
   private isSyncing = false;
+  private syncPromise: Promise<boolean> | null = null;
 
-  public init() {
-    if (this.isInitialized || typeof window === 'undefined') return;
+  public init(): Promise<boolean> {
+    if (this.isInitialized || typeof window === 'undefined') {
+      return this.syncPromise || Promise.resolve(true);
+    }
     this.isInitialized = true;
 
     // 1. Initialize Realtime WebSocket Broadcast Channel
@@ -58,6 +61,16 @@ class CloudSyncService {
             this.handleIncomingNotification(payload.notification);
           }
         })
+        .on('broadcast', { event: 'PROPOSAL_UPDATED' }, ({ payload }: { payload: { proposal: InternshipProposal } }) => {
+          if (payload?.proposal) {
+            this.handleIncomingProposal(payload.proposal);
+          }
+        })
+        .on('broadcast', { event: 'STUDENTS_UPDATED' }, ({ payload }: { payload: { institution_id: string; students: Student[]; passwords?: Record<string, string> } }) => {
+          if (payload) {
+            this.handleIncomingStudents(payload);
+          }
+        })
         .subscribe((status: string) => {
           console.log('[CloudSync] WebSocket channel status:', status);
         });
@@ -65,15 +78,15 @@ class CloudSyncService {
       console.warn('[CloudSync] Error initializing Supabase Realtime channel:', e);
     }
 
-    // 2. Initial cloud state catch-up on load
-    this.syncFromCloud();
+    // 2. Initial cloud state catch-up on load (awaited by callers)
+    this.syncPromise = this.syncFromCloud();
 
-    // 3. Periodic cloud reconciliation (every 20s)
+    // 3. Periodic cloud reconciliation (every 15s)
     setInterval(() => {
       this.syncFromCloud();
-    }, 20000);
+    }, 15000);
 
-    // 4. Tab focus auto-sync: when admin switches back to tab, immediately check for new accounts
+    // 4. Tab focus auto-sync: when user switches tabs or browsers, immediately check for new accounts/proposals
     window.addEventListener('focus', () => {
       this.syncFromCloud();
     });
@@ -95,9 +108,11 @@ class CloudSyncService {
         this.broadcast('NOTIFICATION_CREATED', { notification: e.detail });
       }
     }) as EventListener);
+
+    return this.syncPromise;
   }
 
-  // --- Real-time Handlers ---
+  // --- Real-time Inbound Handlers ---
 
   private handleIncomingRegistration(payload: EntityRegistrationPayload) {
     if (!payload) return;
@@ -105,7 +120,7 @@ class CloudSyncService {
 
     if (payload.entityType === 'institution' && payload.institution) {
       const inst = payload.institution;
-      const exists = db.institutions.some(i => i.id === inst.id || i.code === inst.code || i.official_email?.toLowerCase() === inst.official_email?.toLowerCase());
+      const exists = db.institutions.some(i => i.id === inst.id || i.code === inst.code || (inst.official_email && i.official_email?.toLowerCase() === inst.official_email?.toLowerCase()));
       if (!exists) {
         db.institutions.unshift(inst);
         db.persist('institutions');
@@ -113,7 +128,7 @@ class CloudSyncService {
       }
     } else if (payload.entityType === 'company' && payload.company) {
       const comp = payload.company;
-      const exists = db.companies.some(c => c.id === comp.id || c.cin === comp.cin || c.official_email?.toLowerCase() === comp.official_email?.toLowerCase());
+      const exists = db.companies.some(c => c.id === comp.id || c.cin === comp.cin || (comp.official_email && c.official_email?.toLowerCase() === comp.official_email?.toLowerCase()));
       if (!exists) {
         db.companies.unshift(comp);
         db.persist('companies');
@@ -122,16 +137,26 @@ class CloudSyncService {
     }
 
     if (payload.profile) {
-      const existsProfile = db.profiles.some(p => p.id === payload.profile.id || p.email?.toLowerCase() === payload.profile.email?.toLowerCase());
-      if (!existsProfile) {
-        db.profiles.unshift(payload.profile);
+      const p = payload.profile;
+      const existing = db.profiles.find(prof => prof.id === p.id || (p.email && prof.email?.toLowerCase() === p.email.toLowerCase()));
+      if (!existing) {
+        db.profiles.unshift(p);
         db.persist('profiles');
         updated = true;
+      } else {
+        if (p.role && existing.role !== p.role) {
+          existing.role = p.role;
+          if (p.institution_id) existing.institution_id = p.institution_id;
+          if (p.company_id) existing.company_id = p.company_id;
+          db.persist('profiles');
+          updated = true;
+        }
       }
     }
 
     if (payload.password && payload.profile?.email) {
-      db.passwords[payload.profile.email.toLowerCase().trim()] = payload.password.trim();
+      const cleanEmail = payload.profile.email.toLowerCase().trim();
+      db.passwords[cleanEmail] = payload.password.trim();
       db.persist('passwords');
       updated = true;
     }
@@ -150,7 +175,7 @@ class CloudSyncService {
     }
 
     if (updated) {
-      // Trigger UI updates across all components
+      db.notify();
       window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
     }
   }
@@ -178,6 +203,7 @@ class CloudSyncService {
     }
 
     if (changed) {
+      db.notify();
       window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
     }
   }
@@ -188,12 +214,50 @@ class CloudSyncService {
     if (!exists) {
       db.notifications.unshift(notif);
       db.persist('notifications');
+      db.notify();
     }
 
-    // Trigger local notification sound and banner toast
     try {
       window.dispatchEvent(new CustomEvent('vidyaconnect:realtime_notification', { detail: { ...notif, _isRemote: true } }));
     } catch {}
+  }
+
+  private handleIncomingProposal(proposal: InternshipProposal) {
+    if (!proposal || !proposal.id) return;
+    const idx = db.proposals.findIndex(p => p.id === proposal.id || p.proposal_code === proposal.proposal_code);
+    if (idx >= 0) {
+      db.proposals[idx] = { ...db.proposals[idx], ...proposal };
+    } else {
+      db.proposals.unshift(proposal);
+    }
+    db.persist('proposals');
+    db.notify();
+    window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
+  }
+
+  private handleIncomingStudents(payload: { institution_id: string; students: Student[]; passwords?: Record<string, string> }) {
+    if (!payload?.students) return;
+    let changed = false;
+    payload.students.forEach(s => {
+      const idx = db.students.findIndex(existing => existing.id === s.id || (s.email && existing.email?.toLowerCase() === s.email.toLowerCase()));
+      if (idx >= 0) {
+        db.students[idx] = { ...db.students[idx], ...s };
+      } else {
+        db.students.unshift(s);
+      }
+      changed = true;
+    });
+
+    if (payload.passwords) {
+      Object.assign(db.passwords, payload.passwords);
+      db.persist('passwords');
+    }
+
+    if (changed) {
+      db.persist('students');
+      db.notify();
+      window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
+    }
   }
 
   // --- Real-time Outbound Broadcast ---
@@ -211,6 +275,22 @@ class CloudSyncService {
     }
   }
 
+  public broadcastDecision(
+    entityType: 'institution' | 'company',
+    id: string,
+    status: 'verified' | 'under_verification' | 'rejected',
+    notes?: string,
+    adminName?: string
+  ) {
+    this.broadcast(status === 'verified' ? 'VERIFY_ENTITY' : 'REJECT_ENTITY', {
+      entityType,
+      id,
+      status,
+      notes,
+      adminName
+    });
+  }
+
   // --- Cloud Persistence Outbound Sync ---
 
   public async syncInstitutionRegistrationToCloud(
@@ -219,8 +299,27 @@ class CloudSyncService {
     password?: string,
     auditLog?: AuditLog,
     notif?: AppNotification
-  ) {
-    // 1. Broadcast immediately to all active browsers
+  ): Promise<{ success: boolean; error?: string }> {
+    // 1. Register account in Supabase Auth
+    try {
+      if (password) {
+        await supabase.auth.signUp({
+          email: adminProfile.email,
+          password: password,
+          options: {
+            data: {
+              full_name: adminProfile.full_name,
+              role: 'institution_admin',
+              institution_id: inst.id
+            }
+          }
+        });
+      }
+    } catch (authErr) {
+      console.warn('[CloudSync] Supabase Auth registration note:', authErr);
+    }
+
+    // 2. Broadcast immediately to all active browser windows & tabs
     this.broadcast('REGISTER_INSTITUTION', {
       entityType: 'institution',
       institution: inst,
@@ -230,7 +329,7 @@ class CloudSyncService {
       notification: notif
     });
 
-    // 2. Persist to Supabase Database for future / offline browsers
+    // 3. Persist to shared Supabase Database for cross-browser & offline sessions
     try {
       const docPayload = {
         sync_type: 'ENTITY_REGISTRATION',
@@ -250,7 +349,7 @@ class CloudSyncService {
         affiliated_university: inst.affiliated_university || 'State University',
         address: inst.address || 'College Campus',
         district: inst.district || 'District',
-        state: inst.state || 'Telangana',
+        state: inst.state || 'Andhra Pradesh',
         pin_code: inst.pin_code || '500001',
         principal_name: inst.principal_name || adminProfile.full_name,
         official_email: inst.official_email || adminProfile.email,
@@ -269,7 +368,7 @@ class CloudSyncService {
         documents: [docPayload]
       };
 
-      await fetch(`${supabaseUrl}/rest/v1/institutions`, {
+      const res = await fetch(`${supabaseUrl}/rest/v1/institutions`, {
         method: 'POST',
         headers: {
           'apikey': supabaseAnonKey,
@@ -279,9 +378,18 @@ class CloudSyncService {
         },
         body: JSON.stringify(row)
       });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error('[CloudSync] Failed to persist institution to Supabase cloud:', res.status, errText);
+        return { success: false, error: `Database write failed (${res.status}): ${errText}` };
+      }
+
       console.log('[CloudSync] Successfully saved institution to Supabase cloud database:', inst.name);
-    } catch (e) {
-      console.warn('[CloudSync] Failed to persist institution to Supabase cloud:', e);
+      return { success: true };
+    } catch (e: any) {
+      console.error('[CloudSync] Failed to persist institution to Supabase cloud:', e);
+      return { success: false, error: e?.message || 'Network connection failed' };
     }
   }
 
@@ -291,8 +399,27 @@ class CloudSyncService {
     password?: string,
     auditLog?: AuditLog,
     notif?: AppNotification
-  ) {
-    // 1. Broadcast immediately to all active browsers
+  ): Promise<{ success: boolean; error?: string }> {
+    // 1. Register account in Supabase Auth
+    try {
+      if (password) {
+        await supabase.auth.signUp({
+          email: adminProfile.email,
+          password: password,
+          options: {
+            data: {
+              full_name: adminProfile.full_name,
+              role: 'company_admin',
+              company_id: comp.id
+            }
+          }
+        });
+      }
+    } catch (authErr) {
+      console.warn('[CloudSync] Supabase Auth registration note:', authErr);
+    }
+
+    // 2. Broadcast immediately to all active browser windows & tabs
     this.broadcast('REGISTER_COMPANY', {
       entityType: 'company',
       company: comp,
@@ -302,7 +429,7 @@ class CloudSyncService {
       notification: notif
     });
 
-    // 2. Persist to Supabase Database for future / offline browsers
+    // 3. Persist to shared Supabase Database for cross-browser & offline sessions
     try {
       const docPayload = {
         sync_type: 'ENTITY_REGISTRATION',
@@ -324,7 +451,7 @@ class CloudSyncService {
         official_email: comp.official_email || adminProfile.email,
         official_phone: comp.official_phone || adminProfile.phone,
         website: comp.website || null,
-        headquarters: comp.headquarters || 'Hyderabad',
+        headquarters: comp.headquarters || 'Visakhapatnam, Andhra Pradesh',
         description: comp.description || null,
         authorized_person_name: comp.authorized_person_name || adminProfile.full_name,
         designation: comp.designation || 'Head of Operations',
@@ -339,7 +466,7 @@ class CloudSyncService {
         documents: [docPayload]
       };
 
-      await fetch(`${supabaseUrl}/rest/v1/companies`, {
+      const res = await fetch(`${supabaseUrl}/rest/v1/companies`, {
         method: 'POST',
         headers: {
           'apikey': supabaseAnonKey,
@@ -349,36 +476,135 @@ class CloudSyncService {
         },
         body: JSON.stringify(row)
       });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error('[CloudSync] Failed to persist company to Supabase cloud:', res.status, errText);
+        return { success: false, error: `Database write failed (${res.status}): ${errText}` };
+      }
+
       console.log('[CloudSync] Successfully saved company to Supabase cloud database:', comp.name);
-    } catch (e) {
-      console.warn('[CloudSync] Failed to persist company to Supabase cloud:', e);
+      return { success: true };
+    } catch (e: any) {
+      console.error('[CloudSync] Failed to persist company to Supabase cloud:', e);
+      return { success: false, error: e?.message || 'Network connection failed' };
     }
   }
 
-  public broadcastDecision(
-    entityType: 'institution' | 'company',
-    id: string,
-    status: 'verified' | 'under_verification' | 'rejected',
-    notes?: string,
-    adminName?: string
-  ) {
-    this.broadcast(status === 'verified' ? 'VERIFY_ENTITY' : 'REJECT_ENTITY', {
-      entityType,
-      id,
-      status,
-      notes,
-      adminName
-    });
+  public async syncProposalToCloud(proposal: InternshipProposal): Promise<{ success: boolean; error?: string }> {
+    // 1. Broadcast immediately to all active browser windows & tabs
+    this.broadcast('PROPOSAL_UPDATED', { proposal });
+
+    // 2. Persist to shared Supabase PostgreSQL database
+    try {
+      const syncRow = {
+        code: `SYNC-PROP-${proposal.id}`,
+        name: `Internship Proposal Sync: ${proposal.proposal_code || proposal.id}`,
+        type: 'govt_degree_college',
+        affiliated_university: 'AP VidyaConnect Portal',
+        address: 'State Wide Portal Sync',
+        district: 'Visakhapatnam',
+        state: 'Andhra Pradesh',
+        pin_code: '530001',
+        principal_name: proposal.created_by_name || 'Coordinator',
+        official_email: `${proposal.id}@sync.vidyaconnect.ap.gov.in`,
+        official_phone: '+91 891 0000000',
+        establishment_year: 2026,
+        verification_status: 'verified',
+        documents: [{
+          sync_type: 'INTERNSHIP_PROPOSAL',
+          proposal,
+          timestamp: new Date().toISOString()
+        }]
+      };
+
+      const res = await fetch(`${supabaseUrl}/rest/v1/institutions`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(syncRow)
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn('[CloudSync] Failed to insert proposal sync row:', res.status, errText);
+        return { success: false, error: errText };
+      }
+
+      console.log('[CloudSync] Successfully saved proposal to shared Supabase database:', proposal.proposal_code);
+      return { success: true };
+    } catch (e: any) {
+      console.warn('[CloudSync] Error syncing proposal to Supabase:', e);
+      return { success: false, error: e?.message || 'Network error' };
+    }
+  }
+
+  public async syncStudentsToCloud(institutionId: string, students: Student[], passwords?: Record<string, string>): Promise<{ success: boolean; error?: string }> {
+    // 1. Broadcast immediately
+    this.broadcast('STUDENTS_UPDATED', { institution_id: institutionId, students, passwords });
+
+    // 2. Persist to shared Supabase PostgreSQL database
+    try {
+      const syncRow = {
+        code: `SYNC-STU-${institutionId}-${Date.now()}`,
+        name: `Student Roster Sync: ${institutionId}`,
+        type: 'govt_degree_college',
+        affiliated_university: 'AP VidyaConnect Portal',
+        address: 'State Wide Portal Sync',
+        district: 'Visakhapatnam',
+        state: 'Andhra Pradesh',
+        pin_code: '530001',
+        principal_name: 'Coordinator',
+        official_email: `stu.${Date.now()}@sync.vidyaconnect.ap.gov.in`,
+        official_phone: '+91 891 0000000',
+        establishment_year: 2026,
+        verification_status: 'verified',
+        documents: [{
+          sync_type: 'STUDENT_RECORDS',
+          institution_id: institutionId,
+          students,
+          passwords: passwords || {},
+          timestamp: new Date().toISOString()
+        }]
+      };
+
+      const res = await fetch(`${supabaseUrl}/rest/v1/institutions`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(syncRow)
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn('[CloudSync] Failed to insert student sync row:', res.status, errText);
+        return { success: false, error: errText };
+      }
+
+      return { success: true };
+    } catch (e: any) {
+      console.warn('[CloudSync] Error syncing students to Supabase:', e);
+      return { success: false, error: e?.message || 'Network error' };
+    }
   }
 
   // --- Cloud Inbound Synchronization (Catch up from Supabase) ---
 
-  public async syncFromCloud() {
-    if (this.isSyncing) return;
+  public async syncFromCloud(): Promise<boolean> {
+    if (this.isSyncing) return false;
     this.isSyncing = true;
+    let anyChanged = false;
 
     try {
-      // 1. Fetch all institutions from cloud
+      // 1. Fetch institutions & sync records from Supabase
       const instRes = await fetch(`${supabaseUrl}/rest/v1/institutions?select=*`, {
         headers: {
           'apikey': supabaseAnonKey,
@@ -388,16 +614,61 @@ class CloudSyncService {
 
       if (instRes.ok) {
         const cloudInstitutions = await instRes.json();
-        let changed = false;
 
         for (const cloudInst of cloudInstitutions) {
+          // A. Handle Proposal Sync Rows
+          if (cloudInst.code?.startsWith('SYNC-PROP-')) {
+            const syncDoc = Array.isArray(cloudInst.documents)
+              ? cloudInst.documents.find((d: any) => d && d.sync_type === 'INTERNSHIP_PROPOSAL')
+              : null;
+            if (syncDoc?.proposal) {
+              const p = syncDoc.proposal;
+              const idx = db.proposals.findIndex(existing => existing.id === p.id || existing.proposal_code === p.proposal_code);
+              if (idx >= 0) {
+                const cloudTime = new Date(p.updated_at || p.created_at || 0).getTime();
+                const localTime = new Date(db.proposals[idx].updated_at || db.proposals[idx].created_at || 0).getTime();
+                if (cloudTime >= localTime) {
+                  db.proposals[idx] = { ...db.proposals[idx], ...p };
+                  anyChanged = true;
+                }
+              } else {
+                db.proposals.unshift(p);
+                anyChanged = true;
+              }
+            }
+            continue;
+          }
+
+          // B. Handle Student Roster Sync Rows
+          if (cloudInst.code?.startsWith('SYNC-STU-')) {
+            const syncDoc = Array.isArray(cloudInst.documents)
+              ? cloudInst.documents.find((d: any) => d && d.sync_type === 'STUDENT_RECORDS')
+              : null;
+            if (syncDoc?.students && Array.isArray(syncDoc.students)) {
+              for (const stu of syncDoc.students) {
+                const idx = db.students.findIndex(s => s.id === stu.id || (stu.email && s.email?.toLowerCase() === stu.email.toLowerCase()));
+                if (idx >= 0) {
+                  db.students[idx] = { ...db.students[idx], ...stu };
+                } else {
+                  db.students.unshift(stu);
+                }
+                anyChanged = true;
+              }
+            }
+            if (syncDoc?.passwords) {
+              Object.assign(db.passwords, syncDoc.passwords);
+              anyChanged = true;
+            }
+            continue;
+          }
+
+          // C. Regular Institution Record
           const syncDoc = Array.isArray(cloudInst.documents)
             ? cloudInst.documents.find((d: any) => d && d.sync_type === 'ENTITY_REGISTRATION')
             : null;
 
-          // Determine actual status
           let actualStatus = cloudInst.verification_status;
-          if (syncDoc && syncDoc.actual_status) {
+          if (syncDoc?.actual_status) {
             actualStatus = syncDoc.actual_status;
           } else if (cloudInst.verification_notes) {
             try {
@@ -406,20 +677,18 @@ class CloudSyncService {
             } catch {}
           }
 
-          // Check if exists locally
-          let localInst = db.institutions.find(i => i.id === cloudInst.id || i.code === cloudInst.code || i.official_email?.toLowerCase() === cloudInst.official_email?.toLowerCase());
+          let localInst = db.institutions.find(i => i.id === cloudInst.id || i.code === cloudInst.code || (cloudInst.official_email && i.official_email?.toLowerCase() === cloudInst.official_email?.toLowerCase()));
 
           if (!localInst) {
-            // New institution registered in another browser!
             const newInst: Institution = {
-              id: cloudInst.id || `inst-${Date.now()}`,
+              id: cloudInst.id,
               code: cloudInst.code,
               name: cloudInst.name,
               type: cloudInst.type || 'govt_degree_college',
               affiliated_university: cloudInst.affiliated_university,
               address: cloudInst.address,
               district: cloudInst.district,
-              state: cloudInst.state || 'Telangana',
+              state: cloudInst.state || 'Andhra Pradesh',
               pin_code: cloudInst.pin_code,
               principal_name: cloudInst.principal_name,
               official_email: cloudInst.official_email,
@@ -437,43 +706,54 @@ class CloudSyncService {
             };
 
             db.institutions.unshift(newInst);
-            db.persist('institutions');
-            changed = true;
-
-            // Restore admin profile
-            if (syncDoc?.admin_profile) {
-              const p = syncDoc.admin_profile;
-              if (!db.profiles.some(existing => existing.id === p.id || existing.email?.toLowerCase() === p.email?.toLowerCase())) {
-                db.profiles.unshift({
-                  ...p,
-                  institution_id: newInst.id
-                });
-                db.persist('profiles');
-              }
+            anyChanged = true;
+          } else {
+            if (localInst.verification_status !== actualStatus) {
+              localInst.verification_status = actualStatus;
+              anyChanged = true;
             }
+          }
 
-            // Restore password
-            if (syncDoc?.password && syncDoc?.admin_profile?.email) {
-              db.passwords[syncDoc.admin_profile.email.toLowerCase().trim()] = syncDoc.password.trim();
-              db.persist('passwords');
-            }
-
-            // Restore super admin notification
-            if (syncDoc?.notification) {
-              if (!db.notifications.some(n => n.id === syncDoc.notification.id)) {
-                db.notifications.unshift(syncDoc.notification);
-                db.persist('notifications');
+          // ALWAYS restore or sync admin profile
+          if (syncDoc?.admin_profile) {
+            const p = syncDoc.admin_profile;
+            const existingProf = db.profiles.find(prof => prof.id === p.id || (p.email && prof.email?.toLowerCase() === p.email.toLowerCase()));
+            if (!existingProf) {
+              db.profiles.unshift({
+                ...p,
+                role: 'institution_admin',
+                institution_id: cloudInst.id
+              });
+              anyChanged = true;
+            } else {
+              if (existingProf.role !== 'institution_admin') {
+                existingProf.role = 'institution_admin';
+                existingProf.institution_id = cloudInst.id;
+                anyChanged = true;
               }
             }
           }
-        }
 
-        if (changed) {
-          db.syncFromStorage();
+          // ALWAYS restore password
+          if (syncDoc?.password && syncDoc?.admin_profile?.email) {
+            const cleanEmail = syncDoc.admin_profile.email.toLowerCase().trim();
+            if (db.passwords[cleanEmail] !== syncDoc.password.trim()) {
+              db.passwords[cleanEmail] = syncDoc.password.trim();
+              anyChanged = true;
+            }
+          }
+
+          // Restore notification
+          if (syncDoc?.notification) {
+            if (!db.notifications.some(n => n.id === syncDoc.notification.id)) {
+              db.notifications.unshift(syncDoc.notification);
+              anyChanged = true;
+            }
+          }
         }
       }
 
-      // 2. Fetch all companies from cloud
+      // 2. Fetch companies from Supabase
       const compRes = await fetch(`${supabaseUrl}/rest/v1/companies?select=*`, {
         headers: {
           'apikey': supabaseAnonKey,
@@ -483,7 +763,6 @@ class CloudSyncService {
 
       if (compRes.ok) {
         const cloudCompanies = await compRes.json();
-        let changed = false;
 
         for (const cloudComp of cloudCompanies) {
           const syncDoc = Array.isArray(cloudComp.documents)
@@ -491,7 +770,7 @@ class CloudSyncService {
             : null;
 
           let actualStatus = cloudComp.verification_status;
-          if (syncDoc && syncDoc.actual_status) {
+          if (syncDoc?.actual_status) {
             actualStatus = syncDoc.actual_status;
           } else if (cloudComp.verification_notes) {
             try {
@@ -500,11 +779,11 @@ class CloudSyncService {
             } catch {}
           }
 
-          let localComp = db.companies.find(c => c.id === cloudComp.id || c.cin === cloudComp.cin || c.official_email?.toLowerCase() === cloudComp.official_email?.toLowerCase());
+          let localComp = db.companies.find(c => c.id === cloudComp.id || c.cin === cloudComp.cin || (cloudComp.official_email && c.official_email?.toLowerCase() === cloudComp.official_email?.toLowerCase()));
 
           if (!localComp) {
             const newComp: Company = {
-              id: cloudComp.id || `comp-${Date.now()}`,
+              id: cloudComp.id,
               cin: cloudComp.cin,
               name: cloudComp.name,
               industry: cloudComp.industry || 'Information Technology',
@@ -513,7 +792,7 @@ class CloudSyncService {
               official_email: cloudComp.official_email,
               official_phone: cloudComp.official_phone,
               website: cloudComp.website,
-              headquarters: cloudComp.headquarters || 'Hyderabad',
+              headquarters: cloudComp.headquarters || 'Visakhapatnam, Andhra Pradesh',
               description: cloudComp.description,
               authorized_person_name: cloudComp.authorized_person_name,
               designation: cloudComp.designation,
@@ -527,46 +806,70 @@ class CloudSyncService {
             };
 
             db.companies.unshift(newComp);
-            db.persist('companies');
-            changed = true;
-
-            // Restore admin profile
-            if (syncDoc?.admin_profile) {
-              const p = syncDoc.admin_profile;
-              if (!db.profiles.some(existing => existing.id === p.id || existing.email?.toLowerCase() === p.email?.toLowerCase())) {
-                db.profiles.unshift({
-                  ...p,
-                  company_id: newComp.id
-                });
-                db.persist('profiles');
-              }
+            anyChanged = true;
+          } else {
+            if (localComp.verification_status !== actualStatus) {
+              localComp.verification_status = actualStatus;
+              anyChanged = true;
             }
+          }
 
-            // Restore password
-            if (syncDoc?.password && syncDoc?.admin_profile?.email) {
-              db.passwords[syncDoc.admin_profile.email.toLowerCase().trim()] = syncDoc.password.trim();
-              db.persist('passwords');
-            }
-
-            // Restore notification
-            if (syncDoc?.notification) {
-              if (!db.notifications.some(n => n.id === syncDoc.notification.id)) {
-                db.notifications.unshift(syncDoc.notification);
-                db.persist('notifications');
+          // ALWAYS restore or update admin profile
+          if (syncDoc?.admin_profile) {
+            const p = syncDoc.admin_profile;
+            const existingProf = db.profiles.find(prof => prof.id === p.id || (p.email && prof.email?.toLowerCase() === p.email.toLowerCase()));
+            if (!existingProf) {
+              db.profiles.unshift({
+                ...p,
+                role: 'company_admin',
+                company_id: cloudComp.id
+              });
+              anyChanged = true;
+            } else {
+              if (existingProf.role !== 'company_admin') {
+                existingProf.role = 'company_admin';
+                existingProf.company_id = cloudComp.id;
+                anyChanged = true;
               }
             }
           }
-        }
 
-        if (changed) {
-          db.syncFromStorage();
+          // ALWAYS restore password
+          if (syncDoc?.password && syncDoc?.admin_profile?.email) {
+            const cleanEmail = syncDoc.admin_profile.email.toLowerCase().trim();
+            if (db.passwords[cleanEmail] !== syncDoc.password.trim()) {
+              db.passwords[cleanEmail] = syncDoc.password.trim();
+              anyChanged = true;
+            }
+          }
+
+          // Restore notification
+          if (syncDoc?.notification) {
+            if (!db.notifications.some(n => n.id === syncDoc.notification.id)) {
+              db.notifications.unshift(syncDoc.notification);
+              anyChanged = true;
+            }
+          }
         }
+      }
+
+      if (anyChanged) {
+        db.persist('institutions');
+        db.persist('companies');
+        db.persist('profiles');
+        db.persist('passwords');
+        db.persist('proposals');
+        db.persist('students');
+        db.persist('notifications');
+        db.notify();
+        window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
       }
     } catch (e) {
       console.warn('[CloudSync] syncFromCloud error:', e);
     } finally {
       this.isSyncing = false;
     }
+    return anyChanged;
   }
 }
 

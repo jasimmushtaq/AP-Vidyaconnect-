@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { InternshipProposal, Student, InternshipMode } from '../../types/database';
 import {
   School,
@@ -104,6 +105,9 @@ export const ProposalBuilderPage: React.FC = () => {
 
     db.proposals.unshift(newProposal);
     db.persist('proposals');
+
+    // Sync proposal to Supabase PostgreSQL database for cross-browser synchronization
+    cloudSync.syncProposalToCloud(newProposal);
 
     db.logAudit(
       asDraft ? 'save_draft_proposal' : 'submit_proposal',

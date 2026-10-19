@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { WorkflowTimeline } from '../../components/common/WorkflowTimeline';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { InternshipProposal, ProposalStudent } from '../../types/database';
@@ -97,6 +98,8 @@ export const ProposalDetailPage: React.FC = () => {
   const handleStartReview = () => {
     if (!currentUser) return;
     db.startCompanyReview(proposal.id, currentUser);
+    const updated = db.proposals.find(p => p.id === proposal.id);
+    if (updated) cloudSync.syncProposalToCloud(updated);
   };
 
   const handleCompanySubmitResponse = (e: React.FormEvent) => {
@@ -121,11 +124,15 @@ export const ProposalDetailPage: React.FC = () => {
       },
       currentUser
     );
+    const updated = db.proposals.find(p => p.id === proposal.id);
+    if (updated) cloudSync.syncProposalToCloud(updated);
   };
 
   const handleInstitutionFinalAccept = () => {
     if (!currentUser) return;
     const res = db.institutionFinalAccept(proposal.id, currentUser);
+    const updated = db.proposals.find(p => p.id === proposal.id);
+    if (updated) cloudSync.syncProposalToCloud(updated);
     setBatchCreatedModal({
       batchId: res.batch_id,
       batchCode: res.batch_code
@@ -142,6 +149,8 @@ export const ProposalDetailPage: React.FC = () => {
         rejectionRemarks.trim() || 'Institutional terms declined by College Coordinator',
         currentUser
       );
+      const updated = db.proposals.find(p => p.id === proposal.id);
+      if (updated) cloudSync.syncProposalToCloud(updated);
       setShowRejectModal(false);
     } finally {
       setRejecting(false);

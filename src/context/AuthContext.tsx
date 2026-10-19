@@ -26,9 +26,9 @@ interface AuthContextType {
   currentCompany?: Company;
   currentStudent?: Student;
   requirePasswordChange: boolean;
-  loginWithEmail: (email: string, password?: string) => { success: boolean; message?: string; user?: Profile; role?: UserRole; requirePasswordChange?: boolean };
-  registerInstitutionAdmin: (instData: Partial<Institution>, adminData: { fullName: string; email: string; phone: string; password?: string }) => { success: boolean; institution: Institution; user: Profile };
-  registerCompanyAdmin: (compData: Partial<Company>, adminData: { fullName: string; email: string; phone: string; password?: string }) => { success: boolean; company: Company; user: Profile };
+  loginWithEmail: (email: string, password?: string) => Promise<{ success: boolean; message?: string; user?: Profile; role?: UserRole; requirePasswordChange?: boolean }>;
+  registerInstitutionAdmin: (instData: Partial<Institution>, adminData: { fullName: string; email: string; phone: string; password?: string }) => Promise<{ success: boolean; institution?: Institution; user?: Profile; error?: string }>;
+  registerCompanyAdmin: (compData: Partial<Company>, adminData: { fullName: string; email: string; phone: string; password?: string }) => Promise<{ success: boolean; company?: Company; user?: Profile; error?: string }>;
   switchRole: (role: UserRole) => void;
   setUser: (user: Profile) => void;
   updateProfile: (data: Partial<Profile>) => void;
@@ -68,25 +68,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   });
 
   useEffect(() => {
-    cloudSync.init();
-    db.syncFromStorage();
+    let isMounted = true;
+    const initApp = async () => {
+      try {
+        await cloudSync.init();
+      } catch (e) {
+        console.warn('Initial cloud sync warning:', e);
+      }
+      if (!isMounted) return;
+      db.syncFromStorage();
 
-    const savedId = localStorage.getItem('kd_active_user_id');
-    if (savedId) {
-      const match = db.profiles.find(p => p.id === savedId);
-      if (match) {
-        setCurrentUser(match);
-        setIsLoggedIn(true);
+      const savedId = localStorage.getItem('kd_active_user_id');
+      if (savedId) {
+        const match = db.profiles.find(p => p.id === savedId);
+        if (match) {
+          setCurrentUser(match);
+          setIsLoggedIn(true);
+        } else {
+          localStorage.removeItem('kd_active_user_id');
+          setCurrentUser(EMPTY_USER);
+          setIsLoggedIn(false);
+        }
       } else {
-        localStorage.removeItem('kd_active_user_id');
         setCurrentUser(EMPTY_USER);
         setIsLoggedIn(false);
       }
-    } else {
-      setCurrentUser(EMPTY_USER);
-      setIsLoggedIn(false);
-    }
-    setIsLoading(false);
+      setIsLoading(false);
+    };
+
+    initApp();
 
     const unsub = db.subscribe(() => {
       setUsers([...db.profiles]);
@@ -114,119 +124,136 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     window.addEventListener('vidyaconnect:cloud_sync_updated', handleCloudSyncUpdated);
     return () => {
+      isMounted = false;
       unsub();
       window.removeEventListener('vidyaconnect:cloud_sync_updated', handleCloudSyncUpdated);
     };
   }, []);
 
-  const loginWithEmail = (email: string, password?: string) => {
+  const loginWithEmail = async (email: string, password?: string): Promise<{ success: boolean; message?: string; user?: Profile; role?: UserRole; requirePasswordChange?: boolean }> => {
     const cleanEmail = email.trim().toLowerCase();
     db.syncFromStorage();
 
-    // 1. Primary Source of Truth: Check existing verified user profiles in database
-    let match = db.profiles.find(p => p.email && p.email.toLowerCase().trim() === cleanEmail);
+    const findMatch = (): Profile | undefined => {
+      // 1. Primary Source of Truth: Check existing verified user profiles in database
+      let match = db.profiles.find(p => p.email && p.email.toLowerCase().trim() === cleanEmail);
 
-    // 2. If not yet in profiles, resolve role from specialized registered rosters
-    if (!match) {
-      // Check faculty coordinators roster
-      const fac = db.facultyCoordinators.find(f => f.email && f.email.toLowerCase().trim() === cleanEmail);
-      if (fac) {
-        match = {
-          id: fac.user_id || `user-fac-${Date.now()}`,
-          full_name: fac.full_name,
-          email: cleanEmail,
-          phone: fac.phone,
-          role: 'faculty_coordinator',
-          institution_id: fac.institution_id || 'inst-001',
-          is_active: true,
-          created_at: fac.created_at || new Date().toISOString()
-        };
-        db.profiles.push(match);
-        db.persist('profiles');
+      // 2. If not yet in profiles, resolve role from specialized registered rosters
+      if (!match) {
+        // Check faculty coordinators roster
+        const fac = db.facultyCoordinators.find(f => f.email && f.email.toLowerCase().trim() === cleanEmail);
+        if (fac) {
+          match = {
+            id: fac.user_id || `user-fac-${Date.now()}`,
+            full_name: fac.full_name,
+            email: cleanEmail,
+            phone: fac.phone,
+            role: 'faculty_coordinator',
+            institution_id: fac.institution_id || 'inst-001',
+            is_active: true,
+            created_at: fac.created_at || new Date().toISOString()
+          };
+          db.profiles.push(match);
+          db.persist('profiles');
+        }
       }
+
+      if (!match) {
+        // Check company mentors roster
+        const mentor = db.mentors.find(m => m.email && m.email.toLowerCase().trim() === cleanEmail);
+        if (mentor) {
+          match = {
+            id: mentor.user_id || `user-mentor-${Date.now()}`,
+            full_name: mentor.full_name,
+            email: cleanEmail,
+            phone: mentor.phone,
+            role: 'mentor',
+            company_id: mentor.company_id,
+            is_active: true,
+            created_at: new Date().toISOString()
+          };
+          db.profiles.push(match);
+          db.persist('profiles');
+        }
+      }
+
+      if (!match) {
+        // Check registered institutions official email
+        const inst = db.institutions.find(i => i.official_email && i.official_email.toLowerCase().trim() === cleanEmail);
+        if (inst) {
+          match = {
+            id: `user-inst-${inst.id}`,
+            full_name: inst.principal_name || 'College Principal / Admin',
+            email: cleanEmail,
+            phone: inst.official_phone,
+            role: 'institution_admin',
+            institution_id: inst.id,
+            avatar_url: 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=200',
+            is_active: true,
+            created_at: inst.created_at || new Date().toISOString()
+          };
+          db.profiles.push(match);
+          db.persist('profiles');
+        }
+      }
+
+      if (!match) {
+        // Check registered companies official email
+        const comp = db.companies.find(c => c.official_email && c.official_email.toLowerCase().trim() === cleanEmail);
+        if (comp) {
+          match = {
+            id: `user-comp-${comp.id}`,
+            full_name: comp.authorized_person_name || 'Industry Lead / HR',
+            email: cleanEmail,
+            phone: comp.official_phone,
+            role: 'company_admin',
+            company_id: comp.id,
+            avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
+            is_active: true,
+            created_at: comp.created_at || new Date().toISOString()
+          };
+          db.profiles.push(match);
+          db.persist('profiles');
+        }
+      }
+
+      if (!match) {
+        // Check students (by official email or roll number) ONLY IF not an institutional/corporate admin
+        const stu = db.students.find(s => s.email && s.email.toLowerCase().trim() === cleanEmail) ||
+          db.students.find(s => s.roll_number && s.roll_number.toLowerCase().trim() === cleanEmail);
+        if (stu) {
+          match = {
+            id: (stu as any).auth_user_id || `user-stu-${stu.id}`,
+            full_name: stu.full_name,
+            email: cleanEmail,
+            phone: stu.phone || '+91 98480 12345',
+            role: 'student',
+            institution_id: stu.institution_id || 'inst-001',
+            student_id: stu.id,
+            is_active: true,
+            created_at: new Date().toISOString()
+          };
+          db.profiles.push(match);
+          db.persist('profiles');
+        }
+      }
+
+      return match;
+    };
+
+    let match = findMatch();
+
+    // If account not found locally, fetch fresh data from Supabase (e.g. registered in another browser moments ago)
+    if (!match) {
+      try {
+        await cloudSync.syncFromCloud();
+      } catch (err) {
+        console.warn('Live cloud sync attempt warning:', err);
+      }
+      match = findMatch();
     }
 
-    if (!match) {
-      // Check company mentors roster
-      const mentor = db.mentors.find(m => m.email && m.email.toLowerCase().trim() === cleanEmail);
-      if (mentor) {
-        match = {
-          id: mentor.user_id || `user-mentor-${Date.now()}`,
-          full_name: mentor.full_name,
-          email: cleanEmail,
-          phone: mentor.phone,
-          role: 'mentor',
-          company_id: mentor.company_id,
-          is_active: true,
-          created_at: new Date().toISOString()
-        };
-        db.profiles.push(match);
-        db.persist('profiles');
-      }
-    }
-
-    if (!match) {
-      // Check registered institutions official email
-      const inst = db.institutions.find(i => i.official_email && i.official_email.toLowerCase().trim() === cleanEmail);
-      if (inst) {
-        match = {
-          id: `user-inst-${inst.id}`,
-          full_name: inst.principal_name || 'College Principal / Admin',
-          email: cleanEmail,
-          phone: inst.official_phone,
-          role: 'institution_admin',
-          institution_id: inst.id,
-          avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
-          is_active: true,
-          created_at: inst.created_at || new Date().toISOString()
-        };
-        db.profiles.push(match);
-        db.persist('profiles');
-      }
-    }
-
-    if (!match) {
-      // Check registered companies official email
-      const comp = db.companies.find(c => c.official_email && c.official_email.toLowerCase().trim() === cleanEmail);
-      if (comp) {
-        match = {
-          id: `user-comp-${comp.id}`,
-          full_name: comp.authorized_person_name || 'Industry Lead / HR',
-          email: cleanEmail,
-          phone: comp.official_phone,
-          role: 'company_admin',
-          company_id: comp.id,
-          avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',
-          is_active: true,
-          created_at: comp.created_at || new Date().toISOString()
-        };
-        db.profiles.push(match);
-        db.persist('profiles');
-      }
-    }
-
-    if (!match) {
-      // Check students (by official email or roll number) ONLY IF not an institutional/corporate admin
-      const stu = db.students.find(s => s.email && s.email.toLowerCase().trim() === cleanEmail) ||
-        db.students.find(s => s.roll_number && s.roll_number.toLowerCase().trim() === cleanEmail);
-      if (stu) {
-        match = {
-          id: (stu as any).auth_user_id || `user-stu-${stu.id}`,
-          full_name: stu.full_name,
-          email: cleanEmail,
-          phone: stu.phone || '+91 98480 12345',
-          role: 'student',
-          institution_id: stu.institution_id || 'inst-001',
-          student_id: stu.id,
-          is_active: true,
-          created_at: new Date().toISOString()
-        };
-        db.profiles.push(match);
-        db.persist('profiles');
-      }
-    }
-
-    // If account does not exist in any database table
+    // If account still does not exist in any database table
     if (!match) {
       return {
         success: false,
@@ -236,11 +263,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Validate credentials against stored password
     if (password && password.trim()) {
-      const storedPass = db.getPassword(cleanEmail);
-      const studentObj = db.students.find(s => s.email && s.email.toLowerCase().trim() === cleanEmail);
-      const tempPass = studentObj?.temp_password;
+      let storedPass = db.getPassword(cleanEmail);
+      let studentObj = db.students.find(s => s.email && s.email.toLowerCase().trim() === cleanEmail);
+      let tempPass = studentObj?.temp_password;
 
-      const isPasswordValid = 
+      let isPasswordValid = 
         password === storedPass ||
         password === 'Pixelwind@223' ||
         (!!tempPass && password === tempPass) ||
@@ -249,6 +276,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         password.startsWith('APV#') ||
         (storedPass === 'Pixelwind@223') ||
         (storedPass === 'pixelwind@2005');
+
+      if (!isPasswordValid) {
+        // Live cloud sync in case password was changed/set in another browser
+        try {
+          await cloudSync.syncFromCloud();
+        } catch (err) {
+          console.warn('Cloud sync error on password re-check:', err);
+        }
+        storedPass = db.getPassword(cleanEmail);
+        studentObj = db.students.find(s => s.email && s.email.toLowerCase().trim() === cleanEmail);
+        tempPass = studentObj?.temp_password;
+        isPasswordValid =
+          password === storedPass ||
+          password === 'Pixelwind@223' ||
+          (!!tempPass && password === tempPass) ||
+          password === 'pixelwind@2005' ||
+          password === 'password123' ||
+          password.startsWith('APV#') ||
+          (storedPass === 'Pixelwind@223') ||
+          (storedPass === 'pixelwind@2005');
+      }
 
       if (!isPasswordValid) {
         return {
@@ -290,10 +338,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   };
 
-  const registerInstitutionAdmin = (
+  const registerInstitutionAdmin = async (
     instData: Partial<Institution>,
     adminData: { fullName: string; email: string; phone: string; password?: string }
-  ) => {
+  ): Promise<{ success: boolean; institution?: Institution; user?: Profile; error?: string }> => {
     const instId = `inst-${Date.now()}`;
     const cleanEmail = adminData.email.trim().toLowerCase();
 
@@ -343,17 +391,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       created_at: new Date().toISOString()
     };
 
-    // Store securely in database collections
-    db.institutions.unshift(newInst);
-    db.profiles.unshift(newProfile);
-    db.persist('institutions');
-    db.persist('profiles');
-
-    if (adminData.password && adminData.password.trim()) {
-      db.passwords[cleanEmail] = adminData.password.trim();
-      db.persist('passwords');
-    }
-
     const auditEntry = {
       id: `audit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       actor_id: newProfile.id,
@@ -371,8 +408,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ip: '103.14.120.45',
       created_at: new Date().toISOString()
     };
-    db.auditLogs.unshift(auditEntry);
-    db.persist('audit_logs');
 
     const notif = db.sendNotification(
       'user-super-admin',
@@ -387,8 +422,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Sync to Supabase Cloud for cross-browser synchronization
-    cloudSync.syncInstitutionRegistrationToCloud(
+    // Sync to Supabase Cloud for cross-browser synchronization & wait for database persistence
+    const cloudRes = await cloudSync.syncInstitutionRegistrationToCloud(
       newInst,
       newProfile,
       adminData.password,
@@ -396,13 +431,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       notif
     );
 
+    if (!cloudRes.success) {
+      return {
+        success: false,
+        error: cloudRes.error || 'Failed to persist institution registration to Supabase database. Please check your internet connection.'
+      };
+    }
+
+    // Store securely in database collections once database write succeeds
+    db.institutions.unshift(newInst);
+    db.profiles.unshift(newProfile);
+    db.persist('institutions');
+    db.persist('profiles');
+
+    if (adminData.password && adminData.password.trim()) {
+      db.passwords[cleanEmail] = adminData.password.trim();
+      db.persist('passwords');
+    }
+
+    db.auditLogs.unshift(auditEntry);
+    db.persist('audit_logs');
+
     return { success: true, institution: newInst, user: newProfile };
   };
 
-  const registerCompanyAdmin = (
+  const registerCompanyAdmin = async (
     compData: Partial<Company>,
     adminData: { fullName: string; email: string; phone: string; password?: string }
-  ) => {
+  ): Promise<{ success: boolean; company?: Company; user?: Profile; error?: string }> => {
     const compId = `comp-${Date.now()}`;
     const cleanEmail = adminData.email.trim().toLowerCase();
 
@@ -450,17 +506,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       created_at: new Date().toISOString()
     };
 
-    // Store securely in database collections
-    db.companies.unshift(newComp);
-    db.profiles.unshift(newProfile);
-    db.persist('companies');
-    db.persist('profiles');
-
-    if (adminData.password && adminData.password.trim()) {
-      db.passwords[cleanEmail] = adminData.password.trim();
-      db.persist('passwords');
-    }
-
     const auditEntry = {
       id: `audit-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
       actor_id: newProfile.id,
@@ -478,8 +523,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ip: '103.14.120.45',
       created_at: new Date().toISOString()
     };
-    db.auditLogs.unshift(auditEntry);
-    db.persist('audit_logs');
 
     const notif = db.sendNotification(
       'user-super-admin',
@@ -494,14 +537,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Sync to Supabase Cloud for cross-browser synchronization
-    cloudSync.syncCompanyRegistrationToCloud(
+    // Sync to Supabase Cloud for cross-browser synchronization & wait for database persistence
+    const cloudRes = await cloudSync.syncCompanyRegistrationToCloud(
       newComp,
       newProfile,
       adminData.password,
       auditEntry,
       notif
     );
+
+    if (!cloudRes.success) {
+      return {
+        success: false,
+        error: cloudRes.error || 'Failed to persist company registration to Supabase database. Please check your internet connection.'
+      };
+    }
+
+    // Store securely in database collections once database write succeeds
+    db.companies.unshift(newComp);
+    db.profiles.unshift(newProfile);
+    db.persist('companies');
+    db.persist('profiles');
+
+    if (adminData.password && adminData.password.trim()) {
+      db.passwords[cleanEmail] = adminData.password.trim();
+      db.persist('passwords');
+    }
+
+    db.auditLogs.unshift(auditEntry);
+    db.persist('audit_logs');
 
     return { success: true, company: newComp, user: newProfile };
   };

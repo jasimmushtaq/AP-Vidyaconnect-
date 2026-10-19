@@ -34,3 +34,4 @@ dist-ssr
 *.apk
 android/
 scripts/generate-icons.ps1
+scratch/

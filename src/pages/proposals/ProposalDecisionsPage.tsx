@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { InternshipProposal } from '../../types/database';
 import {
@@ -82,6 +83,8 @@ export const ProposalDecisionsPage: React.FC = () => {
     setIsProcessing(true);
     try {
       const res = db.institutionFinalAccept(proposal.id, currentUser);
+      const updated = db.proposals.find(p => p.id === proposal.id);
+      if (updated) cloudSync.syncProposalToCloud(updated);
       setAcceptingProposal(null);
       setBatchCreated({
         batchId: res.batch_id,
@@ -96,13 +99,16 @@ export const ProposalDecisionsPage: React.FC = () => {
 
   const handleFinalReject = () => {
     if (!rejectingProposal || !currentUser) return;
+    const pId = rejectingProposal.id;
     setIsProcessing(true);
     try {
       db.institutionReject(
-        rejectingProposal.id,
+        pId,
         rejectionRemarks.trim() || 'Institutional terms declined by College Coordinator',
         currentUser
       );
+      const updated = db.proposals.find(p => p.id === pId);
+      if (updated) cloudSync.syncProposalToCloud(updated);
       setRejectingProposal(null);
       setRejectionRemarks('');
     } catch (err: any) {

@@ -965,7 +965,7 @@ class DatabaseStore {
     };
   }
 
-  private notify() {
+  public notify() {
     this.listeners.forEach((fn) => fn());
   }
 

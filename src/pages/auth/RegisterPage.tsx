@@ -27,7 +27,8 @@ import {
   Paperclip,
   Eye,
   FileCheck,
-  ShieldAlert
+  ShieldAlert,
+  Loader2
 } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
@@ -42,6 +43,7 @@ export const RegisterPage: React.FC = () => {
   const [submittedEntityName, setSubmittedEntityName] = useState('');
   const [submittedEntityCode, setSubmittedEntityCode] = useState('');
   const [submittedAdminEmail, setSubmittedAdminEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formError, setFormError] = useState<string | null>(null);
   const [previewDoc, setPreviewDoc] = useState<AttachedDocument | null>(null);
@@ -132,7 +134,7 @@ export const RegisterPage: React.FC = () => {
     setCompDocs(prev => [...prev, newDoc]);
   };
 
-  const handleInstSubmit = (e: React.FormEvent) => {
+  const handleInstSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -153,14 +155,25 @@ export const RegisterPage: React.FC = () => {
       documents: instDocs
     };
 
-    const res = registerInstitutionAdmin(payload, instAdmin);
-    setSubmittedEntityName(res.institution.name);
-    setSubmittedEntityCode(res.institution.code);
-    setSubmittedAdminEmail(res.user.email);
-    setSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      const res = await registerInstitutionAdmin(payload, instAdmin);
+      if (!res.success || !res.institution || !res.user) {
+        setFormError(res.error || 'Failed to persist institution registration to shared database. Please try again.');
+        return;
+      }
+      setSubmittedEntityName(res.institution.name);
+      setSubmittedEntityCode(res.institution.code);
+      setSubmittedAdminEmail(res.user.email);
+      setSubmitted(true);
+    } catch (err: any) {
+      setFormError(err?.message || 'Registration failed. Please check your network connection.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleCompSubmit = (e: React.FormEvent) => {
+  const handleCompSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
@@ -181,11 +194,22 @@ export const RegisterPage: React.FC = () => {
       documents: compDocs
     };
 
-    const res = registerCompanyAdmin(payload, compAdmin);
-    setSubmittedEntityName(res.company.name);
-    setSubmittedEntityCode(res.company.cin);
-    setSubmittedAdminEmail(res.user.email);
-    setSubmitted(true);
+    setIsSubmitting(true);
+    try {
+      const res = await registerCompanyAdmin(payload, compAdmin);
+      if (!res.success || !res.company || !res.user) {
+        setFormError(res.error || 'Failed to persist company registration to shared database. Please try again.');
+        return;
+      }
+      setSubmittedEntityName(res.company.name);
+      setSubmittedEntityCode(res.company.cin);
+      setSubmittedAdminEmail(res.user.email);
+      setSubmitted(true);
+    } catch (err: any) {
+      setFormError(err?.message || 'Registration failed. Please check your network connection.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -529,10 +553,20 @@ export const RegisterPage: React.FC = () => {
 
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-[#0E2350] hover:bg-[#14336F] text-white rounded-lg text-xs sm:text-sm font-bold shadow transition-all flex items-center gap-2"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 bg-[#0E2350] hover:bg-[#14336F] disabled:opacity-60 text-white rounded-lg text-xs sm:text-sm font-bold shadow transition-all flex items-center gap-2"
               >
-                Create Account & Submit for State Verification
-                <ArrowRight className="w-4 h-4 text-[#F07421]" />
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                    <span>Saving Account to Database...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Create Account & Submit for State Verification</span>
+                    <ArrowRight className="w-4 h-4 text-[#F07421]" />
+                  </>
+                )}
               </button>
             </div>
           </form>
@@ -771,10 +805,20 @@ export const RegisterPage: React.FC = () => {
 
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-[#F07421] hover:bg-[#D96214] text-white rounded-lg text-xs sm:text-sm font-bold shadow transition-all flex items-center gap-2"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 bg-[#F07421] hover:bg-[#D96214] disabled:opacity-60 text-white rounded-lg text-xs sm:text-sm font-bold shadow transition-all flex items-center gap-2"
               >
-                Create Corporate Account & Submit
-                <ArrowRight className="w-4 h-4 text-white" />
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 text-white animate-spin" />
+                    <span>Saving Account to Database...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Create Corporate Account & Submit</span>
+                    <ArrowRight className="w-4 h-4 text-white" />
+                  </>
+                )}
               </button>
             </div>
           </form>

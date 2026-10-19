@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../context/ModalContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { Student, InternshipBatch } from '../../types/database';
 import {
   Users,
@@ -166,6 +167,7 @@ export const StudentManagementPage: React.FC = () => {
       currentUser || undefined
     );
 
+    cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId), db.passwords);
     setShowAddModal(false);
     setToastMsg(`Added student ${created.full_name} (${created.roll_number}) with Portal Login credentials!`);
     setTimeout(() => setToastMsg(null), 4000);
@@ -257,6 +259,10 @@ export const StudentManagementPage: React.FC = () => {
       { customEmail: credsEmail.trim(), customPassword: credsPassword.trim() },
       currentUser || undefined
     );
+    const myInstId = currentInstitution?.id || currentUser?.institution_id || selectedStudentForCreds.institution_id;
+    if (myInstId) {
+      cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId), db.passwords);
+    }
     setShowSingleCredModal(false);
     setToastMsg(`Generated & activated portal credentials for ${res.student.full_name} (${res.email})!`);
     setTimeout(() => setToastMsg(null), 4000);
@@ -275,6 +281,7 @@ export const StudentManagementPage: React.FC = () => {
       return;
     }
     const result = db.generateAllStudentsCredentials(myInstId, currentUser || undefined);
+    cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId), db.passwords);
     setGeneratedBatchCreds(result.credentials);
     setShowBatchCredsModal(true);
     setToastMsg(`Generated email and password credentials for ${result.count} students!`);
@@ -284,7 +291,7 @@ export const StudentManagementPage: React.FC = () => {
   // Quick Direct Login as Student
   const handleLoginAsStudent = async (stu: Student) => {
     const pass = getStudentPassword(stu);
-    const res = loginWithEmail(stu.email, pass);
+    const res = await loginWithEmail(stu.email, pass);
     if (res.success) {
       navigate('/dashboard');
     } else {
@@ -341,6 +348,9 @@ export const StudentManagementPage: React.FC = () => {
     if (previewRows.length === 0) return;
     const myInstId = currentInstitution?.id || currentUser?.institution_id || '';
     db.bulkImportStudents(myInstId, previewRows, currentUser || undefined);
+    if (myInstId) {
+      cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId), db.passwords);
+    }
     setToastMsg(`Successfully imported ${previewRows.length} students into college database with auto-generated login passwords!`);
     setTimeout(() => setToastMsg(null), 4000);
     setShowImportModal(false);

@@ -11,7 +11,8 @@ import {
   Mail,
   ArrowRight,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  Loader2
 } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
@@ -20,44 +21,52 @@ export const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
   const [forgotSent, setForgotSent] = useState(false);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setIsLoggingIn(true);
 
-    const res = loginWithEmail(email, password);
-    if (res.success && res.user) {
-      if (res.requirePasswordChange) {
-        navigate('/change-password', { replace: true });
-      } else {
-        // Immediately navigate to the user's verified database role dashboard
-        const role = res.role || res.user.role;
-        switch (role) {
-          case 'company_admin':
-          case 'mentor':
-            navigate('/company/dashboard', { replace: true });
-            break;
-          case 'institution_admin':
-          case 'faculty_coordinator':
-            navigate('/institution/dashboard', { replace: true });
-            break;
-          case 'student':
-            navigate('/student/dashboard', { replace: true });
-            break;
-          case 'super_admin':
-            navigate('/admin/dashboard', { replace: true });
-            break;
-          default:
-            navigate('/dashboard', { replace: true });
-            break;
+    try {
+      const res = await loginWithEmail(email, password);
+      if (res.success && res.user) {
+        if (res.requirePasswordChange) {
+          navigate('/change-password', { replace: true });
+        } else {
+          // Immediately navigate to the user's verified database role dashboard
+          const role = res.role || res.user.role;
+          switch (role) {
+            case 'company_admin':
+            case 'mentor':
+              navigate('/company/dashboard', { replace: true });
+              break;
+            case 'institution_admin':
+            case 'faculty_coordinator':
+              navigate('/institution/dashboard', { replace: true });
+              break;
+            case 'student':
+              navigate('/student/dashboard', { replace: true });
+              break;
+            case 'super_admin':
+              navigate('/admin/dashboard', { replace: true });
+              break;
+            default:
+              navigate('/dashboard', { replace: true });
+              break;
+          }
         }
+      } else {
+        setError(res.message || 'Invalid email or password.');
       }
-    } else {
-      setError(res.message || 'Invalid email or password.');
+    } catch (err: any) {
+      setError(err?.message || 'Login failed. Please check your network connection.');
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -147,10 +156,20 @@ export const LoginPage: React.FC = () => {
 
           <button
             type="submit"
-            className="w-full py-2.5 bg-[#0E2350] hover:bg-[#14336F] text-white rounded-lg font-bold shadow transition-all flex items-center justify-center gap-2 mt-2"
+            disabled={isLoggingIn}
+            className="w-full py-2.5 bg-[#0E2350] hover:bg-[#14336F] disabled:opacity-60 text-white rounded-lg font-bold shadow transition-all flex items-center justify-center gap-2 mt-2"
           >
-            <span>Sign In to Platform</span>
-            <ArrowRight className="w-4 h-4 text-[#F07421]" />
+            {isLoggingIn ? (
+              <>
+                <Loader2 className="w-4 h-4 text-white animate-spin" />
+                <span>Verifying Credentials...</span>
+              </>
+            ) : (
+              <>
+                <span>Sign In to Platform</span>
+                <ArrowRight className="w-4 h-4 text-[#F07421]" />
+              </>
+            )}
           </button>
         </form>
 
