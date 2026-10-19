@@ -382,6 +382,24 @@ class CloudSyncService {
       if (!res.ok) {
         const errText = await res.text();
         console.error('[CloudSync] Failed to persist institution to Supabase cloud:', res.status, errText);
+        if (res.status === 409 || errText.includes('23505') || errText.includes('unique constraint')) {
+          if (errText.includes('institutions_official_email_key') || errText.includes('official_email')) {
+            return {
+              success: false,
+              error: `An institution is already registered with official email address "${inst.official_email || adminProfile.email}". You do not need to register again — please click Log in to access your dashboard.`
+            };
+          }
+          if (errText.includes('institutions_code_key') || errText.includes('code')) {
+            return {
+              success: false,
+              error: `An institution with code "${inst.code}" is already registered in the AP VidyaConnect Registry. Please check the code or log in.`
+            };
+          }
+          return {
+            success: false,
+            error: `An institution with these credentials is already registered in the AP VidyaConnect database. Please click Log in.`
+          };
+        }
         return { success: false, error: `Database write failed (${res.status}): ${errText}` };
       }
 
@@ -480,6 +498,24 @@ class CloudSyncService {
       if (!res.ok) {
         const errText = await res.text();
         console.error('[CloudSync] Failed to persist company to Supabase cloud:', res.status, errText);
+        if (res.status === 409 || errText.includes('23505') || errText.includes('unique constraint')) {
+          if (errText.includes('companies_official_email_key') || errText.includes('official_email')) {
+            return {
+              success: false,
+              error: `A company is already registered with official email address "${comp.official_email || adminProfile.email}". You do not need to register again — please click Log in to access your dashboard.`
+            };
+          }
+          if (errText.includes('companies_cin_key') || errText.includes('cin')) {
+            return {
+              success: false,
+              error: `A corporate partner with CIN "${comp.cin}" is already registered in the AP VidyaConnect Registry. Please check your CIN or log in.`
+            };
+          }
+          return {
+            success: false,
+            error: `A company with these credentials is already registered in the AP VidyaConnect database. Please click Log in.`
+          };
+        }
         return { success: false, error: `Database write failed (${res.status}): ${errText}` };
       }
 

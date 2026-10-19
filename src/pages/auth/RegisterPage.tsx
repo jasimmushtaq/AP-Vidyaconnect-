@@ -7,6 +7,7 @@ import React, { useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { InstitutionType, AttachedDocument } from '../../types/database';
+import { db } from '../../services/dbStore';
 import { FileUploader } from '../../components/common/FileUploader';
 import { DocumentViewerModal } from '../../components/common/DocumentViewerModal';
 import {
@@ -148,6 +149,14 @@ export const RegisterPage: React.FC = () => {
       return;
     }
 
+    const cleanEmail = instAdmin.email.trim().toLowerCase();
+    const existingInst = db.institutions.find(i => i.official_email?.toLowerCase().trim() === cleanEmail);
+    const existingProf = db.profiles.find(p => p.email?.toLowerCase().trim() === cleanEmail);
+    if (existingInst || existingProf) {
+      setFormError(`An institution account is already registered with "${cleanEmail}". You do not need to register again — please log in to access your Institution Dashboard.`);
+      return;
+    }
+
     const payload = {
       ...instForm,
       document_url: instDocs[0]?.url,
@@ -184,6 +193,14 @@ export const RegisterPage: React.FC = () => {
 
     if (compAdmin.password !== compAdmin.confirmPassword) {
       setFormError('Passwords do not match. Please verify and re-enter your password.');
+      return;
+    }
+
+    const cleanEmail = compAdmin.email.trim().toLowerCase();
+    const existingComp = db.companies.find(c => c.official_email?.toLowerCase().trim() === cleanEmail || (compForm.cin && c.cin?.toLowerCase().trim() === compForm.cin.toLowerCase().trim()));
+    const existingProf = db.profiles.find(p => p.email?.toLowerCase().trim() === cleanEmail);
+    if (existingComp || existingProf) {
+      setFormError(`A company account is already registered with "${cleanEmail}". You do not need to register again — please log in to access your Company Dashboard.`);
       return;
     }
 
@@ -539,9 +556,20 @@ export const RegisterPage: React.FC = () => {
               </div>
 
               {formError && (
-                <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs font-bold flex items-center gap-2 animate-fade-in">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>{formError}</span>
+                <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in shadow-sm">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{formError}</span>
+                  </div>
+                  {(formError.toLowerCase().includes('already registered') || formError.toLowerCase().includes('log in')) && (
+                    <Link
+                      to="/login"
+                      className="shrink-0 px-3.5 py-1.5 bg-[#0E2350] hover:bg-[#14336F] text-white rounded-lg text-xs font-bold shadow-sm transition-all text-center flex items-center justify-center gap-1.5"
+                    >
+                      <span>Sign In Now</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-[#F07421]" />
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
@@ -791,9 +819,20 @@ export const RegisterPage: React.FC = () => {
               </div>
 
               {formError && (
-                <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs font-bold flex items-center gap-2 animate-fade-in">
-                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>{formError}</span>
+                <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-xl text-rose-900 text-xs font-semibold flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-fade-in shadow-sm">
+                  <div className="flex items-start gap-2.5">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">{formError}</span>
+                  </div>
+                  {(formError.toLowerCase().includes('already registered') || formError.toLowerCase().includes('log in')) && (
+                    <Link
+                      to="/login"
+                      className="shrink-0 px-3.5 py-1.5 bg-[#F07421] hover:bg-[#D96214] text-white rounded-lg text-xs font-bold shadow-sm transition-all text-center flex items-center justify-center gap-1.5"
+                    >
+                      <span>Sign In Now</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-white" />
+                    </Link>
+                  )}
                 </div>
               )}
             </div>
