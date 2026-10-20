@@ -43,9 +43,9 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<Profile[]>(db.profiles);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
-  // Initial session restoration from localStorage
+  // Initial session restoration from localStorage (instantaneous)
   const [currentUser, setCurrentUser] = useState<Profile>(() => {
     if (typeof window === 'undefined') return EMPTY_USER;
     const savedId = localStorage.getItem('kd_active_user_id');
@@ -69,34 +69,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     let isMounted = true;
-    const initApp = async () => {
-      try {
-        await cloudSync.init();
-      } catch (e) {
-        console.warn('Initial cloud sync warning:', e);
-      }
-      if (!isMounted) return;
-      db.syncFromStorage();
 
-      const savedId = localStorage.getItem('kd_active_user_id');
-      if (savedId) {
-        const match = db.profiles.find(p => p.id === savedId);
-        if (match) {
-          setCurrentUser(match);
-          setIsLoggedIn(true);
-        } else {
-          localStorage.removeItem('kd_active_user_id');
-          setCurrentUser(EMPTY_USER);
-          setIsLoggedIn(false);
-        }
-      } else {
-        setCurrentUser(EMPTY_USER);
-        setIsLoggedIn(false);
-      }
-      setIsLoading(false);
-    };
-
-    initApp();
+    // Run cloud synchronization in the background without blocking the UI or route guards
+    cloudSync.init().catch(e => {
+      console.warn('Initial cloud sync warning:', e);
+    });
 
     const unsub = db.subscribe(() => {
       setUsers([...db.profiles]);

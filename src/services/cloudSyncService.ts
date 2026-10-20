@@ -81,10 +81,12 @@ class CloudSyncService {
     // 2. Initial cloud state catch-up on load (awaited by callers)
     this.syncPromise = this.syncFromCloud();
 
-    // 3. Periodic cloud reconciliation (every 15s)
+    // 3. Periodic cloud reconciliation (every 60s when tab is active)
     setInterval(() => {
-      this.syncFromCloud();
-    }, 15000);
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        this.syncFromCloud();
+      }
+    }, 60000);
 
     // 4. Tab focus auto-sync: when user switches tabs or browsers, immediately check for new accounts/proposals
     window.addEventListener('focus', () => {

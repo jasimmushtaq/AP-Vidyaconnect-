@@ -3,7 +3,7 @@
 // Dedicated verification & compliance review workflow for colleges & companies
 // ============================================================================
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
@@ -173,23 +173,8 @@ export const EntityVerificationsPage: React.FC = () => {
     }
   };
 
-  // Unified items list
-  const combinedList: Array<{
-    type: 'institution' | 'company';
-    id: string;
-    name: string;
-    identifier: string;
-    subtitle: string;
-    district: string;
-    email: string;
-    phone: string;
-    website?: string;
-    logo_url?: string;
-    verification_status: VerificationStatus;
-    verification_notes?: string;
-    created_at?: string;
-    raw: Institution | Company;
-  }> = [
+  // Unified items list (Memoized for high-performance rendering)
+  const combinedList = useMemo(() => [
     ...institutions.map((i) => ({
       type: 'institution' as const,
       id: i.id,
@@ -222,25 +207,38 @@ export const EntityVerificationsPage: React.FC = () => {
       created_at: c.created_at,
       raw: c
     }))
-  ];
+  ], [institutions, companies]);
 
-  // Filtering
-  const filteredList = combinedList.filter((item) => {
-    const matchesSearch =
-      item.name.toLowerCase().includes(search.toLowerCase()) ||
-      item.identifier.toLowerCase().includes(search.toLowerCase()) ||
-      item.district.toLowerCase().includes(search.toLowerCase()) ||
-      item.email.toLowerCase().includes(search.toLowerCase());
+  // Filtering (Memoized for high-performance instant searching)
+  const filteredList = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return combinedList.filter((item) => {
+      const matchesSearch =
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        item.identifier.toLowerCase().includes(q) ||
+        item.district.toLowerCase().includes(q) ||
+        item.email.toLowerCase().includes(q);
 
-    const matchesStatus = statusFilter === 'all' || item.verification_status === statusFilter;
-    const matchesType = typeFilter === 'all' || item.type === typeFilter;
+      const matchesStatus = statusFilter === 'all' || item.verification_status === statusFilter;
+      const matchesType = typeFilter === 'all' || item.type === typeFilter;
 
-    return matchesSearch && matchesStatus && matchesType;
-  });
+      return matchesSearch && matchesStatus && matchesType;
+    });
+  }, [combinedList, search, statusFilter, typeFilter]);
 
-  const pendingCount = combinedList.filter((i) => i.verification_status === 'under_verification').length;
-  const verifiedCount = combinedList.filter((i) => i.verification_status === 'verified').length;
-  const rejectedCount = combinedList.filter((i) => i.verification_status === 'rejected').length;
+  const { pendingCount, verifiedCount, rejectedCount } = useMemo(() => {
+    let pending = 0;
+    let verified = 0;
+    let rejected = 0;
+    for (let i = 0; i < combinedList.length; i++) {
+      const s = combinedList[i].verification_status;
+      if (s === 'under_verification') pending++;
+      else if (s === 'verified') verified++;
+      else if (s === 'rejected') rejected++;
+    }
+    return { pendingCount: pending, verifiedCount: verified, rejectedCount: rejected };
+  }, [combinedList]);
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">

@@ -26,8 +26,8 @@ export const GovernmentTechBackground: React.FC = () => {
 
     window.addEventListener('resize', handleResize);
 
-    // Subtle floating network nodes (dots & connecting lines)
-    const nodeCount = Math.min(28, Math.floor((width * height) / 50000));
+    // Subtle floating network nodes (dots & connecting lines) - Lightweight & GPU friendly
+    const nodeCount = Math.min(14, Math.max(6, Math.floor((width * height) / 90000)));
     const nodes: Array<{
       x: number;
       y: number;
@@ -53,19 +53,29 @@ export const GovernmentTechBackground: React.FC = () => {
       nodes.push({
         x: Math.random() * width,
         y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.22, // Extremely slow drift
-        vy: (Math.random() - 0.5) * 0.22,
-        radius: Math.random() * 1.8 + 1.2,
-        baseAlpha: Math.random() * 0.25 + 0.15,
+        vx: (Math.random() - 0.5) * 0.18,
+        vy: (Math.random() - 0.5) * 0.18,
+        radius: Math.random() * 1.5 + 1.0,
+        baseAlpha: Math.random() * 0.2 + 0.1,
         pulseSpeed: Math.random() * 0.02 + 0.01,
         color: colors[i % colors.length]
       });
     }
 
     let time = 0;
+    let lastFrame = 0;
 
-    const render = () => {
-      time += 0.02;
+    const render = (timestamp: number) => {
+      animationFrameId = requestAnimationFrame(render);
+
+      // Pause when tab is inactive to save 100% CPU/GPU
+      if (typeof document !== 'undefined' && document.hidden) return;
+
+      // Throttle to ~30 FPS for silky-smooth performance without draining battery/GPU
+      if (timestamp - lastFrame < 33) return;
+      lastFrame = timestamp;
+
+      time += 0.025;
       ctx.clearRect(0, 0, width, height);
 
       // 1. Draw subtle connecting lines
@@ -74,15 +84,15 @@ export const GovernmentTechBackground: React.FC = () => {
           const dx = nodes[i].x - nodes[j].x;
           const dy = nodes[i].y - nodes[j].y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          const maxDist = 160;
+          const maxDist = 120;
 
           if (dist < maxDist) {
-            const lineAlpha = (1 - dist / maxDist) * 0.12;
+            const lineAlpha = (1 - dist / maxDist) * 0.08;
             ctx.beginPath();
             ctx.moveTo(nodes[i].x, nodes[i].y);
             ctx.lineTo(nodes[j].x, nodes[j].y);
             ctx.strokeStyle = `rgba(14, 35, 80, ${lineAlpha})`;
-            ctx.lineWidth = 0.75;
+            ctx.lineWidth = 0.6;
             ctx.stroke();
           }
         }
@@ -92,37 +102,24 @@ export const GovernmentTechBackground: React.FC = () => {
       for (let i = 0; i < nodes.length; i++) {
         const node = nodes[i];
 
-        // Move
         node.x += node.vx;
         node.y += node.vy;
 
-        // Wrap around bounds smoothly
         if (node.x < -20) node.x = width + 20;
         if (node.x > width + 20) node.x = -20;
         if (node.y < -20) node.y = height + 20;
         if (node.y > height + 20) node.y = -20;
 
-        // Subtle breathing pulse
-        const alpha = node.baseAlpha + Math.sin(time * node.pulseSpeed * 10 + i) * 0.08;
+        const alpha = node.baseAlpha + Math.sin(time * node.pulseSpeed * 10 + i) * 0.06;
 
         ctx.beginPath();
         ctx.arc(node.x, node.y, node.radius, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${node.color}, ${Math.max(0.06, alpha)})`;
+        ctx.fillStyle = `rgba(${node.color}, ${Math.max(0.04, alpha)})`;
         ctx.fill();
-
-        // Faint halo on larger nodes
-        if (node.radius > 2) {
-          ctx.beginPath();
-          ctx.arc(node.x, node.y, node.radius * 2.2, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(${node.color}, ${alpha * 0.25})`;
-          ctx.fill();
-        }
       }
-
-      animationFrameId = requestAnimationFrame(render);
     };
 
-    render();
+    animationFrameId = requestAnimationFrame(render);
 
     return () => {
       window.removeEventListener('resize', handleResize);
@@ -153,23 +150,21 @@ export const GovernmentTechBackground: React.FC = () => {
         }}
       />
 
-      {/* 2. Soft Luminous White Veil for Maximum Text Readability & Contrast */}
-      <div className="absolute inset-0 bg-white/45 backdrop-blur-[1px]" />
+      {/* 2. Soft Luminous White Veil (Clean & Zero GPU lag) */}
+      <div className="absolute inset-0 bg-white/55" />
 
       {/* 3. Subtle Dot Matrix Tech Pattern */}
       <div
-        className="absolute inset-0 opacity-[0.25]"
+        className="absolute inset-0 opacity-[0.2]"
         style={{
-          backgroundImage: `radial-gradient(rgba(14, 35, 80, 0.15) 1px, transparent 1px)`,
-          backgroundSize: '32px 32px',
-          maskImage: 'radial-gradient(ellipse 90% 85% at 50% 40%, black 40%, transparent 95%)',
-          WebkitMaskImage: 'radial-gradient(ellipse 90% 85% at 50% 40%, black 40%, transparent 95%)'
+          backgroundImage: `radial-gradient(rgba(14, 35, 80, 0.12) 1px, transparent 1px)`,
+          backgroundSize: '32px 32px'
         }}
       />
 
       {/* 4. Minimal Andhra Pradesh Map Silhouette & Coastal Wave Curves (SVG) */}
       <svg
-        className="absolute right-0 top-8 w-[680px] lg:w-[860px] h-full max-h-[1400px] opacity-[0.065] text-[#0E2350] pointer-events-none"
+        className="absolute right-0 top-8 w-[680px] lg:w-[860px] h-full max-h-[1400px] opacity-[0.055] text-[#0E2350] pointer-events-none"
         viewBox="0 0 800 1000"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
@@ -232,14 +227,6 @@ export const GovernmentTechBackground: React.FC = () => {
       <canvas
         ref={canvasRef}
         className="absolute inset-0 w-full h-full pointer-events-none"
-      />
-
-      {/* 6. Subtle Grain Texture Noise Overlay */}
-      <div
-        className="absolute inset-0 opacity-[0.025] mix-blend-overlay pointer-events-none"
-        style={{
-          backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E")`
-        }}
       />
     </div>
   );
