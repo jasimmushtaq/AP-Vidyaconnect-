@@ -58,6 +58,21 @@ body {
   background: #9CA3AF;
 }
 
+/* Sleek Dark Navy Scrollbar for Sidebar */
+.sidebar-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb {
+  background: #193B7B;
+  border-radius: 4px;
+}
+.sidebar-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #F07421;
+}
+
 /* Print Styles for Certificate, MoU & Reports */
 @media print {
   @page {

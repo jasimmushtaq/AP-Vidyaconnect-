@@ -106,15 +106,15 @@ export const AppLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen relative flex flex-col font-sans print:min-h-0 print:bg-white">
+    <div className="h-screen flex flex-col font-sans overflow-hidden print:h-auto print:overflow-visible print:bg-white relative">
       {/* AICTE & AP Institutional Government-Tech Background */}
       <div className="print:hidden">
         <GovernmentTechBackground />
       </div>
 
-      <div className="flex-1 flex print:block">
-        {/* Desktop Sidebar */}
-        <div className="hidden lg:block print:hidden">
+      <div className="flex-1 flex overflow-hidden print:block print:overflow-visible relative z-10">
+        {/* Desktop Sidebar - Fixed in Position */}
+        <div className="hidden lg:block print:hidden shrink-0 h-full">
           <Sidebar
             collapsed={sidebarCollapsed}
             onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -128,15 +128,15 @@ export const AppLayout: React.FC = () => {
               className="fixed inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setMobileSidebarOpen(false)}
             />
-            <div className="relative z-10 w-72">
-              <Sidebar />
+            <div className="relative z-10 w-72 h-full flex flex-col">
+              <Sidebar onMobileClose={() => setMobileSidebarOpen(false)} />
             </div>
           </div>
         )}
 
-        {/* Main Content Area */}
-        <div className="flex-1 flex flex-col min-w-0 print:block">
-          <div className="print:hidden">
+        {/* Main Content Area - Scrolls independently while sidebar stays fixed */}
+        <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto print:h-auto print:overflow-visible">
+          <div className="print:hidden sticky top-0 z-30 shrink-0">
             <Header onMenuToggle={() => setMobileSidebarOpen(true)} />
           </div>
 

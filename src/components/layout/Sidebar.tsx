@@ -3,7 +3,7 @@
 // ============================================================================
 
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
 import { BrandLogo } from '../common/BrandLogo';
@@ -28,17 +28,28 @@ import {
   Megaphone,
   PenTool,
   Stamp,
-  Layers
+  Layers,
+  LogOut
 } from 'lucide-react';
 
 interface SidebarProps {
   collapsed?: boolean;
   onToggleCollapse?: () => void;
+  onMobileClose?: () => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCollapse }) => {
-  const { currentUser, currentRole, currentInstitution, currentCompany, currentStudent } = useAuth();
+export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCollapse, onMobileClose }) => {
+  const { currentUser, currentRole, currentInstitution, currentCompany, currentStudent, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    if (onMobileClose) {
+      onMobileClose();
+    }
+    navigate('/login');
+  };
 
   const getNavLinks = () => {
     switch (currentRole) {
@@ -129,12 +140,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
 
   return (
     <aside
-      className={`bg-[#0E2350] text-white flex flex-col justify-between transition-all duration-300 z-20 ${
+      className={`bg-[#0E2350] text-white flex flex-col transition-all duration-300 z-20 ${
         collapsed ? 'w-20' : 'w-64'
-      } min-h-screen shadow-xl`}
+      } h-full max-h-screen shadow-xl select-none`}
     >
-      {/* Top Brand Banner */}
-      <div>
+      {/* Top Brand Banner & Active Context (Anchored at Top) */}
+      <div className="shrink-0">
         <div className="h-16 flex items-center justify-center px-4 border-b border-[#14336F]">
           {collapsed ? (
             <BrandLogo variant="mark" size={32} />
@@ -161,9 +172,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
             </p>
           </div>
         )}
+      </div>
 
-        {/* Nav Links */}
-        <nav className="p-3 space-y-1">
+      {/* Scrollable Nav Links Section */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 sidebar-scrollbar space-y-1 min-h-0">
+        <nav className="space-y-1">
           {navLinks.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path || (item.path !== '/dashboard' && location.pathname.startsWith(item.path));
@@ -172,6 +185,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
               <NavLink
                 key={item.path}
                 to={item.path}
+                onClick={() => {
+                  if (onMobileClose) onMobileClose();
+                }}
                 className={({ isActive: active }) =>
                   `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
                     active
@@ -196,10 +212,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
         </nav>
       </div>
 
-      {/* Bottom info / Help box */}
-      <div className="p-3 border-t border-[#14336F]">
+      {/* Bottom info & Actions Section (Anchored at Bottom) */}
+      <div className="p-3 border-t border-[#14336F] shrink-0 space-y-2 bg-[#0E2350]">
         {!collapsed && (
-          <div className="bg-[#102A60]/80 rounded-lg p-3 text-[11px] text-[#DCE5F5] space-y-1">
+          <div className="bg-[#102A60]/80 rounded-lg p-2.5 text-[11px] text-[#DCE5F5] space-y-1 border border-[#14336F]/60">
             <p className="font-bold text-white flex items-center gap-1.5">
               <HelpCircle className="w-3.5 h-3.5 text-[#F07421]" />
               Helpdesk & SOP
@@ -209,6 +225,26 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
             </p>
           </div>
         )}
+
+        {/* Logout Option */}
+        <button
+          type="button"
+          onClick={handleLogout}
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-600/30 active:bg-rose-600/40 border border-rose-500/25 transition-all cursor-pointer group shadow-xs ${
+            collapsed ? 'justify-center' : ''
+          }`}
+          title={collapsed ? "Sign Out / Logout" : undefined}
+        >
+          <LogOut className="w-4 h-4 text-rose-400 group-hover:text-rose-200 shrink-0 transition-transform group-hover:-translate-x-0.5" />
+          {!collapsed && (
+            <div className="flex items-center justify-between flex-1">
+              <span>Sign Out</span>
+              <span className="text-[10px] font-bold text-rose-300 bg-rose-500/20 px-2 py-0.5 rounded border border-rose-500/30 group-hover:border-rose-400/40">
+                Logout
+              </span>
+            </div>
+          )}
+        </button>
       </div>
     </aside>
   );
