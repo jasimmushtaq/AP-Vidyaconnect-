@@ -134,13 +134,16 @@ export const AppLayout: React.FC = () => {
           </div>
         )}
 
-        {/* Main Content Area - Scrolls independently while sidebar stays fixed */}
-        <div className="flex-1 flex flex-col min-w-0 h-full overflow-y-auto print:h-auto print:overflow-visible">
-          <div className="print:hidden sticky top-0 z-30 shrink-0">
+        {/* Main Content Area */}
+        <div className="flex-1 flex flex-col min-w-0 h-full print:h-auto print:overflow-visible">
+          {/* Header permanently anchored at top */}
+          <div className="print:hidden shrink-0 z-30">
             <Header onMenuToggle={() => setMobileSidebarOpen(true)} />
           </div>
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full">
+          {/* Independently scrollable page content */}
+          <div className="flex-1 overflow-y-auto print:overflow-visible relative">
+            <main className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full">
             {/* Inline Verification Status Banner for Pending Audits */}
             {(isInstitutionUnderReview || isCompanyUnderReview) && (
               <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -168,6 +171,7 @@ export const AppLayout: React.FC = () => {
             {/* Page Router Outlet */}
             <Outlet />
           </main>
+          </div>
         </div>
       </div>
     </div>

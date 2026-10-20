@@ -340,8 +340,8 @@ export const EntityVerificationsPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row gap-3 items-center justify-between">
+      {/* Search & Filter Bar — Sticky on Scroll */}
+      <div className="sticky top-0 z-20 bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-gray-200 shadow-md flex flex-col md:flex-row gap-3 items-center justify-between transition-all">
         {/* Search */}
         <div className="relative w-full md:w-80">
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
