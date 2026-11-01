@@ -144,6 +144,19 @@ class DatabaseStore {
     'rahul.sharma23@student.gdck.ac.in': 'pixelwind@2005'
   });
 
+  private cloudSyncProvider: { syncProposalToCloud: (proposal: InternshipProposal) => Promise<{ success: boolean; error?: string }> } | null = null;
+
+  public registerCloudSyncProvider(provider: { syncProposalToCloud: (proposal: InternshipProposal) => Promise<{ success: boolean; error?: string }> }) {
+    this.cloudSyncProvider = provider;
+  }
+
+  public async syncProposal(proposal: InternshipProposal): Promise<{ success: boolean; error?: string }> {
+    if (this.cloudSyncProvider) {
+      return await this.cloudSyncProvider.syncProposalToCloud(proposal);
+    }
+    return { success: true };
+  }
+
   constructor() {
     // Ensure Super Admin has updated default email & name
     const superAdmin = this.profiles.find(p => p.id === 'user-super-admin' || p.role === 'super_admin');
@@ -1165,12 +1178,13 @@ class DatabaseStore {
     proposal.status = 'submitted';
     proposal.updated_at = new Date().toISOString();
     
+    const { versions: _v, ...cleanProposal } = proposal;
     proposal.versions = proposal.versions || [];
     proposal.versions.push({
       id: `ver-${Date.now()}`,
       proposal_id: proposalId,
       version_number: proposal.version,
-      snapshot: { ...proposal },
+      snapshot: cleanProposal,
       changed_by_name: actor.full_name,
       change_summary: 'Proposal submitted to company for review',
       created_at: new Date().toISOString()
@@ -1203,7 +1217,7 @@ class DatabaseStore {
     return { success: true, status: 'under_company_review' };
   }
 
-  companyRespond(
+  async companyRespond(
     proposalId: string,
     action: 'accept' | 'accept_with_changes' | 'request_modification' | 'reject',
     data: {
@@ -1214,8 +1228,8 @@ class DatabaseStore {
       remarks?: string;
     },
     actor: Profile
-  ) {
-    const proposal = this.proposals.find(p => p.id === proposalId);
+  ): Promise<{ success: boolean; status: ProposalStatus }> {
+    const proposal = this.proposals.find(p => p.id === proposalId || p.proposal_code === proposalId);
     if (!proposal) throw new Error('Proposal not found');
 
     let newStatus: ProposalStatus;
@@ -1230,6 +1244,7 @@ class DatabaseStore {
     }
 
     const beforeStatus = proposal.status;
+    const beforeVersion = proposal.version;
     proposal.status = newStatus;
     proposal.version += 1;
     proposal.updated_at = new Date().toISOString();
@@ -1261,18 +1276,31 @@ class DatabaseStore {
       });
     }
 
+    // Clean snapshot without recursive versions array
+    const { versions: _prevVersions, ...cleanSnapshot } = proposal;
     proposal.versions = proposal.versions || [];
-    proposal.versions.push({
+    const newVersionEntry = {
       id: `ver-${Date.now()}`,
-      proposal_id: proposalId,
+      proposal_id: proposal.id,
       version_number: proposal.version,
-      snapshot: { ...proposal, ...data },
+      snapshot: { ...cleanSnapshot, ...data },
       changed_by_name: actor.full_name,
       change_summary: `Company responded: ${action.replace('_', ' ').toUpperCase()} (${data.remarks || 'Terms updated'})`,
       created_at: new Date().toISOString()
-    });
+    };
+    proposal.versions.push(newVersionEntry);
 
-    this.logAudit('company_respond', 'internship_proposal', proposalId, { status: beforeStatus }, { status: newStatus, ...data }, { id: actor.id, name: actor.full_name, role: actor.role });
+    // CRITICAL: Persist to Supabase and wait for confirmation before notifying or completing
+    const syncRes = await this.syncProposal(proposal);
+    if (!syncRes.success) {
+      // Revert in-memory state on persistence failure
+      proposal.status = beforeStatus;
+      proposal.version = beforeVersion;
+      proposal.versions.pop();
+      throw new Error(`Failed to save decision to central database: ${syncRes.error || 'Network error'}. Please check your connection and try again.`);
+    }
+
+    this.logAudit('company_respond', 'internship_proposal', proposal.id, { status: beforeStatus }, { status: newStatus, ...data }, { id: actor.id, name: actor.full_name, role: actor.role });
 
     const decisionLabel =
       action === 'accept_with_changes'
@@ -1300,11 +1328,11 @@ class DatabaseStore {
         'proposal_reviewed',
         `Proposal Response: ${proposal.company?.name || 'Company'} (${decisionLabel})`,
         `${proposal.company?.name || 'Company'} responded with "${decisionLabel}". Remarks: "${data.remarks || 'Terms updated'}". Review and submit final institutional decision in College Portal.`,
-        `/proposals/${proposalId}`,
+        `/proposals/${proposal.id}`,
         {
           recipient_role: 'institution_admin',
           recipient_user_id: recId,
-          metadata: { proposal_id: proposalId, status: newStatus, action, company_name: proposal.company?.name }
+          metadata: { proposal_id: proposal.id, status: newStatus, action, company_name: proposal.company?.name }
         }
       );
     });
@@ -1319,8 +1347,8 @@ class DatabaseStore {
     return { success: true, status: newStatus };
   }
 
-  institutionFinalAccept(proposalId: string, actor: Profile) {
-    const proposal = this.proposals.find(p => p.id === proposalId);
+  async institutionFinalAccept(proposalId: string, actor: Profile): Promise<{ success: boolean; batch_id: string; batch_code: string }> {
+    const proposal = this.proposals.find(p => p.id === proposalId || p.proposal_code === proposalId);
     if (!proposal) throw new Error('Proposal not found');
 
     if (proposal.status !== 'company_accepted' && proposal.status !== 'company_accepted_with_changes') {
@@ -1333,6 +1361,8 @@ class DatabaseStore {
     const seq = String(this.batches.length + 1).padStart(3, '0');
     const batchCode = `KD-${year}-${compCode}-${instCode}-${seq}`;
 
+    const beforeStatus = proposal.status;
+    const beforeVersion = proposal.version;
     proposal.status = 'institution_accepted';
     proposal.updated_at = new Date().toISOString();
     (proposal as any).final_accepted_at = new Date().toISOString();
@@ -1374,6 +1404,29 @@ class DatabaseStore {
       updated_at: new Date().toISOString()
     };
 
+    // Clean snapshot without recursive versions array
+    const { versions: _v, ...cleanProposal } = proposal;
+    proposal.versions = proposal.versions || [];
+    proposal.versions.push({
+      id: `ver-${Date.now()}`,
+      proposal_id: proposal.id,
+      version_number: proposal.version + 1,
+      snapshot: { ...cleanProposal, batch_code: batchCode },
+      changed_by_name: actor.full_name,
+      change_summary: `Institution accepted company terms and provisioned Batch ${batchCode}`,
+      created_at: new Date().toISOString()
+    });
+    proposal.version += 1;
+
+    // Persist to central Supabase and wait for confirmation
+    const syncRes = await this.syncProposal(proposal);
+    if (!syncRes.success) {
+      proposal.status = beforeStatus;
+      proposal.version = beforeVersion;
+      proposal.versions.pop();
+      throw new Error(`Failed to persist acceptance to central database: ${syncRes.error || 'Network error'}. Please try again.`);
+    }
+
     this.batches.unshift(newBatch);
     this.persist('batches');
     this.persist('proposals');
@@ -1382,7 +1435,7 @@ class DatabaseStore {
       'institution_final_accept_batch_created',
       'internship_batch',
       newBatch.id,
-      { proposal_id: proposalId },
+      { proposal_id: proposal.id },
       { batch_code: batchCode, student_count: acceptedStudents.length },
       { id: actor.id, name: actor.full_name, role: actor.role }
     );
@@ -1400,7 +1453,7 @@ class DatabaseStore {
         `Batch Created: ${batchCode}`,
         `Institution finalized terms. Batch "${newBatch.title}" is ready for onboarding.`,
         `/batches/${newBatch.id}`,
-        { recipient_role: 'company_admin', recipient_user_id: recId, metadata: { batch_id: newBatch.id, proposal_id: proposalId } }
+        { recipient_role: 'company_admin', recipient_user_id: recId, metadata: { batch_id: newBatch.id, proposal_id: proposal.id } }
       );
     });
 
@@ -1423,11 +1476,12 @@ class DatabaseStore {
     return { success: true, batch_id: newBatch.id, batch_code: batchCode };
   }
 
-  institutionReject(proposalId: string, remarks: string, actor: Profile) {
-    const proposal = this.proposals.find(p => p.id === proposalId);
+  async institutionReject(proposalId: string, remarks: string, actor: Profile): Promise<{ success: boolean }> {
+    const proposal = this.proposals.find(p => p.id === proposalId || p.proposal_code === proposalId);
     if (!proposal) throw new Error('Proposal not found');
 
     const beforeStatus = proposal.status;
+    const beforeVersion = proposal.version;
     proposal.status = 'declined';
     proposal.version += 1;
     proposal.updated_at = new Date().toISOString();
@@ -1436,18 +1490,27 @@ class DatabaseStore {
     (proposal as any).declined_reason = remarks;
     proposal.additional_terms = remarks || 'Declined by Institution Coordinator';
 
+    const { versions: _v, ...cleanProposal } = proposal;
     proposal.versions = proposal.versions || [];
     proposal.versions.push({
       id: `ver-${Date.now()}`,
-      proposal_id: proposalId,
+      proposal_id: proposal.id,
       version_number: proposal.version,
-      snapshot: { ...proposal, rejection_remarks: remarks },
+      snapshot: { ...cleanProposal, rejection_remarks: remarks },
       changed_by_name: actor.full_name,
       change_summary: `Institution declined company terms: ${remarks || 'Terms not acceptable'}`,
       created_at: new Date().toISOString()
     });
 
-    this.logAudit('institution_reject_proposal', 'internship_proposal', proposalId, { status: beforeStatus }, { status: 'declined', remarks }, { id: actor.id, name: actor.full_name, role: actor.role });
+    const syncRes = await this.syncProposal(proposal);
+    if (!syncRes.success) {
+      proposal.status = beforeStatus;
+      proposal.version = beforeVersion;
+      proposal.versions.pop();
+      throw new Error(`Failed to persist rejection to central database: ${syncRes.error || 'Network error'}. Please try again.`);
+    }
+
+    this.logAudit('institution_reject_proposal', 'internship_proposal', proposal.id, { status: beforeStatus }, { status: 'declined', remarks }, { id: actor.id, name: actor.full_name, role: actor.role });
 
     // Multi-admin notification to company admins
     const compAdmins = this.profiles.filter(p => p.company_id === proposal.company_id || (p.role === 'company_admin' && !p.company_id));
@@ -1461,8 +1524,8 @@ class DatabaseStore {
         'proposal_rejected',
         `Proposal Terms Declined by ${proposal.institution?.name || 'Institution'}`,
         `College Coordinator declined terms for proposal ${proposal.proposal_code}: ${remarks || 'Terms not accepted by college'}.`,
-        `/proposals/${proposalId}`,
-        { recipient_role: 'company_admin', recipient_user_id: recId, metadata: { proposal_id: proposalId, remarks } }
+        `/proposals/${proposal.id}`,
+        { recipient_role: 'company_admin', recipient_user_id: recId, metadata: { proposal_id: proposal.id, remarks } }
       );
     });
 
@@ -1473,7 +1536,7 @@ class DatabaseStore {
       window.dispatchEvent(new CustomEvent('vidyaconnect:proposal_updated', { detail: { proposal } }));
     }
 
-    return { success: true, status: 'declined' };
+    return { success: true };
   }
 
   activateBatch(batchId: string, actor: Profile) {

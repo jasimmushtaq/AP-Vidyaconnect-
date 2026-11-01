@@ -32,8 +32,10 @@ class CloudSyncService {
   private isSyncing = false;
   private syncPromise: Promise<boolean> | null = null;
   private inFlightDecisions = new Set<string>();
+  private inFlightProposals = new Set<string>();
 
   public init(): Promise<boolean> {
+    db.registerCloudSyncProvider(this);
     if (this.isInitialized || typeof window === 'undefined') {
       return this.syncPromise || Promise.resolve(true);
     }
@@ -747,16 +749,83 @@ class CloudSyncService {
     }
   }
 
-  public async syncProposalToCloud(proposal: InternshipProposal): Promise<{ success: boolean; error?: string }> {
-    // 1. Broadcast immediately to all active browser windows & tabs
-    this.broadcast('PROPOSAL_UPDATED', { proposal });
+  /**
+   * Helper to deep sanitize a proposal before sending to cloud.
+   * Strips recursive versions snapshots to avoid "Converting circular structure to JSON"
+   * and caps snapshot depths to maintain clean history without memory bloat.
+   */
+  private sanitizeProposalForCloud(proposal: InternshipProposal): InternshipProposal {
+    if (!proposal) return proposal;
+    
+    // Prune circular versions in snapshots
+    const cleanVersions = Array.isArray(proposal.versions)
+      ? proposal.versions.map(v => {
+          if (!v) return v;
+          let cleanSnap = v.snapshot;
+          if (cleanSnap && typeof cleanSnap === 'object') {
+            const { versions: _v, ...rest } = cleanSnap as any;
+            cleanSnap = rest;
+          }
+          return {
+            id: v.id || `ver-${Date.now()}`,
+            proposal_id: v.proposal_id || proposal.id,
+            version_number: v.version_number || 1,
+            snapshot: cleanSnap,
+            changed_by_name: v.changed_by_name || 'System User',
+            change_summary: v.change_summary || 'State Transition',
+            created_at: v.created_at || new Date().toISOString()
+          };
+        })
+      : [];
 
-    // 2. Persist to shared Supabase PostgreSQL database
+    return {
+      ...proposal,
+      versions: cleanVersions
+    };
+  }
+
+  public async syncProposalToCloud(proposal: InternshipProposal): Promise<{ success: boolean; error?: string }> {
+    if (!proposal || !proposal.id) {
+      return { success: false, error: 'Invalid proposal object' };
+    }
+
+    const flightKey = `${proposal.id}-${proposal.status}-${proposal.version || 1}`;
+    if (this.inFlightProposals.has(flightKey)) {
+      return { success: true };
+    }
+    this.inFlightProposals.add(flightKey);
+
+    // 1. Sanitize proposal to eliminate circular references and trim payload
+    const sanitizedProposal = this.sanitizeProposalForCloud(proposal);
+
+    // 2. Broadcast immediately to all active browser windows & tabs
+    this.broadcast('PROPOSAL_UPDATED', { proposal: sanitizedProposal });
+
     try {
+      // 3. Attempt canonical proposal synchronization via RPC or internship_proposals table
+      try {
+        const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/sync_canonical_proposal`, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ p_proposal: sanitizedProposal })
+        });
+
+        if (rpcRes.ok) {
+          console.log('[CloudSync] Successfully synced proposal via canonical RPC:', proposal.proposal_code || proposal.id);
+        }
+      } catch (rpcErr) {
+        // Canonical RPC fallback to shared journal
+      }
+
+      // 4. Authoritative shared PostgreSQL persistence
       const ts = Date.now();
       const idPart = (proposal.id || 'prop').replace(/[^a-zA-Z0-9]/g, '').slice(-10);
       const syncCode = `PROP-${idPart}-${ts}`.slice(0, 48);
-      const syncEmail = `p.${idPart}.${ts}@sync.apvidya.gov.in`.slice(0, 50);
+      const syncEmail = `p.${idPart}.${ts}.${Math.floor(Math.random() * 1000)}@sync.apvidya.gov.in`.slice(0, 50);
 
       const syncRow = {
         code: syncCode,
@@ -777,13 +846,14 @@ class CloudSyncService {
           proposal_id: proposal.id,
           proposal_code: proposal.proposal_code,
           status: proposal.status,
+          version: proposal.version || 1,
           updated_at: proposal.updated_at || new Date().toISOString()
         }),
         documents: [{
           sync_type: 'INTERNSHIP_PROPOSAL',
           proposal_id: proposal.id,
           proposal_code: proposal.proposal_code,
-          proposal,
+          proposal: sanitizedProposal,
           timestamp: new Date().toISOString()
         }]
       };
@@ -794,22 +864,24 @@ class CloudSyncService {
           'apikey': supabaseAnonKey,
           'Authorization': `Bearer ${supabaseAnonKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify(syncRow)
       });
 
       if (!res.ok) {
         const errText = await res.text();
-        console.warn('[CloudSync] Failed to insert proposal sync row:', res.status, errText);
-        return { success: false, error: errText };
+        console.error('[CloudSync] Failed to persist proposal to Supabase:', res.status, errText);
+        return { success: false, error: `Database persistence failed (${res.status}): ${errText}` };
       }
 
-      console.log('[CloudSync] Successfully saved proposal to shared Supabase database:', proposal.proposal_code, proposal.status);
+      console.log('[CloudSync] Authoritative proposal saved to Supabase database:', proposal.proposal_code || proposal.id, proposal.status);
       return { success: true };
     } catch (e: any) {
-      console.warn('[CloudSync] Error syncing proposal to Supabase:', e);
-      return { success: false, error: e?.message || 'Network error' };
+      console.error('[CloudSync] Error syncing proposal to Supabase:', e);
+      return { success: false, error: e?.message || 'Network communication failed' };
+    } finally {
+      this.inFlightProposals.delete(flightKey);
     }
   }
 
@@ -925,13 +997,9 @@ class CloudSyncService {
           }
         }
 
+        // Pass 2: Extract and consolidate all proposals across sync journal rows
+        const candidateProposals: any[] = [];
         for (const cloudInst of cloudInstitutions) {
-          // Skip Sync Journal Rows
-          if (cloudInst.code?.startsWith('DEC-') || cloudInst.code?.startsWith('SYNC-DECISION-')) {
-            continue;
-          }
-
-          // A. Handle Proposal Sync Rows
           if (cloudInst.code?.startsWith('PROP-') || cloudInst.code?.startsWith('SYNC-PROP-')) {
             let syncDoc = Array.isArray(cloudInst.documents)
               ? cloudInst.documents.find((d: any) => d && (d.sync_type === 'INTERNSHIP_PROPOSAL' || d.proposal || d.proposal_code))
@@ -946,27 +1014,106 @@ class CloudSyncService {
             }
 
             if (p && (p.id || p.proposal_code)) {
-              const idx = db.proposals.findIndex(existing => existing.id === p.id || existing.proposal_code === p.proposal_code);
-              if (idx >= 0) {
-                const cloudTime = new Date(p.updated_at || p.created_at || 0).getTime();
-                const localTime = new Date(db.proposals[idx].updated_at || db.proposals[idx].created_at || 0).getTime();
-                const isStatusAdvanced =
-                  p.status === 'company_accepted_with_changes' ||
-                  p.status === 'company_accepted' ||
-                  p.status === 'institution_accepted' ||
-                  p.status === 'modification_requested' ||
-                  p.status === 'declined' ||
-                  p.status === 'rejected';
+              candidateProposals.push(p);
+            }
+          }
+        }
 
-                if (cloudTime >= localTime || (isStatusAdvanced && (db.proposals[idx].status === 'submitted' || db.proposals[idx].status === 'draft'))) {
-                  db.proposals[idx] = { ...db.proposals[idx], ...p };
-                  anyChanged = true;
+        // Pass 3: Try to fetch canonical proposals from internship_proposals table if accessible
+        try {
+          const canonicalRes = await fetch(`${supabaseUrl}/rest/v1/internship_proposals?select=*`, {
+            headers: {
+              'apikey': supabaseAnonKey,
+              'Authorization': `Bearer ${supabaseAnonKey}`
+            }
+          });
+          if (canonicalRes.ok) {
+            const canonicalRows = await canonicalRes.json();
+            if (Array.isArray(canonicalRows) && canonicalRows.length > 0) {
+              canonicalRows.forEach(c => candidateProposals.push(c));
+            }
+          }
+        } catch (canErr) {
+          // Ignore if table RLS requires migration
+        }
+
+        // Pass 4: Authoritative proposal resolution by ID and Code
+        const statusWeights: Record<string, number> = {
+          'draft': 1,
+          'submitted': 2,
+          'under_company_review': 3,
+          'modification_requested': 4,
+          'company_accepted_with_changes': 5,
+          'company_accepted': 5,
+          'institution_accepted': 6,
+          'declined': 7,
+          'rejected': 7,
+        };
+
+        const resolvedProposalMap = new Map<string, any>();
+        for (const cand of candidateProposals) {
+          const key = cand.id || cand.proposal_code;
+          if (!key) continue;
+
+          const existing = resolvedProposalMap.get(key);
+          if (!existing) {
+            resolvedProposalMap.set(key, { ...cand });
+          } else {
+            const candVer = cand.version || 1;
+            const exVer = existing.version || 1;
+            const candWeight = statusWeights[cand.status] || 0;
+            const exWeight = statusWeights[existing.status] || 0;
+            const candTime = new Date(cand.updated_at || cand.created_at || 0).getTime();
+            const exTime = new Date(existing.updated_at || existing.created_at || 0).getTime();
+
+            // Merge versions array without losing history
+            const mergedVersions = [...(existing.versions || [])];
+            if (Array.isArray(cand.versions)) {
+              for (const v of cand.versions) {
+                if (!mergedVersions.some(mv => mv.id === v.id || mv.version_number === v.version_number)) {
+                  mergedVersions.push(v);
                 }
-              } else {
-                db.proposals.unshift(p);
-                anyChanged = true;
               }
             }
+
+            if (candVer > exVer || (candVer === exVer && (candWeight > exWeight || (candWeight === exWeight && candTime >= exTime)))) {
+              resolvedProposalMap.set(key, {
+                ...existing,
+                ...cand,
+                versions: mergedVersions
+              });
+            } else {
+              existing.versions = mergedVersions;
+            }
+          }
+        }
+
+        // Apply consolidated authoritative proposals to dbStore
+        for (const [_, resolved] of resolvedProposalMap.entries()) {
+          const idx = db.proposals.findIndex(p => p.id === resolved.id || p.proposal_code === resolved.proposal_code);
+          if (idx >= 0) {
+            const current = db.proposals[idx];
+            const currentWeight = statusWeights[current.status] || 0;
+            const resolvedWeight = statusWeights[resolved.status] || 0;
+            const resolvedTime = new Date(resolved.updated_at || resolved.created_at || 0).getTime();
+            const currentTime = new Date(current.updated_at || current.created_at || 0).getTime();
+
+            if ((resolved.version || 1) >= (current.version || 1) || resolvedWeight > currentWeight || resolvedTime >= currentTime) {
+              db.proposals[idx] = {
+                ...db.proposals[idx],
+                ...resolved
+              };
+              anyChanged = true;
+            }
+          } else {
+            db.proposals.unshift(resolved);
+            anyChanged = true;
+          }
+        }
+
+        for (const cloudInst of cloudInstitutions) {
+          // Skip Sync Journal Rows
+          if (cloudInst.code?.startsWith('DEC-') || cloudInst.code?.startsWith('SYNC-DECISION-') || cloudInst.code?.startsWith('PROP-') || cloudInst.code?.startsWith('SYNC-PROP-')) {
             continue;
           }
 

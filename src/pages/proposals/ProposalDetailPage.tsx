@@ -51,13 +51,19 @@ export const ProposalDetailPage: React.FC = () => {
   const [rejectionRemarks, setRejectionRemarks] = useState('');
   const [rejecting, setRejecting] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     // Immediately pull latest proposals from cloud
     cloudSync.syncFromCloud().catch(console.error);
 
     const load = () => {
-      const match = db.proposals.find(p => p.id === id);
+      const match = db.proposals.find(
+        p => p.id === id || 
+             p.proposal_code === id || 
+             p.id?.toLowerCase() === id?.toLowerCase() || 
+             p.proposal_code?.toLowerCase() === id?.toLowerCase()
+      );
       if (match) {
         setProposal({ ...match });
         setStipendOffered(match.stipend_requested || 15000);
@@ -72,6 +78,9 @@ export const ProposalDetailPage: React.FC = () => {
       }
     };
     load();
+    // In case local storage doesn't have it yet, sync and retry
+    cloudSync.syncFromCloud().then(() => load()).catch(console.error);
+
     const unsub = db.subscribe(load);
 
     const handleSync = () => load();
@@ -112,7 +121,7 @@ export const ProposalDetailPage: React.FC = () => {
     if (updated) cloudSync.syncProposalToCloud(updated);
   };
 
-  const handleCompanySubmitResponse = (e: React.FormEvent) => {
+  const handleCompanySubmitResponse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
     const decisionsArray = Object.entries(studentDecisions).map(([studentId, accepted]) => ({
@@ -122,46 +131,57 @@ export const ProposalDetailPage: React.FC = () => {
     }));
 
     const finalMentorName = mentorName.trim() || 'Assigned Technical Lead';
+    setIsSubmitting(true);
 
-    db.companyRespond(
-      proposal.id,
-      responseAction,
-      {
-        stipendOffered,
-        mentorName: finalMentorName,
-        remarks: remarks || `Terms updated for ${responseAction.replace('_', ' ')}`,
-        studentDecisions: decisionsArray
-      },
-      currentUser
-    );
-    const updated = db.proposals.find(p => p.id === proposal.id);
-    if (updated) cloudSync.syncProposalToCloud(updated);
+    try {
+      await db.companyRespond(
+        proposal.id,
+        responseAction,
+        {
+          stipendOffered,
+          mentorName: finalMentorName,
+          remarks: remarks || `Terms updated for ${responseAction.replace('_', ' ')}`,
+          studentDecisions: decisionsArray
+        },
+        currentUser
+      );
+      alert(`Decision submitted and successfully synchronized to the central cloud database! The college has been notified.`);
+    } catch (err: any) {
+      alert(`Error submitting decision: ${err?.message || 'Database sync error'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleInstitutionFinalAccept = () => {
+  const handleInstitutionFinalAccept = async () => {
     if (!currentUser) return;
-    const res = db.institutionFinalAccept(proposal.id, currentUser);
-    const updated = db.proposals.find(p => p.id === proposal.id);
-    if (updated) cloudSync.syncProposalToCloud(updated);
-    setBatchCreatedModal({
-      batchId: res.batch_id,
-      batchCode: res.batch_code
-    });
+    setIsSubmitting(true);
+    try {
+      const res = await db.institutionFinalAccept(proposal.id, currentUser);
+      setBatchCreatedModal({
+        batchId: res.batch_id,
+        batchCode: res.batch_code
+      });
+    } catch (err: any) {
+      alert(`Error finalizing proposal: ${err?.message || 'Database sync error'}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleInstitutionReject = (e: React.FormEvent) => {
+  const handleInstitutionReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
     setRejecting(true);
     try {
-      db.institutionReject(
+      await db.institutionReject(
         proposal.id,
         rejectionRemarks.trim() || 'Institutional terms declined by College Coordinator',
         currentUser
       );
-      const updated = db.proposals.find(p => p.id === proposal.id);
-      if (updated) cloudSync.syncProposalToCloud(updated);
       setShowRejectModal(false);
+    } catch (err: any) {
+      alert(`Error declining terms: ${err?.message || 'Database sync error'}`);
     } finally {
       setRejecting(false);
     }

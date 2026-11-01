@@ -104,13 +104,11 @@ export const ProposalDecisionsPage: React.FC = () => {
   }, [myProposals]);
 
   // Handlers
-  const handleFinalAccept = (proposal: InternshipProposal) => {
+  const handleFinalAccept = async (proposal: InternshipProposal) => {
     if (!currentUser) return;
     setIsProcessing(true);
     try {
-      const res = db.institutionFinalAccept(proposal.id, currentUser);
-      const updated = db.proposals.find(p => p.id === proposal.id);
-      if (updated) cloudSync.syncProposalToCloud(updated);
+      const res = await db.institutionFinalAccept(proposal.id, currentUser);
       setAcceptingProposal(null);
       setBatchCreated({
         batchId: res.batch_id,
@@ -123,18 +121,16 @@ export const ProposalDecisionsPage: React.FC = () => {
     }
   };
 
-  const handleFinalReject = () => {
+  const handleFinalReject = async () => {
     if (!rejectingProposal || !currentUser) return;
     const pId = rejectingProposal.id;
     setIsProcessing(true);
     try {
-      db.institutionReject(
+      await db.institutionReject(
         pId,
         rejectionRemarks.trim() || 'Institutional terms declined by College Coordinator',
         currentUser
       );
-      const updated = db.proposals.find(p => p.id === pId);
-      if (updated) cloudSync.syncProposalToCloud(updated);
       setRejectingProposal(null);
       setRejectionRemarks('');
     } catch (err: any) {
