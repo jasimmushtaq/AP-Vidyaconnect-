@@ -31,9 +31,9 @@ export const CANONICAL_10_STEPS: WorkflowStep[] = [
   { id: '2', title: 'Submitted', subtitle: 'Sent to company partner', stageName: 'submitted', actor: 'Principal Desk', matches: ['submitted'] },
   { id: '3', title: 'Company Review', subtitle: 'Company inspecting terms', stageName: 'under_company_review', actor: 'HR Lead / Tech Mentor', matches: ['under_company_review', 'modification_requested'] },
   { id: '4', title: 'Company Decision', subtitle: 'Terms accepted / amended', stageName: 'company_accepted', actor: 'Company Admin', matches: ['company_accepted', 'company_accepted_with_changes'] },
-  { id: '5', title: 'Institution Accepted', subtitle: 'Batch auto-generated (KD-)', stageName: 'institution_accepted', actor: 'College Nodal Officer', matches: ['institution_accepted', 'created'] },
-  { id: '6', title: 'Student Consent', subtitle: 'JOIN INTERNSHIP confirmed', stageName: 'students_confirmed', actor: 'Enrolled Students', matches: ['students_confirmed'] },
-  { id: '7', title: 'Active Internship', subtitle: 'Attendance & daily ops', stageName: 'active', actor: 'Corporate Mentors', matches: ['active'] },
+  { id: '5', title: 'Institution Accepted', subtitle: 'Batch auto-generated (KD-)', stageName: 'institution_accepted', actor: 'College Nodal Officer', matches: ['institution_accepted'] },
+  { id: '6', title: 'Cohort Enrolled', subtitle: 'Students auto-onboarded', stageName: 'students_confirmed', actor: 'Institutional System', matches: ['students_confirmed'] },
+  { id: '7', title: 'Active Internship', subtitle: 'Attendance & daily ops', stageName: 'active', actor: 'Corporate Mentors', matches: ['active', 'created'] },
   { id: '8', title: 'Milestone Review', subtitle: 'Weekly attendance & sync', stageName: 'milestones_verified', actor: 'Faculty Supervisor', matches: ['milestones_verified', 'progress_reviewed'] },
   { id: '9', title: 'Evaluation Done', subtitle: 'Final score & appraisals', stageName: 'evaluation_completed', actor: 'Industry Evaluator', matches: ['evaluation_completed'] },
   { id: '10', title: 'Batch Completed', subtitle: 'Academic credits synced', stageName: 'completed', actor: 'Host Company & College', matches: ['completed', 'archived'] },
@@ -60,9 +60,9 @@ export const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({
       case 'company_accepted':
       case 'company_accepted_with_changes': return 4; // Stage 1-4 completed, Stage 5 (Institution Accepted) is active awaiting action
       case 'institution_accepted':
-      case 'created': return 5; // Stage 5 completed, Stage 6 (Student Consent) is active
-      case 'students_confirmed': return 6;
-      case 'active': return 6;
+      case 'created':
+      case 'students_confirmed':
+      case 'active': return 6; // Stage 1-6 completed, Stage 7 (Active Internship) is active for daily ops & attendance
       case 'milestones_verified':
       case 'progress_reviewed': return 7;
       case 'evaluation_completed': return 8;

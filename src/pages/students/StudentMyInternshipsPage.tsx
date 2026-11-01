@@ -93,34 +93,6 @@ export const StudentMyInternshipsPage: React.FC = () => {
   const totalStipendEarned = displayBatches.reduce((acc, b) => acc + (b.stipend_amount || 15000), 0);
   const totalCreditsEarned = completedBatches.length * 6 + (activeBatches.length > 0 ? 6 : 0);
 
-  const handleJoinConsent = async (batch: any) => {
-    try {
-      await db.studentAcceptConsent(batch.id, studentId, (currentUser || currentStudent) as any);
-      setBatches([...db.batches]);
-      await showAlert({
-        title: 'Internship Consent Recorded!',
-        subtitle: `Official APSCHE Student Joining Verification • ${batch.batch_code}`,
-        type: 'success',
-        badge: 'Digital Consent Timestamped',
-        confirmText: 'Continue to Attendance Telemetry',
-        message: 'Your formal "JOIN INTERNSHIP" digital acceptance has been securely logged on the state audit ledger and synchronized with the College Portal. Geofenced daily attendance is now fully unlocked.',
-        details: [
-          { label: 'Batch Code', value: batch.batch_code },
-          { label: 'Corporate Host', value: batch.company?.name || 'Industry Partner' },
-          { label: 'Stipend Package', value: `₹${batch.stipend_amount?.toLocaleString()}/month` },
-          { label: 'Status', value: 'Consent Signed (Active)' }
-        ]
-      });
-    } catch (err: any) {
-      await showAlert({
-        title: 'Consent Error',
-        subtitle: err?.message || 'Failed to record consent',
-        type: 'danger',
-        message: 'There was an issue recording your digital consent. Please try again.'
-      });
-    }
-  };
-
   return (
     <div className="min-h-screen bg-[#F8FAFC] py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-8">
@@ -343,7 +315,7 @@ export const StudentMyInternshipsPage: React.FC = () => {
                     </span>
                     <div className="flex items-center gap-1.5 font-bold text-emerald-700">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>{hasConsent ? 'Digital Joining Signed' : 'Consent Pending'}</span>
+                      <span>Enrolled & Active Intern</span>
                     </div>
                     <span className="text-gray-500 text-[11px]">
                       6 Academic Credits recognized across AP
@@ -359,22 +331,12 @@ export const StudentMyInternshipsPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2.5 w-full sm:w-auto">
-                    {!hasConsent && (
-                      <button
-                        onClick={() => handleJoinConsent(batch)}
-                        className="flex-1 sm:flex-none px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
-                      >
-                        <ShieldCheck className="w-4 h-4" />
-                        <span>Sign "JOIN INTERNSHIP"</span>
-                      </button>
-                    )}
-
                     <button
                       onClick={() => {
                         setSelectedBatchId(batch.id);
                         setShowAttendanceModal(true);
                       }}
-                      className="flex-1 sm:flex-none px-4 py-2 bg-[#0E2350] hover:bg-[#14336F] text-white font-bold rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
+                      className="flex-1 sm:flex-none px-4 py-2 bg-[#0E2350] hover:bg-[#14336F] text-white font-bold rounded-xl text-xs transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
                     >
                       <Camera className="w-4 h-4 text-[#F07421]" />
                       <span>Check-In Selfie</span>

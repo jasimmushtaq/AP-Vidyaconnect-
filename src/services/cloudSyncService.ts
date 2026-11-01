@@ -339,39 +339,25 @@ class CloudSyncService {
         return {
           ...existStu,
           ...newStu,
-          has_joined: Boolean(newStu.has_joined || existStu?.has_joined),
-          joined_at: newStu.joined_at || existStu?.joined_at,
-          consent_recorded_at: newStu.consent_recorded_at || existStu?.consent_recorded_at
+          has_joined: true,
+          joined_at: newStu.joined_at || existStu?.joined_at || new Date().toISOString(),
+          consent_recorded_at: newStu.consent_recorded_at || existStu?.consent_recorded_at || new Date().toISOString()
         };
       });
-
-      // Preserve any student who signed locally that wasn't in incoming list
-      if (existing.students) {
-        existing.students.forEach(es => {
-          const found = mergedStudents.find(ms => ms.student_id === es.student_id || ms.id === es.id);
-          if (found && es.has_joined) {
-            found.has_joined = true;
-            found.joined_at = found.joined_at || es.joined_at;
-            found.consent_recorded_at = found.consent_recorded_at || es.consent_recorded_at;
-          }
-        });
-      }
-
-      const allJoined = mergedStudents.length > 0 && mergedStudents.every(s => s.has_joined);
-      const status = incomingBatch.status === 'active' || existing.status === 'active'
-        ? 'active'
-        : allJoined
-        ? 'students_confirmed'
-        : (incomingBatch.status || existing.status);
 
       db.batches[idx] = {
         ...existing,
         ...incomingBatch,
         students: mergedStudents,
-        status
+        status: 'active'
       };
     } else {
-      db.batches.unshift(incomingBatch);
+      const activeBatch = {
+        ...incomingBatch,
+        status: 'active' as const,
+        students: (incomingBatch.students || []).map(s => ({ ...s, has_joined: true }))
+      };
+      db.batches.unshift(activeBatch);
     }
     db.persist('batches');
     db.notify();
@@ -1340,46 +1326,32 @@ class CloudSyncService {
           const existingIdx = db.batches.findIndex(b => b.id === candBatch.id || b.batch_code === candBatch.batch_code || (candBatch.proposal_id && b.proposal_id === candBatch.proposal_id));
           if (existingIdx >= 0) {
             const existing = db.batches[existingIdx];
-            // Merge students to preserve any consent signed locally or remotely
+            // Auto-enroll all batch students and activate batch
             const mergedStudents = (candBatch.students || []).map((cs: any) => {
-              const es = existing.students?.find(s => s.student_id === cs.student_id || s.id === cs.id || (s.student?.email && cs.student?.email && s.student.email.toLowerCase() === cs.student.email.toLowerCase()));
+              const es = existing.students?.find((s: any) => s.student_id === cs.student_id || s.id === cs.id || (s.student?.email && cs.student?.email && s.student.email.toLowerCase() === cs.student.email.toLowerCase()));
               return {
                 ...es,
                 ...cs,
-                has_joined: Boolean(cs.has_joined || es?.has_joined),
-                joined_at: cs.joined_at || es?.joined_at,
-                consent_recorded_at: cs.consent_recorded_at || es?.consent_recorded_at
+                has_joined: true,
+                joined_at: cs.joined_at || es?.joined_at || new Date().toISOString(),
+                consent_recorded_at: cs.consent_recorded_at || es?.consent_recorded_at || new Date().toISOString()
               };
             });
-
-            // Also check if any existing student has joined that cloud doesn't have yet
-            if (existing.students) {
-              existing.students.forEach((es: any) => {
-                const found: any = mergedStudents.find((ms: any) => ms.student_id === es.student_id || ms.id === es.id);
-                if (found && es.has_joined) {
-                  found.has_joined = true;
-                  found.joined_at = found.joined_at || es.joined_at;
-                  found.consent_recorded_at = found.consent_recorded_at || es.consent_recorded_at;
-                }
-              });
-            }
-
-            const allJoined = mergedStudents.length > 0 && mergedStudents.every((s: any) => s.has_joined);
-            const status = candBatch.status === 'active' || existing.status === 'active'
-              ? 'active'
-              : allJoined
-              ? 'students_confirmed'
-              : (candBatch.status || existing.status);
 
             db.batches[existingIdx] = {
               ...existing,
               ...candBatch,
               students: mergedStudents,
-              status
+              status: 'active'
             };
             anyChanged = true;
           } else {
-            db.batches.unshift(candBatch);
+            const activeBatch = {
+              ...candBatch,
+              status: 'active' as const,
+              students: (candBatch.students || []).map((s: any) => ({ ...s, has_joined: true }))
+            };
+            db.batches.unshift(activeBatch);
             anyChanged = true;
           }
         }
@@ -1401,7 +1373,9 @@ class CloudSyncService {
                   batch_id: `batch-${p.id}`,
                   student_id: ps.student_id,
                   student: ps.student,
-                  has_joined: Boolean((ps as any).has_joined),
+                  has_joined: true,
+                  joined_at: p.updated_at || new Date().toISOString(),
+                  consent_recorded_at: p.updated_at || new Date().toISOString(),
                   completion_status: 'in_progress' as const
                 }));
 
@@ -1424,7 +1398,7 @@ class CloudSyncService {
                 end_date: p.end_date,
                 working_hours: '9:30 AM - 5:30 PM (Mon-Fri)',
                 location: p.company?.headquarters || 'Onsite HQ',
-                status: acceptedStudents.length > 0 && acceptedStudents.every(s => s.has_joined) ? 'students_confirmed' : 'created',
+                status: 'active',
                 students: acceptedStudents,
                 created_at: p.updated_at || new Date().toISOString(),
                 updated_at: new Date().toISOString()

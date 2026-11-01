@@ -94,36 +94,6 @@ export const StudentDashboard: React.FC = () => {
 
   const studentInstitution = db.institutions.find(i => i.id === currentStudent?.institution_id || i.id === myBatch?.institution_id) || db.institutions[0];
 
-  const handleJoinConsent = async () => {
-    if (myBatch) {
-      try {
-        await db.studentAcceptConsent(myBatch.id, studentId, (currentUser || currentStudent) as any);
-        setBatches([...db.batches]);
-        await showAlert({
-          title: 'Internship Consent Recorded!',
-          subtitle: 'Official APSCHE Student Joining Verification',
-          type: 'success',
-          badge: 'Digital Consent Timestamped',
-          confirmText: 'Go to Internship Workspace',
-          message: 'Your formal "JOIN INTERNSHIP" digital acceptance has been securely logged on the state audit ledger and synchronized with the College Portal. Attendance tracking is now fully unlocked.',
-          details: [
-            { label: 'Batch Code', value: myBatch.batch_code },
-            { label: 'Company Partner', value: myBatch.company?.name || 'Partner Company' },
-            { label: 'Monthly Stipend', value: `₹${myBatch.stipend_amount?.toLocaleString()}/mo` },
-            { label: 'Status', value: 'Consent Signed (Active)' }
-          ]
-        });
-      } catch (err: any) {
-        await showAlert({
-          title: 'Consent Error',
-          subtitle: err?.message || 'Failed to record consent',
-          type: 'danger',
-          message: 'There was an issue recording your digital consent. Please try again.'
-        });
-      }
-    }
-  };
-
   const handleResetToday = () => {
     db.resetTodayAttendance(studentId, todayStr);
   };
@@ -300,34 +270,6 @@ export const StudentDashboard: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* Mandatory Consent Banner if not joined */}
-      {myBatch && myBatchStudent && !myBatchStudent.has_joined && (
-        <div className="relative overflow-hidden bg-gradient-to-r from-amber-500 via-[#F07421] to-orange-600 rounded-2xl p-6 shadow-xl text-white">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-5 relative z-10">
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center shrink-0 border border-white/30">
-                <AlertCircle className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h3 className="text-base font-black text-white flex items-center gap-2">
-                  Mandatory Onboarding Step: "JOIN INTERNSHIP" Digital Consent
-                </h3>
-                <p className="text-xs text-white/90 mt-1 leading-relaxed max-w-2xl">
-                  You have been selected by <strong>{myBatch.company?.name}</strong> for <strong>{myBatch.title}</strong> (Stipend: ₹{(myBatch.stipend || myBatch.stipend_amount)?.toLocaleString()}/mo). Please record your cryptographic student acceptance to unlock attendance check-ins.
-                </p>
-              </div>
-            </div>
-            <button
-              onClick={handleJoinConsent}
-              className="px-6 py-3 bg-white hover:bg-slate-50 text-[#0E2350] rounded-xl text-xs font-black shadow-lg hover:shadow-xl transition-all flex items-center gap-2 shrink-0 transform active:scale-95"
-            >
-              <FileCheck2 className="w-4 h-4 text-[#F07421]" />
-              <span>I ACCEPT & JOIN INTERNSHIP</span>
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* 2. TODAY'S ATTENDANCE BIOMETRIC COMMAND CENTER */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-7 shadow-sm transition hover:shadow-md">

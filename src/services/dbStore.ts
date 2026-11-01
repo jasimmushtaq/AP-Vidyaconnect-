@@ -201,6 +201,18 @@ class DatabaseStore {
       this.persist('profiles');
     }
 
+    // Auto-enroll all batch students and ensure active status
+    this.batches.forEach(b => {
+      if (b.students) {
+        b.students.forEach(s => {
+          s.has_joined = true;
+          if (!s.joined_at) s.joined_at = b.created_at || new Date().toISOString();
+        });
+      }
+      if (b.status === 'created' || b.status === 'students_confirmed') {
+        b.status = 'active';
+      }
+    });
 
     // Ensure default banner has AAJ INTERNS vertical tag and correct image
     const firstBanner = this.banners.find(b => b.id === 'banner-001');
@@ -399,6 +411,17 @@ class DatabaseStore {
       const batchRaw = localStorage.getItem(STORAGE_PREFIX + 'batches');
       if (batchRaw) {
         this.batches = JSON.parse(batchRaw);
+        this.batches.forEach(b => {
+          if (b.students) {
+            b.students.forEach(s => {
+              s.has_joined = true;
+              if (!s.joined_at) s.joined_at = b.created_at || new Date().toISOString();
+            });
+          }
+          if (b.status === 'created' || b.status === 'students_confirmed') {
+            b.status = 'active';
+          }
+        });
       }
     } catch (e) {
       console.warn('Storage re-sync warning:', e);
@@ -1381,16 +1404,23 @@ class DatabaseStore {
     (proposal as any).final_accepted_at = new Date().toISOString();
     (proposal as any).final_accepted_by = actor.full_name;
 
+    const nowIso = new Date().toISOString();
     const acceptedStudents = (proposal.students || [])
       .filter(ps => ps.is_accepted_by_company !== false)
-      .map(ps => ({
-        id: `bs-${Date.now()}-${ps.student_id}`,
-        batch_id: `batch-${Date.now()}`,
-        student_id: ps.student_id,
-        student: ps.student,
-        has_joined: false,
-        completion_status: 'in_progress'
-      }));
+      .map(ps => {
+        (ps as any).has_joined = true;
+        (ps as any).joined_at = nowIso;
+        return {
+          id: `bs-${Date.now()}-${ps.student_id}`,
+          batch_id: `batch-${Date.now()}`,
+          student_id: ps.student_id,
+          student: ps.student,
+          has_joined: true,
+          joined_at: nowIso,
+          consent_recorded_at: nowIso,
+          completion_status: 'in_progress' as const
+        };
+      });
 
     const newBatch: InternshipBatch = {
       id: `batch-${Date.now()}`,
@@ -1411,7 +1441,7 @@ class DatabaseStore {
       end_date: proposal.end_date,
       working_hours: '9:30 AM - 5:30 PM (Mon-Fri)',
       location: proposal.company?.headquarters || 'Onsite HQ',
-      status: 'created',
+      status: 'active',
       students: acceptedStudents,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString()
@@ -1481,9 +1511,9 @@ class DatabaseStore {
       this.sendNotification(
         stu.student_id,
         'batch_created',
-        `Selected for Internship Batch: ${newBatch.title}`,
-        `Please review terms and complete JOIN INTERNSHIP consent.`,
-        `/batches/${newBatch.id}`,
+        `Enrolled in Internship Batch: ${newBatch.title}`,
+        `Your college has finalized terms with ${proposal.company?.name || 'industry partner'}. You are officially enrolled in Batch ${batchCode}. Your daily attendance & workspace are active.`,
+        `/my-internship`,
         { recipient_role: 'student', recipient_user_id: stu.student_id }
       );
     });

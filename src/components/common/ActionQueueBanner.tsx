@@ -53,16 +53,13 @@ export const ActionQueueBanner: React.FC = () => {
     }
 
     if (currentRole === 'student') {
-      // Check if student has joined active batch
-      const activeBatch = db.batches.find(b => b.students?.some(s => s.student_id === currentUser.student_id));
-      const memberInfo = activeBatch?.students?.find(s => s.student_id === currentUser.student_id);
-
-      if (activeBatch && !memberInfo?.has_joined) {
+      const activeBatch = db.batches.find(b => b.students?.some(s => s.student_id === currentUser.student_id || s.student?.email?.toLowerCase() === currentUser.email?.toLowerCase()));
+      if (activeBatch) {
         items.push({
-          title: `Action Required: Formal "JOIN INTERNSHIP" Consent Pending`,
-          subtitle: `You have been selected for ${activeBatch.title}. Sign consent to begin.`,
-          link: `/my-internship`,
-          type: 'urgent',
+          title: `Active Industrial Internship: ${activeBatch.title}`,
+          subtitle: `Batch ${activeBatch.batch_code} is active. Log in anytime to record daily shift attendance.`,
+          link: `/attendance`,
+          type: 'info',
         });
       }
     }

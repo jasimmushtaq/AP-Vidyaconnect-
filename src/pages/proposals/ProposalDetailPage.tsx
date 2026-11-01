@@ -374,7 +374,7 @@ export const ProposalDetailPage: React.FC = () => {
                 <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
                   <span className="text-[10px] font-bold text-slate-400 uppercase">Next Lifecycle Step</span>
                   <p className="font-bold text-indigo-700 text-xs mt-0.5">
-                    Stage 6: Student Consent
+                    Stage 7: Active Internship (Daily Ops & Attendance)
                   </p>
                 </div>
               </div>
