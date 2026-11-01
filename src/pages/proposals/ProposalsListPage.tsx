@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { InternshipProposal, ProposalStatus } from '../../types/database';
+import { isProposalForInstitution, isProposalForCompany } from '../../utils/proposalHelpers';
 import {
   FileText,
   Plus,
@@ -66,18 +67,22 @@ export const ProposalsListPage: React.FC = () => {
   const instId = currentInstitution?.id || currentUser?.institution_id;
   const compId = currentCompany?.id || currentUser?.company_id;
 
-  // Role Scoped Proposals strictly
+  // Role Scoped Proposals with robust entity matching
   const scopedProposals = useMemo(() => {
     if (currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
-      if (!instId) return [];
-      return proposals.filter(p => p.institution_id === instId);
+      return proposals.filter(p =>
+        isProposalForInstitution(p, instId, currentInstitution, currentUser) ||
+        (!instId && !currentInstitution && p.institution_id === 'inst-001')
+      );
     }
     if (currentRole === 'company_admin') {
-      if (!compId) return [];
-      return proposals.filter(p => p.company_id === compId);
+      return proposals.filter(p =>
+        isProposalForCompany(p, compId, currentCompany, currentUser) ||
+        (!compId && !currentCompany && p.company_id === 'comp-001')
+      );
     }
     return proposals;
-  }, [proposals, currentRole, instId, compId]);
+  }, [proposals, currentRole, instId, currentInstitution, currentUser, compId, currentCompany]);
 
   // Real-Time Counters
   const submittedCount = useMemo(

@@ -51,6 +51,7 @@ import { BatchActivationModal } from '../../components/batches/BatchActivationMo
 import { BatchActivationProgressModal } from '../../components/batches/BatchActivationProgressModal';
 import { BatchActivationService, ActivationProgressUpdate } from '../../services/batchActivationService';
 import { InternshipBatch, MoUAgreement } from '../../types/database';
+import { isProposalForCompany } from '../../utils/proposalHelpers';
 
 export const CompanyDashboard: React.FC = () => {
   const { currentCompany, currentUser } = useAuth();
@@ -111,9 +112,11 @@ export const CompanyDashboard: React.FC = () => {
   }, [companyBatches]);
 
   const companyProposals = useMemo(() => {
-    if (!companyId) return [];
-    return proposals.filter(p => p.company_id === companyId);
-  }, [proposals, companyId]);
+    return proposals.filter(p =>
+      isProposalForCompany(p, companyId, currentCompany, currentUser) ||
+      (!companyId && !currentCompany && p.company_id === 'comp-001')
+    );
+  }, [proposals, companyId, currentCompany, currentUser]);
 
   const inboundProposals = useMemo(() => {
     return companyProposals.filter(p => p.status === 'submitted' || p.status === 'under_company_review');
@@ -559,36 +562,70 @@ export const CompanyDashboard: React.FC = () => {
           </div>
 
           <div className="space-y-3">
-            {companyProposals.slice(0, 3).map((p) => (
-              <div
-                key={p.id}
-                className="p-4 rounded-xl border border-slate-200/70 hover:border-orange-300 bg-slate-50/50 hover:bg-orange-50/20 transition-all space-y-2.5"
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <div>
-                    <span className="text-[10px] font-mono font-bold text-slate-500">{p.proposal_code}</span>
-                    <h4 className="text-xs font-extrabold text-[#0E2350]">{p.domain}</h4>
-                    <p className="text-[11px] text-slate-600 mt-0.5 flex items-center gap-1">
-                      <School className="w-3 h-3 text-[#2A4E96]" />
-                      {p.institution?.name || 'Government Degree College'}
-                    </p>
-                  </div>
-                  <StatusBadge status={p.status} size="sm" />
-                </div>
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-xs">
-                  <span className="text-slate-600 font-medium">
-                    Stipend Req: <strong className="text-slate-800">₹{p.stipend_requested?.toLocaleString()}/mo</strong>
-                  </span>
-                  <Link
-                    to={`/proposals/${p.id}`}
-                    className="font-bold text-[#F07421] hover:underline flex items-center gap-1"
-                  >
-                    Review & Respond <ArrowRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
+            {companyProposals.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 space-y-2">
+                <FileText className="w-8 h-8 mx-auto text-slate-300" />
+                <p className="text-xs font-bold text-slate-600">No Proposals Inbound Yet</p>
+                <p className="text-[11px] text-slate-400">Institutional proposals submitted by accredited colleges will appear here in real time.</p>
               </div>
-            ))}
+            ) : (
+              companyProposals.slice(0, 4).map((p) => {
+                const isPendingReview = p.status === 'submitted' || p.status === 'under_company_review';
+                const isAwaitingCollege = p.status === 'company_accepted' || p.status === 'company_accepted_with_changes';
+                const isFinalized = p.status === 'institution_accepted';
+
+                return (
+                  <div
+                    key={p.id}
+                    className="p-4 rounded-xl border border-slate-200/70 hover:border-orange-300 bg-slate-50/50 hover:bg-orange-50/20 transition-all space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div>
+                        <span className="text-[10px] font-mono font-bold text-slate-500">{p.proposal_code}</span>
+                        <h4 className="text-xs font-extrabold text-[#0E2350]">{p.domain}</h4>
+                        <p className="text-[11px] text-slate-600 mt-0.5 flex items-center gap-1">
+                          <School className="w-3 h-3 text-[#2A4E96]" />
+                          {p.institution?.name || 'Government Degree College'}
+                        </p>
+                      </div>
+                      <StatusBadge status={p.status} size="sm" />
+                    </div>
+
+                    {p.additional_terms && (
+                      <p className="text-[11px] text-slate-500 italic bg-white/70 p-2 rounded-lg border border-slate-200/60">
+                        "{p.additional_terms}"
+                      </p>
+                    )}
+
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 text-xs">
+                      <span className="text-slate-600 font-medium">
+                        Stipend: <strong className="text-slate-800">₹{p.stipend_requested?.toLocaleString()}/mo</strong>
+                      </span>
+                      <Link
+                        to={`/proposals/${p.id}`}
+                        className={`font-bold hover:underline flex items-center gap-1 ${
+                          isPendingReview
+                            ? 'text-[#F07421]'
+                            : isAwaitingCollege
+                            ? 'text-emerald-700'
+                            : 'text-[#2A4E96]'
+                        }`}
+                      >
+                        {isPendingReview ? (
+                          <><span>Review & Respond</span> <ArrowRight className="w-3.5 h-3.5" /></>
+                        ) : isAwaitingCollege ? (
+                          <><span>Awaiting College Action</span> <ArrowRight className="w-3.5 h-3.5" /></>
+                        ) : isFinalized ? (
+                          <><span>Batch Chartered</span> <ArrowRight className="w-3.5 h-3.5" /></>
+                        ) : (
+                          <><span>View Dossier</span> <ArrowRight className="w-3.5 h-3.5" /></>
+                        )}
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
 

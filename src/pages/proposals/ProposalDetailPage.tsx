@@ -209,33 +209,173 @@ export const ProposalDetailPage: React.FC = () => {
         </div>
       )}
 
-      {/* INFORMATIONAL NOTICE: DECISION CENTRALIZED IN ACCEPT / REJECT TERMS */}
+      {/* DIRECT COLLEGE DECISION ACTIONS ON PROPOSAL DETAIL PAGE */}
       {canInstitutionFinalAccept && (
-        <div className="bg-gradient-to-r from-emerald-50/90 via-teal-50/60 to-white border border-emerald-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-start gap-3">
-            <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
-              <CheckCircle2 className="w-5 h-5" />
+        <div className="bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white border-2 border-emerald-400 rounded-2xl p-6 shadow-md space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200/80 pb-3">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                <CheckCircle2 className="w-6 h-6" />
+              </div>
+              <div>
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  ⚡ Company Decision Received • Final Institutional Action Required
+                </span>
+                <h3 className="text-base sm:text-lg font-black text-[#0E2350] mt-1">
+                  {proposal.company?.name || 'Industry Partner'} Accepted Terms
+                </h3>
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded">
-                Company Accepted Terms
-              </span>
-              <h3 className="text-sm font-extrabold text-[#0E2350] mt-1">
-                Terms Confirmed by {proposal.company?.name || 'Industry Partner'}
-              </h3>
-              <p className="text-xs text-slate-600 mt-0.5 leading-relaxed">
-                Under state protocol, final institutional acceptance and batch generation is processed exclusively through the <strong>Accept / Reject Terms</strong> decision center.
+            <span className="text-xs text-slate-500 font-mono">
+              Version {proposal.version}
+            </span>
+          </div>
+
+          {/* Company remarks callout */}
+          <div className="p-4 bg-white border border-emerald-200 rounded-xl space-y-1.5 text-xs shadow-2xs">
+            <span className="font-extrabold text-emerald-900 flex items-center gap-1.5">
+              <span>💬 Company Remarks & Counter-Terms:</span>
+            </span>
+            <p className="text-slate-700 leading-relaxed font-medium">
+              "{proposal.additional_terms || (proposal as any).company_remarks || 'Terms accepted by corporate lead. Candidate nominations confirmed.'}"
+            </p>
+          </div>
+
+          {/* Key confirmed metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Offered Stipend</span>
+              <p className="font-black text-emerald-700 text-base font-mono mt-0.5">
+                ₹{proposal.stipend_requested?.toLocaleString()}/mo
+              </p>
+            </div>
+            <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Duration & Mode</span>
+              <p className="font-bold text-slate-800 text-xs mt-0.5 capitalize">
+                {proposal.duration_weeks} Weeks • {proposal.mode}
+              </p>
+            </div>
+            <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Confirmed Interns</span>
+              <p className="font-bold text-emerald-800 text-xs mt-0.5">
+                {proposal.students?.filter(s => s.is_accepted_by_company !== false).length || proposal.students?.length} Candidates
+              </p>
+            </div>
+            <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
+              <span className="text-[10px] font-bold text-slate-400 uppercase">Next Step</span>
+              <p className="font-bold text-indigo-700 text-xs mt-0.5">
+                State Batch Charter
               </p>
             </div>
           </div>
 
-          <Link
-            to="/proposals/decisions"
-            className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 text-white text-xs font-black shadow-md transition-all flex items-center gap-2 shrink-0 self-start sm:self-center"
-          >
-            <span>Open Accept / Reject Terms</span>
-            <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          {/* Direct Action Decision Buttons */}
+          <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => setShowRejectModal(true)}
+              className="px-4 py-2.5 rounded-xl bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95"
+            >
+              <XCircle className="w-4 h-4 text-rose-600" />
+              <span>Decline Company Terms</span>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <Link
+                to="/proposals/decisions"
+                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
+              >
+                Decision Center Queue
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleInstitutionFinalAccept}
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform active:scale-95"
+              >
+                <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                <span>Accept Proposal & Charter Batch</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODIFICATIONS REQUESTED NOTICE FOR INSTITUTION */}
+      {isInstitution && proposal.status === 'modification_requested' && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-6 shadow-sm space-y-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-amber-500 text-white flex items-center justify-center shrink-0">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2 py-0.5 rounded">
+                Company Requested Modifications
+              </span>
+              <h3 className="text-base font-extrabold text-[#0E2350] mt-0.5">
+                {proposal.company?.name || 'Industry Partner'} Requested Terms Revision
+              </h3>
+            </div>
+          </div>
+
+          <div className="p-3.5 bg-white border border-amber-200 rounded-xl text-xs space-y-1">
+            <span className="font-bold text-amber-900">Company Feedback & Required Changes:</span>
+            <p className="text-slate-700 italic">"{proposal.additional_terms || 'Please adjust stipend or dates.'}"</p>
+          </div>
+
+          <div className="pt-2 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setShowRejectModal(true)}
+              className="px-4 py-2 rounded-xl bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold"
+            >
+              Decline Proposal
+            </button>
+            <Link
+              to="/proposals/decisions"
+              className="px-4 py-2 rounded-xl bg-[#0E2350] hover:bg-[#14336F] text-white text-xs font-bold shadow-xs"
+            >
+              Open Decision Center
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* FINALIZED / REJECTED STATUS NOTICE */}
+      {(proposal.status === 'institution_accepted' || proposal.status === 'declined' || proposal.status === 'rejected') && (
+        <div className={`p-4 rounded-2xl border text-xs flex items-center justify-between gap-3 shadow-xs ${
+          proposal.status === 'institution_accepted'
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-900'
+            : 'bg-rose-50 border-rose-200 text-rose-900'
+        }`}>
+          <div className="flex items-center gap-3">
+            {proposal.status === 'institution_accepted' ? (
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+            ) : (
+              <XCircle className="w-5 h-5 text-rose-600 shrink-0" />
+            )}
+            <div>
+              <p className="font-extrabold">
+                {proposal.status === 'institution_accepted'
+                  ? '✓ Bilateral Proposal Finalized — Active Internship Batch Chartered'
+                  : 'Proposal Formally Declined / Terminated'}
+              </p>
+              <p className="text-[11px] opacity-80 mt-0.5">
+                {proposal.status === 'institution_accepted'
+                  ? 'All terms approved by both Company and College. Interns can join batch workspaces.'
+                  : `Reason: ${proposal.additional_terms || (proposal as any).declined_reason || 'Terms not accepted'}`}
+              </p>
+            </div>
+          </div>
+
+          {proposal.status === 'institution_accepted' && (
+            <Link
+              to="/batches"
+              className="px-3.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg font-bold text-xs shrink-0"
+            >
+              View Batches
+            </Link>
+          )}
         </div>
       )}
 

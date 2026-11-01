@@ -4,10 +4,13 @@
 // ============================================================================
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { InternshipProposal } from '../../types/database';
+import { isProposalForInstitution } from '../../utils/proposalHelpers';
 import {
   ResponsiveContainer,
   PieChart,
@@ -27,6 +30,8 @@ import {
   Users,
   ArrowRight,
   CheckCircle2,
+  XCircle,
+  AlertCircle,
   Building2,
   BarChart3,
   PieChart as PieIcon,
@@ -38,15 +43,29 @@ import {
   Zap,
   Calendar,
   Layers,
-  Award
+  Award,
+  Check,
+  X,
+  Copy,
+  ExternalLink,
+  Clock
 } from 'lucide-react';
 
 export const InstitutionDashboard: React.FC = () => {
   const { currentInstitution, currentUser } = useAuth();
-  const [proposals, setProposals] = useState(db.proposals);
+  const navigate = useNavigate();
+  const [proposals, setProposals] = useState<InternshipProposal[]>(db.proposals);
   const [batches, setBatches] = useState(db.batches);
   const [students, setStudents] = useState(db.students);
   const [attendance, setAttendance] = useState(db.attendance);
+
+  // Proposal Decision Modals State
+  const [acceptingProposal, setAcceptingProposal] = useState<InternshipProposal | null>(null);
+  const [rejectingProposal, setRejectingProposal] = useState<InternshipProposal | null>(null);
+  const [rejectionRemarks, setRejectionRemarks] = useState('');
+  const [batchCreated, setBatchCreated] = useState<{ batchId: string; batchCode: string } | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [copiedBatchCode, setCopiedBatchCode] = useState(false);
 
   useEffect(() => {
     const unsub = db.subscribe(() => {
@@ -60,7 +79,7 @@ export const InstitutionDashboard: React.FC = () => {
 
   const instId = currentInstitution?.id;
 
-  // 1. Filter Real-Time Data for this Institution strictly
+  // 1. Filter Real-Time Data for this Institution strictly with robust matching
   const myStudents = useMemo(() => {
     if (!instId) return [];
     return students.filter(s => s.institution_id === instId);
@@ -76,9 +95,67 @@ export const InstitutionDashboard: React.FC = () => {
   }, [myBatches]);
 
   const myProposals = useMemo(() => {
-    if (!instId) return [];
-    return proposals.filter(p => p.institution_id === instId);
-  }, [proposals, instId]);
+    return proposals.filter(p =>
+      isProposalForInstitution(p, instId, currentInstitution, currentUser) ||
+      (!instId && !currentInstitution && p.institution_id === 'inst-001')
+    );
+  }, [proposals, instId, currentInstitution, currentUser]);
+
+  // Company decisions awaiting college final response
+  const proposalsAwaitingCollegeAction = useMemo(() => {
+    return myProposals.filter(p =>
+      p.status === 'company_accepted' ||
+      p.status === 'company_accepted_with_changes' ||
+      p.status === 'modification_requested'
+    );
+  }, [myProposals]);
+
+  // Handlers for College Decision
+  const handleFinalAccept = (proposal: InternshipProposal) => {
+    if (!currentUser) return;
+    setIsProcessing(true);
+    try {
+      const res = db.institutionFinalAccept(proposal.id, currentUser);
+      const updated = db.proposals.find(p => p.id === proposal.id);
+      if (updated) cloudSync.syncProposalToCloud(updated);
+      setAcceptingProposal(null);
+      setBatchCreated({
+        batchId: res.batch_id,
+        batchCode: res.batch_code
+      });
+    } catch (err: any) {
+      alert(err.message || 'Error accepting proposal');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleFinalReject = () => {
+    if (!rejectingProposal || !currentUser) return;
+    const pId = rejectingProposal.id;
+    setIsProcessing(true);
+    try {
+      db.institutionReject(
+        pId,
+        rejectionRemarks.trim() || 'Institutional terms declined by College Coordinator',
+        currentUser
+      );
+      const updated = db.proposals.find(p => p.id === pId);
+      if (updated) cloudSync.syncProposalToCloud(updated);
+      setRejectingProposal(null);
+      setRejectionRemarks('');
+    } catch (err: any) {
+      alert(err.message || 'Error declining proposal');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleCopyCode = (code: string) => {
+    navigator.clipboard.writeText(code);
+    setCopiedBatchCode(true);
+    setTimeout(() => setCopiedBatchCode(false), 2500);
+  };
 
   // 2. Real-Time Attendance Aggregation across all Institution Students
   const myStudentIds = useMemo(() => new Set(myStudents.map(s => s.id)), [myStudents]);
@@ -276,6 +353,217 @@ export const InstitutionDashboard: React.FC = () => {
             <ArrowRight className="w-3 h-3" />
           </Link>
         </div>
+      </div>
+
+      {/* 2.5 PROPOSAL RESPONSES & PENDING COLLEGE ACTION (BILATERAL WORKFLOW) */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
+              proposalsAwaitingCollegeAction.length > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'
+            }`}>
+              <CheckCircle2 className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-extrabold text-[#0E2350]">
+                  Company Responses & Pending College Action
+                </h3>
+                {proposalsAwaitingCollegeAction.length > 0 ? (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 animate-pulse border border-emerald-300">
+                    ⚡ {proposalsAwaitingCollegeAction.length} Action Required
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">
+                    Up to Date
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Two-sided bilateral internship workflow. Review company counter-offers, approved candidate rosters, and confirmed stipends to charter official batches.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              to="/proposals/decisions"
+              className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 text-white text-xs font-bold shadow-xs transition-all flex items-center gap-1.5"
+            >
+              <span>Accept / Reject Center</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
+        </div>
+
+        {/* Proposals List or Empty State */}
+        {proposalsAwaitingCollegeAction.length === 0 ? (
+          <div className="p-5 rounded-xl bg-slate-50/70 border border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                <ShieldCheck className="w-5 h-5" />
+              </div>
+              <div>
+                <h4 className="text-xs font-extrabold text-[#0E2350]">All Company Responses Addressed</h4>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  There are no pending corporate responses awaiting your decision. When industry partners respond to your proposals, they will appear here immediately for final acceptance.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <Link
+                to="/proposals/new"
+                className="px-3.5 py-1.5 bg-[#0E2350] hover:bg-[#15357a] text-white rounded-lg text-xs font-bold transition-all shadow-2xs"
+              >
+                + Draft Proposal
+              </Link>
+              <Link
+                to="/proposals"
+                className="px-3.5 py-1.5 bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-bold transition-all"
+              >
+                View Pipeline
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {proposalsAwaitingCollegeAction.map((p) => {
+              const isCompanyAccepted =
+                p.status === 'company_accepted' || p.status === 'company_accepted_with_changes';
+              const confirmedStudents =
+                p.students?.filter(s => s.is_accepted_by_company !== false) || p.students || [];
+
+              return (
+                <div
+                  key={p.id}
+                  className="p-5 rounded-2xl border border-emerald-300 ring-1 ring-emerald-400/30 bg-white hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                >
+                  <div className="space-y-3">
+                    {/* Header: Code, Version & Status */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="font-mono text-[10px] font-bold text-[#0E2350] bg-slate-100 border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+                          {p.proposal_code}
+                        </span>
+                        <span className="text-[10px] font-mono text-slate-400 font-bold">v{p.version}</span>
+                      </div>
+                      <StatusBadge status={p.status} size="sm" />
+                    </div>
+
+                    {/* Domain & Partner Identity */}
+                    <div>
+                      <h4 className="text-sm font-extrabold text-[#0E2350]">{p.domain}</h4>
+                      <p className="text-xs text-slate-600 font-semibold flex items-center gap-1.5 mt-0.5">
+                        <Building2 className="w-3.5 h-3.5 text-[#F07421]" />
+                        <span>{p.company?.name || 'Industry Partner'}</span>
+                        {p.company?.cin && <span className="font-mono text-[10px] text-slate-400">({p.company.cin})</span>}
+                      </p>
+                    </div>
+
+                    {/* Company Feedback Quote Box */}
+                    <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-1">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 block">
+                        💬 Company Decision Remarks:
+                      </span>
+                      <p className="text-slate-700 italic leading-relaxed text-[11px]">
+                        "{p.additional_terms || (p as any).company_remarks || 'Terms accepted by corporate lead. Candidate nominations confirmed.'}"
+                      </p>
+                    </div>
+
+                    {/* Proposed Terms Ribbon */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                      <div className="bg-slate-50 border border-slate-200/60 p-2.5 rounded-xl">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Confirmed Stipend</span>
+                        <span className="font-extrabold text-emerald-800 font-mono text-xs">
+                          ₹{p.stipend_requested?.toLocaleString()}/mo
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200/60 p-2.5 rounded-xl">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Duration & Mode</span>
+                        <span className="font-bold text-slate-800 text-xs capitalize">
+                          {p.duration_weeks} Wks • {p.mode}
+                        </span>
+                      </div>
+
+                      <div className="bg-slate-50 border border-slate-200/60 p-2.5 rounded-xl sm:col-span-1 col-span-2">
+                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Confirmed Interns</span>
+                        <span className="font-bold text-indigo-800 text-xs">
+                          {confirmedStudents.length} / {p.students?.length || 0} Candidates
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Candidate Preview */}
+                    <div className="flex flex-wrap gap-1.5 pt-1">
+                      {p.students?.slice(0, 4).map((ps) => {
+                        const stu = ps.student || db.students.find(s => s.id === ps.student_id);
+                        const isAcc = ps.is_accepted_by_company !== false;
+                        return (
+                          <span
+                            key={ps.id}
+                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+                              isAcc
+                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                : 'bg-rose-50 text-rose-800 border-rose-200 line-through opacity-70'
+                            }`}
+                          >
+                            <span className={`w-1.5 h-1.5 rounded-full ${isAcc ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                            {stu?.full_name?.split(' ')[0] || 'Candidate'}
+                          </span>
+                        );
+                      })}
+                      {(p.students?.length || 0) > 4 && (
+                        <span className="text-[10px] font-bold text-slate-400 self-center">
+                          +{(p.students?.length || 0) - 4} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Buttons Bar */}
+                  <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+                    <Link
+                      to={`/proposals/${p.id}`}
+                      className="text-xs font-bold text-[#2A4E96] hover:underline flex items-center gap-1"
+                    >
+                      <span>View Full Dossier</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </Link>
+
+                    {isCompanyAccepted ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRejectingProposal(p)}
+                          className="px-3 py-1.5 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-all shadow-2xs"
+                        >
+                          Decline
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAcceptingProposal(p)}
+                          className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Final Accept & Charter Batch</span>
+                        </button>
+                      </div>
+                    ) : (
+                      <Link
+                        to={`/proposals/${p.id}`}
+                        className="px-3 py-1.5 rounded-lg bg-[#0E2350] hover:bg-[#14336F] text-white text-xs font-bold shadow-2xs"
+                      >
+                        Review Revision Terms
+                      </Link>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* 3. 100% REAL-TIME ANALYTICS GRAPHS (COHORT DISTRIBUTION & BATCH COMPLIANCE) */}
@@ -544,6 +832,190 @@ export const InstitutionDashboard: React.FC = () => {
           })}
         </div>
       </div>
+
+      {/* MODAL 1: ACCEPT & CHARTER BATCH CONFIRMATION */}
+      {acceptingProposal && (
+        <div className="fixed inset-0 z-50 bg-[#07132c]/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 text-left">
+            <div className="flex items-center gap-3 text-emerald-700">
+              <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center shrink-0">
+                <CheckCircle2 className="w-6 h-6 text-emerald-700" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-[#0E2350]">Final Institutional Acceptance</h3>
+                <p className="text-xs text-slate-500 font-mono">{acceptingProposal.proposal_code}</p>
+              </div>
+            </div>
+
+            <div className="p-4 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-2 text-slate-700 leading-relaxed">
+              <p>
+                You are executing the <strong>final bilateral acceptance</strong> for <strong>{acceptingProposal.domain}</strong> with <strong>{acceptingProposal.company?.name}</strong>.
+              </p>
+              <p className="font-semibold text-emerald-900">
+                ✓ Stipend: ₹{acceptingProposal.stipend_requested?.toLocaleString()}/mo • {acceptingProposal.students?.filter(s => s.is_accepted_by_company !== false).length || acceptingProposal.students?.length} Candidates Enrolled
+              </p>
+              <p className="text-[11px] text-slate-500">
+                This will automatically charter an official state <strong>Internship Batch (KD-2026-...)</strong>, notify students, and initiate real-time attendance compliance.
+              </p>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setAcceptingProposal(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={() => handleFinalAccept(acceptingProposal)}
+                className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 text-white font-black text-xs shadow-md flex items-center gap-2"
+              >
+                {isProcessing ? 'Chartering Batch...' : 'Confirm & Charter Batch'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: BATCH CREATED CELEBRATION */}
+      {batchCreated && (
+        <div className="fixed inset-0 z-50 bg-[#07132c]/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-emerald-100 space-y-5 text-center animate-in zoom-in-95">
+            <div className="w-16 h-16 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center mx-auto shadow-sm">
+              <CheckCircle2 className="w-10 h-10" />
+            </div>
+
+            <div>
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                Batch Successfully Chartered
+              </span>
+              <h2 className="text-xl font-extrabold text-[#0E2350] mt-1.5">
+                Internship Batch Created!
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Official bilateral agreement recorded in Supabase. Candidate notifications and attendance geofencing activated.
+              </p>
+            </div>
+
+            <div className="bg-[#0E2350] text-white p-4 rounded-2xl space-y-2">
+              <span className="text-[10px] uppercase font-bold text-slate-300 block">Official Batch Code</span>
+              <div className="flex items-center justify-between gap-2">
+                <span className="font-mono text-base font-extrabold text-amber-300">{batchCreated.batchCode}</span>
+                <button
+                  type="button"
+                  onClick={() => handleCopyCode(batchCreated.batchCode)}
+                  className="px-2.5 py-1 bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold rounded-lg border border-white/20 flex items-center gap-1"
+                >
+                  {copiedBatchCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                  <span>{copiedBatchCode ? 'Copied' : 'Copy'}</span>
+                </button>
+              </div>
+            </div>
+
+            <div className="pt-2 flex flex-col gap-2">
+              <button
+                type="button"
+                onClick={() => navigate(`/batches/${batchCreated.batchId}`)}
+                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 text-white text-xs font-black shadow-md transition-all flex items-center justify-center gap-1.5"
+              >
+                <span>Open Internship Batch Workspace</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setBatchCreated(null)}
+                className="w-full py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl"
+              >
+                Dismiss & Stay on Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 3: DECLINE / REJECTION MODAL */}
+      {rejectingProposal && (
+        <div className="fixed inset-0 z-50 bg-[#07132c]/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4 text-left">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3 text-rose-700">
+                <div className="w-10 h-10 rounded-xl bg-rose-100 flex items-center justify-center shrink-0">
+                  <XCircle className="w-6 h-6 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-[#0E2350]">Decline Company Terms</h3>
+                  <p className="text-xs text-slate-500 font-mono">{rejectingProposal.proposal_code}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setRejectingProposal(null)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 uppercase mb-1">
+                  Reason for Institutional Rejection <span className="text-rose-500">*</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={rejectionRemarks}
+                  onChange={(e) => setRejectionRemarks(e.target.value)}
+                  placeholder="Specify why the college is declining company terms (e.g., stipend below institutional norms, academic examination schedule overlap, etc.)"
+                  className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-rose-500"
+                />
+              </div>
+
+              {/* Quick suggestions */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase">Quick Suggestions:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    'Stipend counter-offer below institutional guidelines',
+                    'Internship timeline clashes with semester examinations',
+                    'Seat capacity mismatch for academic cohort'
+                  ].map((sug) => (
+                    <button
+                      key={sug}
+                      type="button"
+                      onClick={() => setRejectionRemarks(sug)}
+                      className="px-2 py-0.5 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-600 text-[10px] font-semibold text-left transition-all"
+                    >
+                      {sug}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="pt-2 flex items-center justify-end gap-3 border-t border-slate-100">
+              <button
+                type="button"
+                onClick={() => setRejectingProposal(null)}
+                className="px-4 py-2.5 rounded-xl border border-slate-300 hover:bg-slate-100 text-slate-700 font-bold text-xs"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isProcessing}
+                onClick={handleFinalReject}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-1.5"
+              >
+                <XCircle className="w-4 h-4" />
+                <span>{isProcessing ? 'Declining...' : 'Confirm Rejection'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

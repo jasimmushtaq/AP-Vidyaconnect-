@@ -1234,6 +1234,12 @@ class DatabaseStore {
     proposal.version += 1;
     proposal.updated_at = new Date().toISOString();
 
+    (proposal as any).company_decision = action;
+    (proposal as any).company_decided_at = new Date().toISOString();
+    (proposal as any).company_decided_by = actor.full_name;
+    (proposal as any).company_remarks = data.remarks;
+    if (data.mentorName) (proposal as any).mentor_name = data.mentorName;
+
     if (data.remarks) proposal.additional_terms = data.remarks;
     if (data.stipendOffered !== undefined) proposal.stipend_requested = data.stipendOffered;
     if (data.durationWeeks !== undefined) proposal.duration_weeks = data.durationWeeks;
@@ -1260,16 +1266,40 @@ class DatabaseStore {
     });
 
     this.logAudit('company_respond', 'internship_proposal', proposalId, { status: beforeStatus }, { status: newStatus, ...data }, { id: actor.id, name: actor.full_name, role: actor.role });
-    this.sendNotification(
-      proposal.created_by,
-      'proposal_reviewed',
-      `Proposal Response: ${proposal.company?.name || 'Company'}`,
-      `Status is now ${newStatus.replace(/_/g, ' ')}. Please review company terms.`,
-      `/proposals/${proposalId}`,
-      { recipient_role: 'institution_admin', recipient_user_id: proposal.created_by }
+
+    // Send multi-admin notification to all relevant institution coordinators
+    const targetRecipients = new Set<string>();
+    if (proposal.created_by) targetRecipients.add(proposal.created_by);
+    const instAdmins = this.profiles.filter(p =>
+      p.institution_id === proposal.institution_id ||
+      p.id === proposal.created_by ||
+      (p.role === 'institution_admin' && (p.institution_id === proposal.institution_id || !p.institution_id))
     );
+    instAdmins.forEach(p => targetRecipients.add(p.id));
+    if (targetRecipients.size === 0) targetRecipients.add('user-inst-admin');
+
+    targetRecipients.forEach(recId => {
+      this.sendNotification(
+        recId,
+        'proposal_reviewed',
+        `Proposal Response: ${proposal.company?.name || 'Company'} (${newStatus.replace(/_/g, ' ')})`,
+        `${proposal.company?.name || 'Company'} responded with "${action.replace(/_/g, ' ')}". Remarks: "${data.remarks || 'Terms updated'}". Please open College Dashboard to Accept / Reject.`,
+        `/proposals/${proposalId}`,
+        {
+          recipient_role: 'institution_admin',
+          recipient_user_id: recId,
+          metadata: { proposal_id: proposalId, status: newStatus, action, company_name: proposal.company?.name }
+        }
+      );
+    });
 
     this.persist('proposals');
+
+    // Automatically trigger cloud sync across devices & open tabs
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vidyaconnect:proposal_updated', { detail: { proposal } }));
+    }
+
     return { success: true, status: newStatus };
   }
 
@@ -1289,6 +1319,8 @@ class DatabaseStore {
 
     proposal.status = 'institution_accepted';
     proposal.updated_at = new Date().toISOString();
+    (proposal as any).final_accepted_at = new Date().toISOString();
+    (proposal as any).final_accepted_by = actor.full_name;
 
     const acceptedStudents = (proposal.students || [])
       .filter(ps => ps.is_accepted_by_company !== false)
@@ -1312,7 +1344,7 @@ class DatabaseStore {
       mentor_id: 'mentor-001',
       mentor: SEED_MENTORS[0],
       faculty_coordinator_id: actor.id,
-      title: `${proposal.domain} Batch (${proposal.institution?.name.split(',')[0]})`,
+      title: `${proposal.domain} Batch (${proposal.institution?.name?.split(',')[0] || 'Institution'})`,
       domain: proposal.domain,
       mode: proposal.mode,
       stipend_amount: proposal.stipend_requested,
@@ -1339,14 +1371,23 @@ class DatabaseStore {
       { id: actor.id, name: actor.full_name, role: actor.role }
     );
 
-    this.sendNotification(
-      'user-comp-admin',
-      'batch_created',
-      `Batch Created: ${batchCode}`,
-      `Institution finalized terms. Batch is ready for onboarding.`,
-      `/batches/${newBatch.id}`,
-      { recipient_role: 'company_admin', recipient_user_id: 'user-comp-admin' }
-    );
+    // Multi-admin notification to company admins
+    const compAdmins = this.profiles.filter(p => p.company_id === proposal.company_id || (p.role === 'company_admin' && !p.company_id));
+    const targetCompRecipients = new Set<string>();
+    compAdmins.forEach(p => targetCompRecipients.add(p.id));
+    if (targetCompRecipients.size === 0) targetCompRecipients.add('user-comp-admin');
+
+    targetCompRecipients.forEach(recId => {
+      this.sendNotification(
+        recId,
+        'batch_created',
+        `Batch Created: ${batchCode}`,
+        `Institution finalized terms. Batch "${newBatch.title}" is ready for onboarding.`,
+        `/batches/${newBatch.id}`,
+        { recipient_role: 'company_admin', recipient_user_id: recId, metadata: { batch_id: newBatch.id, proposal_id: proposalId } }
+      );
+    });
+
     acceptedStudents.forEach(stu => {
       this.sendNotification(
         stu.student_id,
@@ -1358,6 +1399,11 @@ class DatabaseStore {
       );
     });
 
+    // Automatically trigger cloud sync across devices & open tabs
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vidyaconnect:proposal_updated', { detail: { proposal } }));
+    }
+
     return { success: true, batch_id: newBatch.id, batch_code: batchCode };
   }
 
@@ -1366,9 +1412,12 @@ class DatabaseStore {
     if (!proposal) throw new Error('Proposal not found');
 
     const beforeStatus = proposal.status;
-    proposal.status = 'rejected';
+    proposal.status = 'declined';
     proposal.version += 1;
     proposal.updated_at = new Date().toISOString();
+    (proposal as any).declined_at = new Date().toISOString();
+    (proposal as any).declined_by = actor.full_name;
+    (proposal as any).declined_reason = remarks;
     proposal.additional_terms = remarks || 'Declined by Institution Coordinator';
 
     proposal.versions = proposal.versions || [];
@@ -1382,18 +1431,33 @@ class DatabaseStore {
       created_at: new Date().toISOString()
     });
 
-    this.logAudit('institution_reject_proposal', 'internship_proposal', proposalId, { status: beforeStatus }, { status: 'rejected', remarks }, { id: actor.id, name: actor.full_name, role: actor.role });
-    this.sendNotification(
-      proposal.company_id || 'user-comp-admin',
-      'proposal_rejected',
-      `Proposal Terms Declined by ${proposal.institution?.name || 'Institution'}`,
-      `College Coordinator declined terms for proposal ${proposal.proposal_code}: ${remarks || 'Terms not accepted by college'}.`,
-      `/proposals/${proposalId}`,
-      { recipient_role: 'company_admin', recipient_user_id: proposal.company_id || 'user-comp-admin' }
-    );
+    this.logAudit('institution_reject_proposal', 'internship_proposal', proposalId, { status: beforeStatus }, { status: 'declined', remarks }, { id: actor.id, name: actor.full_name, role: actor.role });
+
+    // Multi-admin notification to company admins
+    const compAdmins = this.profiles.filter(p => p.company_id === proposal.company_id || (p.role === 'company_admin' && !p.company_id));
+    const targetCompRecipients = new Set<string>();
+    compAdmins.forEach(p => targetCompRecipients.add(p.id));
+    if (targetCompRecipients.size === 0) targetCompRecipients.add('user-comp-admin');
+
+    targetCompRecipients.forEach(recId => {
+      this.sendNotification(
+        recId,
+        'proposal_rejected',
+        `Proposal Terms Declined by ${proposal.institution?.name || 'Institution'}`,
+        `College Coordinator declined terms for proposal ${proposal.proposal_code}: ${remarks || 'Terms not accepted by college'}.`,
+        `/proposals/${proposalId}`,
+        { recipient_role: 'company_admin', recipient_user_id: recId, metadata: { proposal_id: proposalId, remarks } }
+      );
+    });
 
     this.persist('proposals');
-    return { success: true, status: 'rejected' };
+
+    // Automatically trigger cloud sync across devices & open tabs
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vidyaconnect:proposal_updated', { detail: { proposal } }));
+    }
+
+    return { success: true, status: 'declined' };
   }
 
   activateBatch(batchId: string, actor: Profile) {

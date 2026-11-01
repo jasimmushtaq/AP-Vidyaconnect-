@@ -10,6 +10,7 @@ import { db } from '../../services/dbStore';
 import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { InternshipProposal } from '../../types/database';
+import { isProposalForInstitution } from '../../utils/proposalHelpers';
 import {
   CheckCircle2,
   XCircle,
@@ -52,11 +53,13 @@ export const ProposalDecisionsPage: React.FC = () => {
 
   const instId = currentInstitution?.id || currentUser?.institution_id;
 
-  // Filter proposals strictly relevant to this institution
+  // Filter proposals strictly relevant to this institution with robust fallback matching
   const myProposals = useMemo(() => {
-    if (!instId) return [];
-    return proposals.filter(p => p.institution_id === instId);
-  }, [proposals, instId]);
+    return proposals.filter(p =>
+      isProposalForInstitution(p, instId, currentInstitution, currentUser) ||
+      (!instId && !currentInstitution && p.institution_id === 'inst-001')
+    );
+  }, [proposals, instId, currentInstitution, currentUser]);
 
   // 1. Proposals waiting for institution's final acceptance/rejection (Company accepted terms)
   const pendingDecisions = useMemo(() => {
@@ -317,6 +320,18 @@ export const ProposalDecisionsPage: React.FC = () => {
                     </p>
                   </div>
                 </div>
+
+                {/* Company Feedback & Counter-Offer Remarks */}
+                {(p.additional_terms || (p as any).company_remarks) && (
+                  <div className="p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl text-xs space-y-1">
+                    <span className="font-extrabold text-emerald-900 flex items-center gap-1.5">
+                      <span>💬 Company Response Remarks:</span>
+                    </span>
+                    <p className="text-slate-700 italic">
+                      "{p.additional_terms || (p as any).company_remarks}"
+                    </p>
+                  </div>
+                )}
 
                 {/* Candidate Roster Preview */}
                 <div className="space-y-2">

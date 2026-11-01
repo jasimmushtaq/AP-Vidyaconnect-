@@ -129,6 +129,15 @@ class CloudSyncService {
       }
     }) as EventListener);
 
+    // 7. Listen to local proposal state transitions to persist permanently to Supabase and broadcast
+    window.addEventListener('vidyaconnect:proposal_updated', ((e: CustomEvent<{ proposal: InternshipProposal }>) => {
+      if (e.detail?.proposal) {
+        this.syncProposalToCloud(e.detail.proposal).catch(err => {
+          console.warn('[CloudSync] Auto-sync proposal error:', err);
+        });
+      }
+    }) as EventListener);
+
     return this.syncPromise;
   }
 
@@ -744,22 +753,36 @@ class CloudSyncService {
 
     // 2. Persist to shared Supabase PostgreSQL database
     try {
+      const ts = Date.now();
+      const idPart = (proposal.id || 'prop').replace(/[^a-zA-Z0-9]/g, '').slice(-10);
+      const syncCode = `PROP-${idPart}-${ts}`.slice(0, 48);
+      const syncEmail = `p.${idPart}.${ts}@sync.apvidya.gov.in`.slice(0, 50);
+
       const syncRow = {
-        code: `SYNC-PROP-${proposal.id}`,
-        name: `Internship Proposal Sync: ${proposal.proposal_code || proposal.id}`,
+        code: syncCode,
+        name: `Proposal Sync: ${(proposal.proposal_code || proposal.id).slice(0, 30)}`,
         type: 'govt_degree_college',
         affiliated_university: 'AP VidyaConnect Portal',
-        address: 'State Wide Portal Sync',
+        address: 'State Wide Proposal Registry',
         district: 'Visakhapatnam',
         state: 'Andhra Pradesh',
         pin_code: '530001',
         principal_name: proposal.created_by_name || 'Coordinator',
-        official_email: `${proposal.id}@sync.vidyaconnect.ap.gov.in`,
+        official_email: syncEmail,
         official_phone: '+91 891 0000000',
         establishment_year: 2026,
         verification_status: 'verified',
+        verification_notes: JSON.stringify({
+          sync_type: 'INTERNSHIP_PROPOSAL',
+          proposal_id: proposal.id,
+          proposal_code: proposal.proposal_code,
+          status: proposal.status,
+          updated_at: proposal.updated_at || new Date().toISOString()
+        }),
         documents: [{
           sync_type: 'INTERNSHIP_PROPOSAL',
+          proposal_id: proposal.id,
+          proposal_code: proposal.proposal_code,
           proposal,
           timestamp: new Date().toISOString()
         }]
@@ -782,7 +805,7 @@ class CloudSyncService {
         return { success: false, error: errText };
       }
 
-      console.log('[CloudSync] Successfully saved proposal to shared Supabase database:', proposal.proposal_code);
+      console.log('[CloudSync] Successfully saved proposal to shared Supabase database:', proposal.proposal_code, proposal.status);
       return { success: true };
     } catch (e: any) {
       console.warn('[CloudSync] Error syncing proposal to Supabase:', e);
@@ -909,10 +932,18 @@ class CloudSyncService {
           }
 
           // A. Handle Proposal Sync Rows
-          if (cloudInst.code?.startsWith('SYNC-PROP-')) {
-            const syncDoc = Array.isArray(cloudInst.documents)
+          if (cloudInst.code?.startsWith('PROP-') || cloudInst.code?.startsWith('SYNC-PROP-')) {
+            let syncDoc = Array.isArray(cloudInst.documents)
               ? cloudInst.documents.find((d: any) => d && d.sync_type === 'INTERNSHIP_PROPOSAL')
               : null;
+            if (!syncDoc && cloudInst.verification_notes) {
+              try {
+                const parsed = JSON.parse(cloudInst.verification_notes);
+                if (parsed.sync_type === 'INTERNSHIP_PROPOSAL' && parsed.proposal) {
+                  syncDoc = parsed;
+                }
+              } catch {}
+            }
             if (syncDoc?.proposal) {
               const p = syncDoc.proposal;
               const idx = db.proposals.findIndex(existing => existing.id === p.id || existing.proposal_code === p.proposal_code);

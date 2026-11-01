@@ -58,7 +58,14 @@ export const ProposalBuilderPage: React.FC = () => {
 
   const handleSubmitProposal = (asDraft: boolean) => {
     const selectedCompany = db.companies.find(c => c.id === selectedCompanyId);
-    const proposalCode = `PROP-2027-${currentInstitution?.code || 'INST'}-${selectedCompany?.name.slice(0, 3).toUpperCase() || 'CMP'}-${Math.floor(100 + Math.random() * 900)}`;
+    const effectiveInstitution =
+      currentInstitution ||
+      (currentUser?.institution_id ? db.institutions.find(i => i.id === currentUser.institution_id) : undefined) ||
+      db.institutions.find(i => i.official_email?.toLowerCase() === currentUser?.email?.toLowerCase()) ||
+      db.institutions[0];
+
+    const instId = effectiveInstitution?.id || currentUser?.institution_id || 'inst-001';
+    const proposalCode = `PROP-2027-${effectiveInstitution?.code || 'INST'}-${selectedCompany?.name.slice(0, 3).toUpperCase() || 'CMP'}-${Math.floor(100 + Math.random() * 900)}`;
 
     const proposalStudents = selectedStudentIds.map((sid, idx) => ({
       id: `ps-${Date.now()}-${idx}`,
@@ -71,8 +78,8 @@ export const ProposalBuilderPage: React.FC = () => {
     const newProposal: InternshipProposal = {
       id: `prop-${Date.now()}`,
       proposal_code: proposalCode,
-      institution_id: currentInstitution?.id || 'inst-001',
-      institution: currentInstitution,
+      institution_id: instId,
+      institution: effectiveInstitution,
       company_id: selectedCompanyId,
       company: selectedCompany,
       created_by: currentUser?.id || 'system',
@@ -119,13 +126,22 @@ export const ProposalBuilderPage: React.FC = () => {
     );
 
     if (!asDraft) {
-      db.sendNotification(
-        'user-comp-admin',
-        'proposal_submitted',
-        `New Proposal from ${currentInstitution?.name}`,
-        `Proposal ${proposalCode} for ${domain} is ready for review.`,
-        `/proposals/${newProposal.id}`
-      );
+      // Multi-admin dispatch to all matching company admins
+      const compAdmins = db.profiles.filter(p => p.company_id === selectedCompanyId || (p.role === 'company_admin' && !p.company_id));
+      const targetRecipients = new Set<string>();
+      compAdmins.forEach(p => targetRecipients.add(p.id));
+      if (targetRecipients.size === 0) targetRecipients.add('user-comp-admin');
+
+      targetRecipients.forEach(recId => {
+        db.sendNotification(
+          recId,
+          'proposal_submitted',
+          `New Proposal from ${effectiveInstitution?.name || 'Institution'}`,
+          `Proposal ${proposalCode} for ${domain} is ready for review.`,
+          `/proposals/${newProposal.id}`,
+          { recipient_role: 'company_admin', recipient_user_id: recId, metadata: { proposal_id: newProposal.id } }
+        );
+      });
     }
 
     navigate(`/proposals/${newProposal.id}`);
