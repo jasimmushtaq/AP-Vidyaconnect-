@@ -505,6 +505,22 @@ class DatabaseStore {
       { verification_status: newStatus },
       actor || { id: 'admin', name: 'State Administrator', role: 'super_admin' }
     );
+
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vidyaconnect:entity_decision', {
+          detail: {
+            entityType: 'company',
+            id: compId,
+            code_or_cin: comp.cin,
+            status: newStatus,
+            notes: comp.verification_notes,
+            adminName: actor?.name || 'Dr. Varun Surya, IAS'
+          }
+        }));
+      }
+    } catch {}
+
     return comp;
   }
 
@@ -564,6 +580,22 @@ class DatabaseStore {
       { verification_status: newStatus },
       actor || { id: 'admin', name: 'State Administrator', role: 'super_admin' }
     );
+
+    try {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('vidyaconnect:entity_decision', {
+          detail: {
+            entityType: 'institution',
+            id: instId,
+            code_or_cin: inst.code,
+            status: newStatus,
+            notes: inst.verification_notes,
+            adminName: actor?.name || 'Dr. Varun Surya, IAS'
+          }
+        }));
+      }
+    } catch {}
+
     return inst;
   }
 
@@ -623,6 +655,7 @@ class DatabaseStore {
           detail: {
             entityType: 'institution',
             id: instId,
+            code_or_cin: inst.code,
             status,
             notes: inst.verification_notes,
             adminName: actor?.name || 'Dr. Varun Surya, IAS'
@@ -690,6 +723,7 @@ class DatabaseStore {
           detail: {
             entityType: 'company',
             id: compId,
+            code_or_cin: comp.cin,
             status,
             notes: comp.verification_notes,
             adminName: actor?.name || 'Dr. Varun Surya, IAS'

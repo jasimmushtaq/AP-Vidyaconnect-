@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600" width="100%" height="100%" style="background-color: #e5e5e5; font-family: 'Segoe UI', Arial, sans-serif;">
+  <defs>
+    <!-- Drop Shadow Filter -->
+    <filter id="drop-shadow" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="4" dy="6" stdDeviation="5" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+
+    <!-- Metallic Gradients -->
+    <linearGradient id="grad-rect" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#bfbfbf"/>
+      <stop offset="50%" stop-color="#9a9a9a"/>
+      <stop offset="100%" stop-color="#7a7a7a"/>
+    </linearGradient>
+
+    <radialGradient id="grad-circle" cx="45%" cy="40%" r="55%">
+      <stop offset="0%" stop-color="#d4d4d4"/>
+      <stop offset="70%" stop-color="#9e9e9e"/>
+      <stop offset="100%" stop-color="#6f6f6f"/>
+    </radialGradient>
+
+    <linearGradient id="grad-cylinder-body" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#7a7a7a"/>
+      <stop offset="25%" stop-color="#b0b0b0"/>
+      <stop offset="60%" stop-color="#cfcfcf"/>
+      <stop offset="100%" stop-color="#6e6e6e"/>
+    </linearGradient>
+
+    <linearGradient id="grad-cylinder-top" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#dcdcdc"/>
+      <stop offset="100%" stop-color="#949494"/>
+    </linearGradient>
+
+    <!-- Arrow Marker -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#111111"/>
+    </marker>
+  </defs>
+
+  <!-- Title -->
+  <text x="500" y="55" text-anchor="middle" font-size="24" font-weight="bold" fill="#222">Data Flow Diagram (DFD Level 0 Context)</text>
+  <text x="500" y="85" text-anchor="middle" font-size="16" font-weight="600" fill="#555">AP VidyaConnect Internship &amp; Governance Ecosystem</text>
+
+  <!-- Left Entity: Student -->
+  <g filter="url(#drop-shadow)">
+    <rect x="50" y="210" width="180" height="110" rx="4" fill="url(#grad-rect)" stroke="#333" stroke-width="2"/>
+    <text x="140" y="272" text-anchor="middle" font-size="22" font-weight="bold" fill="#111">Student</text>
+  </g>
+
+  <!-- Right Entity: Administrator -->
+  <g filter="url(#drop-shadow)">
+    <rect x="770" y="210" width="180" height="110" rx="4" fill="url(#grad-rect)" stroke="#333" stroke-width="2"/>
+    <text x="860" y="272" text-anchor="middle" font-size="22" font-weight="bold" fill="#111">Administrator</text>
+  </g>
+
+  <!-- Center Process: AP VidyaConnect -->
+  <g filter="url(#drop-shadow)">
+    <circle cx="500" cy="265" r="105" fill="url(#grad-circle)" stroke="#333" stroke-width="2.5"/>
+    <text x="500" y="255" text-anchor="middle" font-size="20" font-weight="bold" fill="#111">AP</text>
+    <text x="500" y="285" text-anchor="middle" font-size="20" font-weight="bold" fill="#111">VidyaConnect</text>
+  </g>
+
+  <!-- Bottom Data Store: Database (Cylinder) -->
+  <g filter="url(#drop-shadow)">
+    <!-- Cylinder Body -->
+    <path d="M 420,470 L 420,535 A 80,24 0 0,0 580,535 L 580,470 Z" fill="url(#grad-cylinder-body)" stroke="#333" stroke-width="2"/>
+    <!-- Cylinder Top -->
+    <ellipse cx="500" cy="470" rx="80" ry="24" fill="url(#grad-cylinder-top)" stroke="#333" stroke-width="2"/>
+    <!-- Text -->
+    <text x="500" y="520" text-anchor="middle" font-size="20" font-weight="bold" fill="#111">Database</text>
+  </g>
+
+  <!-- Arrows & Flow Labels -->
+
+  <!-- 1. Student -> Process (Apply, Attendance) -->
+  <path d="M 230,235 L 385,235" fill="none" stroke="#111" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="307" y="222" text-anchor="middle" font-size="13" font-weight="bold" fill="#111">Apply, Attendance</text>
+
+  <!-- 2. Process -> Student (Certificates, Offers) -->
+  <path d="M 395,290 L 240,290" fill="none" stroke="#111" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="312" y="315" text-anchor="middle" font-size="13" font-weight="bold" fill="#111">Certificates, Offers</text>
+
+  <!-- 3. Administrator -> Process (Post Internships, MoUs) -->
+  <path d="M 770,235 L 615,235" fill="none" stroke="#111" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="692" y="222" text-anchor="middle" font-size="13" font-weight="bold" fill="#111">Post Internships, MoUs</text>
+
+  <!-- 4. Process -> Administrator (Reports, Analytics) -->
+  <path d="M 605,290 L 760,290" fill="none" stroke="#111" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="682" y="315" text-anchor="middle" font-size="13" font-weight="bold" fill="#111">Reports, Analytics</text>
+
+  <!-- 5. Process -> Database (Query) -->
+  <path d="M 480,372 L 480,440" fill="none" stroke="#111" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="445" y="415" text-anchor="middle" font-size="14" font-weight="bold" fill="#111">Query</text>
+
+  <!-- 6. Database -> Process (Retrieve) -->
+  <path d="M 520,440 L 520,372" fill="none" stroke="#111" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="560" y="415" text-anchor="middle" font-size="14" font-weight="bold" fill="#111">Retrieve</text>
+</svg>

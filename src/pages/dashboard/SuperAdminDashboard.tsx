@@ -8,6 +8,7 @@ import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { BannerManagerModal } from '../../components/admin/BannerManagerModal';
+import { cloudSync } from '../../services/cloudSyncService';
 import {
   ShieldCheck,
   School,
@@ -27,7 +28,8 @@ import {
   Activity,
   Layers,
   Check,
-  AlertCircle
+  AlertCircle,
+  Loader2
 } from 'lucide-react';
 import {
   BarChart,
@@ -65,36 +67,96 @@ export const SuperAdminDashboard: React.FC = () => {
   const [companies, setCompanies] = useState(db.companies);
   const [banners, setBanners] = useState(db.banners);
   const [showBannerModal, setShowBannerModal] = useState(false);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    // Fetch latest fresh data from Supabase PostgreSQL on mount
+    cloudSync.syncFromCloud().catch(err => {
+      console.warn('[SuperAdminDashboard] Initial cloud sync warning:', err);
+    });
+
     const unsub = db.subscribe(() => {
       setInstitutions([...db.institutions]);
       setCompanies([...db.companies]);
       setBanners([...db.banners]);
     });
-    return unsub;
+
+    const handleSync = () => {
+      setInstitutions([...db.institutions]);
+      setCompanies([...db.companies]);
+      setBanners([...db.banners]);
+    };
+
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+    };
   }, []);
 
   const pendingInstitutions = institutions.filter(i => i.verification_status === 'under_verification' || i.verification_status === 'pending');
   const pendingCompanies = companies.filter(c => c.verification_status === 'under_verification' || c.verification_status === 'pending');
 
-  const handleApproveInst = (instId: string) => {
-    const inst = db.institutions.find(i => i.id === instId);
-    if (inst) {
-      inst.verification_status = 'verified';
-      inst.verification_notes = `Approved by Super Admin ${currentUser.full_name}`;
-      db.persist('institutions');
-      db.logAudit('verify_institution', 'institution', instId, { status: 'under_verification' }, { status: 'verified' });
+  const handleApproveInst = async (instId: string) => {
+    if (processingIds.has(instId)) return;
+    setProcessingIds(prev => new Set(prev).add(instId));
+    setErrorMsg(null);
+    try {
+      const inst = db.institutions.find(i => i.id === instId);
+      const res = await cloudSync.syncEntityDecisionToCloud(
+        'institution',
+        instId,
+        'verified',
+        `Approved by Super Admin ${currentUser.full_name}`,
+        currentUser.full_name
+      );
+      if (!res.success) {
+        setErrorMsg(res.error || 'Failed to persist verification to Supabase database.');
+      } else {
+        setSuccessMsg(`College "${inst?.name || instId}" verified and persisted across all devices.`);
+        setTimeout(() => setSuccessMsg(null), 4000);
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Network error verifying institution.');
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(instId);
+        return next;
+      });
     }
   };
 
-  const handleApproveComp = (compId: string) => {
-    const comp = db.companies.find(c => c.id === compId);
-    if (comp) {
-      comp.verification_status = 'verified';
-      comp.verification_notes = `Approved by Super Admin ${currentUser.full_name}`;
-      db.persist('companies');
-      db.logAudit('verify_company', 'company', compId, { status: 'under_verification' }, { status: 'verified' });
+  const handleApproveComp = async (compId: string) => {
+    if (processingIds.has(compId)) return;
+    setProcessingIds(prev => new Set(prev).add(compId));
+    setErrorMsg(null);
+    try {
+      const comp = db.companies.find(c => c.id === compId);
+      const res = await cloudSync.syncEntityDecisionToCloud(
+        'company',
+        compId,
+        'verified',
+        `Approved by Super Admin ${currentUser.full_name}`,
+        currentUser.full_name
+      );
+      if (!res.success) {
+        setErrorMsg(res.error || 'Failed to persist verification to Supabase database.');
+      } else {
+        setSuccessMsg(`Company "${comp?.name || compId}" verified and persisted across all devices.`);
+        setTimeout(() => setSuccessMsg(null), 4000);
+      }
+    } catch (err: any) {
+      setErrorMsg(err?.message || 'Network error verifying company.');
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(compId);
+        return next;
+      });
     }
   };
 
@@ -355,6 +417,20 @@ export const SuperAdminDashboard: React.FC = () => {
           </Link>
         </div>
 
+        {/* Real-time Status / Error Feedback Alerts */}
+        {errorMsg && (
+          <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 flex items-center gap-2 animate-in fade-in">
+            <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
+            <span className="font-semibold">{errorMsg}</span>
+          </div>
+        )}
+        {successMsg && (
+          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2 animate-in fade-in">
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-600" />
+            <span className="font-semibold">{successMsg}</span>
+          </div>
+        )}
+
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
@@ -381,13 +457,30 @@ export const SuperAdminDashboard: React.FC = () => {
                   <td className="py-3.5 px-3 text-slate-600 font-medium">{i.accreditation || i.affiliated_university}</td>
                   <td className="py-3.5 px-3"><StatusBadge status={i.verification_status} size="sm" /></td>
                   <td className="py-3.5 px-3 text-right">
-                    <button
-                      onClick={() => handleApproveInst(i.id)}
-                      className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black transition-all shadow-sm active:scale-95 inline-flex items-center gap-1.5"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      Approve & Verify
-                    </button>
+                    {i.verification_status === 'verified' ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Verified
+                      </span>
+                    ) : (
+                      <button
+                        disabled={processingIds.has(i.id)}
+                        onClick={() => handleApproveInst(i.id)}
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white rounded-xl text-xs font-black transition-all shadow-sm active:scale-95 inline-flex items-center gap-1.5"
+                      >
+                        {processingIds.has(i.id) ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Verifying...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            Approve & Verify
+                          </>
+                        )}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -405,13 +498,30 @@ export const SuperAdminDashboard: React.FC = () => {
                   <td className="py-3.5 px-3 text-slate-600 font-medium">{c.industry}</td>
                   <td className="py-3.5 px-3"><StatusBadge status={c.verification_status} size="sm" /></td>
                   <td className="py-3.5 px-3 text-right">
-                    <button
-                      onClick={() => handleApproveComp(c.id)}
-                      className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-xs font-black transition-all shadow-sm active:scale-95 inline-flex items-center gap-1.5"
-                    >
-                      <Check className="w-3.5 h-3.5" />
-                      Approve & Verify
-                    </button>
+                    {c.verification_status === 'verified' ? (
+                      <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-700 font-bold text-xs">
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        Verified
+                      </span>
+                    ) : (
+                      <button
+                        disabled={processingIds.has(c.id)}
+                        onClick={() => handleApproveComp(c.id)}
+                        className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-60 text-white rounded-xl text-xs font-black transition-all shadow-sm active:scale-95 inline-flex items-center gap-1.5"
+                      >
+                        {processingIds.has(c.id) ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            Verifying...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-3.5 h-3.5" />
+                            Approve & Verify
+                          </>
+                        )}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}

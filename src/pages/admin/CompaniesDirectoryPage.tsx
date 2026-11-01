@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../context/ModalContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Company, VerificationStatus } from '../../types/database';
 import {
@@ -28,7 +29,8 @@ import {
   X,
   UserPlus,
   Briefcase,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from 'lucide-react';
 
 export const CompaniesDirectoryPage: React.FC = () => {
@@ -39,6 +41,7 @@ export const CompaniesDirectoryPage: React.FC = () => {
   const [industryFilter, setIndustryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
   // Edit Modal State
   const [editingComp, setEditingComp] = useState<Company | null>(null);
@@ -73,10 +76,23 @@ export const CompaniesDirectoryPage: React.FC = () => {
   });
 
   useEffect(() => {
+    cloudSync.syncFromCloud().catch(err => {
+      console.warn('[CompaniesDirectoryPage] Cloud sync warning:', err);
+    });
+
     const unsub = db.subscribe(() => {
       setCompanies([...db.companies]);
     });
-    return unsub;
+
+    const handleSync = () => {
+      setCompanies([...db.companies]);
+    };
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -148,14 +164,39 @@ export const CompaniesDirectoryPage: React.FC = () => {
     }
   };
 
-  const handleToggleVerification = (comp: Company) => {
-    const updated = db.toggleCompanyVerification(comp.id, currentUser);
-    if (updated) {
-      showToast(
-        updated.verification_status === 'verified'
-          ? `Verified "${comp.name}". Company is active on public partner network!`
-          : `Set "${comp.name}" to Under Review.`
+  const handleToggleVerification = async (comp: Company) => {
+    if (processingIds.has(comp.id)) return;
+    setProcessingIds(prev => new Set(prev).add(comp.id));
+    const targetStatus = comp.verification_status === 'verified' ? 'under_verification' : 'verified';
+
+    try {
+      const res = await cloudSync.syncEntityDecisionToCloud(
+        'company',
+        comp.id,
+        targetStatus,
+        targetStatus === 'verified'
+          ? `Verified by State Super Admin ${currentUser.full_name}`
+          : 'Status set to Under Review by State Super Admin',
+        currentUser.full_name
       );
+
+      if (res.success) {
+        showToast(
+          targetStatus === 'verified'
+            ? `Verified "${comp.name}". Live across all devices!`
+            : `Set "${comp.name}" to Under Review.`
+        );
+      } else {
+        showToast(`Error: ${res.error || 'Failed to update company verification'}`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message || 'Verification update failed'}`);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(comp.id);
+        return next;
+      });
     }
   };
 
@@ -310,14 +351,16 @@ export const CompaniesDirectoryPage: React.FC = () => {
             <div className="pt-3 border-t flex items-center justify-between gap-2">
               <button
                 type="button"
+                disabled={processingIds.has(comp.id)}
                 onClick={() => handleToggleVerification(comp)}
-                className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${
+                className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                   comp.verification_status === 'verified'
-                    ? 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                    ? 'bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-60'
+                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-60'
                 }`}
               >
-                {comp.verification_status === 'verified' ? 'Set Pending' : 'Verify'}
+                {processingIds.has(comp.id) && <Loader2 className="w-3 h-3 animate-spin" />}
+                <span>{comp.verification_status === 'verified' ? 'Set Pending' : 'Verify'}</span>
               </button>
 
               <div className="flex items-center gap-1.5">

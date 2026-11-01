@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Institution, Company, VerificationStatus, AttachedDocument } from '../../types/database';
 import { DocumentViewerModal } from '../../components/common/DocumentViewerModal';
@@ -47,6 +48,7 @@ import {
   Paperclip,
   Eye,
   Plus,
+  Loader2,
   Trash2,
   UploadCloud
 } from 'lucide-react';
@@ -59,6 +61,7 @@ export const EntityVerificationsPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'under_verification' | 'verified' | 'rejected'>('under_verification');
   const [typeFilter, setTypeFilter] = useState<'all' | 'institution' | 'company'>('all');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
   // Modal states
   const [inspectEntity, setInspectEntity] = useState<{ type: 'institution' | 'company'; data: Institution | Company } | null>(null);
@@ -68,11 +71,27 @@ export const EntityVerificationsPage: React.FC = () => {
   const [showAdminUpload, setShowAdminUpload] = useState(false);
 
   useEffect(() => {
+    // Sync latest verification state from Supabase PostgreSQL on mount
+    cloudSync.syncFromCloud().catch(err => {
+      console.warn('[EntityVerificationsPage] Initial cloud sync warning:', err);
+    });
+
     const unsub = db.subscribe(() => {
       setInstitutions([...db.institutions]);
       setCompanies([...db.companies]);
     });
-    return unsub;
+
+    const handleSync = () => {
+      setInstitutions([...db.institutions]);
+      setCompanies([...db.companies]);
+    };
+
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -81,23 +100,32 @@ export const EntityVerificationsPage: React.FC = () => {
   };
 
   // Verification Actions
-  const handleApprove = (type: 'institution' | 'company', entity: Institution | Company) => {
-    if (type === 'institution') {
-      db.setInstitutionVerificationStatus(
+  const handleApprove = async (type: 'institution' | 'company', entity: Institution | Company) => {
+    if (processingIds.has(entity.id)) return;
+    setProcessingIds(prev => new Set(prev).add(entity.id));
+
+    try {
+      const res = await cloudSync.syncEntityDecisionToCloud(
+        type,
         entity.id,
         'verified',
         `Verified & Certified by State Super Admin ${currentUser.full_name}`,
-        currentUser
+        currentUser.full_name
       );
-      showToast(`Approved & Certified College: "${entity.name}". Live in state registry!`);
-    } else {
-      db.setCompanyVerificationStatus(
-        entity.id,
-        'verified',
-        `Verified & Certified by State Super Admin ${currentUser.full_name}`,
-        currentUser
-      );
-      showToast(`Approved & Certified Company: "${entity.name}". Live on partner network!`);
+
+      if (res.success) {
+        showToast(`Approved & Certified ${type === 'institution' ? 'College' : 'Company'}: "${entity.name}". Live across all devices!`);
+      } else {
+        showToast(`Error: ${res.error || 'Failed to save verification to database'}`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message || 'Verification failed'}`);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(entity.id);
+        return next;
+      });
     }
   };
 
@@ -106,19 +134,38 @@ export const EntityVerificationsPage: React.FC = () => {
     setRejectionReason('');
   };
 
-  const handleConfirmReject = () => {
+  const handleConfirmReject = async () => {
     if (!rejectingEntity) return;
     const { type, data } = rejectingEntity;
     const finalReason = rejectionReason.trim() || 'Missing compliance documentation or authentication error.';
 
-    if (type === 'institution') {
-      db.setInstitutionVerificationStatus(data.id, 'rejected', finalReason, currentUser);
-      showToast(`Marked College "${data.name}" as Rejected. Feedback recorded.`);
-    } else {
-      db.setCompanyVerificationStatus(data.id, 'rejected', finalReason, currentUser);
-      showToast(`Marked Company "${data.name}" as Rejected. Feedback recorded.`);
-    }
+    if (processingIds.has(data.id)) return;
+    setProcessingIds(prev => new Set(prev).add(data.id));
     setRejectingEntity(null);
+
+    try {
+      const res = await cloudSync.syncEntityDecisionToCloud(
+        type,
+        data.id,
+        'rejected',
+        finalReason,
+        currentUser.full_name
+      );
+
+      if (res.success) {
+        showToast(`Marked ${type === 'institution' ? 'College' : 'Company'} "${data.name}" as Rejected. Synchronized to database.`);
+      } else {
+        showToast(`Error: ${res.error || 'Failed to persist rejection'}`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message || 'Rejection failed'}`);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(data.id);
+        return next;
+      });
+    }
   };
 
   const handleCopyCredentialsSummary = (entity: Institution | Company, type: 'institution' | 'company') => {
@@ -553,22 +600,38 @@ export const EntityVerificationsPage: React.FC = () => {
                   <span>Inspect Credentials</span>
                 </button>
 
-                {item.verification_status !== 'verified' && (
+                {item.verification_status === 'verified' ? (
+                  <span className="px-3.5 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-xs flex items-center gap-1.5 shadow-2xs">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Verified</span>
+                  </span>
+                ) : (
                   <button
                     type="button"
+                    disabled={processingIds.has(item.id)}
                     onClick={() => handleApprove(item.type, item.raw)}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all active:scale-95"
                   >
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                    <span>Approve & Certify</span>
+                    {processingIds.has(item.id) ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Verifying...</span>
+                      </>
+                    ) : (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Approve & Certify</span>
+                      </>
+                    )}
                   </button>
                 )}
 
                 {item.verification_status !== 'rejected' && (
                   <button
                     type="button"
+                    disabled={processingIds.has(item.id)}
                     onClick={() => handleOpenRejectModal(item.type, item.raw)}
-                    className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1.5 transition-all"
+                    className="px-3.5 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 disabled:opacity-60 text-rose-700 border border-rose-200 font-bold text-xs flex items-center gap-1.5 transition-all"
                   >
                     <XCircle className="w-3.5 h-3.5" />
                     <span>Reject</span>

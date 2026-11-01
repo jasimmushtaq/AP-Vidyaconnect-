@@ -7,6 +7,7 @@ import React, { useState, useEffect } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Institution, Company } from '../../types/database';
 import {
@@ -34,7 +35,8 @@ import {
   Upload,
   Image as ImageIcon,
   FileWarning,
-  UserPlus
+  UserPlus,
+  Loader2
 } from 'lucide-react';
 
 export const VerificationsQueuePage: React.FC = () => {
@@ -44,6 +46,7 @@ export const VerificationsQueuePage: React.FC = () => {
   const [companies, setCompanies] = useState<Company[]>(db.companies);
   const [search, setSearch] = useState('');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
   // Modal States
   const [showAddInstModal, setShowAddInstModal] = useState(false);
@@ -139,11 +142,25 @@ export const VerificationsQueuePage: React.FC = () => {
   }, [location.pathname]);
 
   useEffect(() => {
+    cloudSync.syncFromCloud().catch(err => {
+      console.warn('[VerificationsQueuePage] Cloud sync warning:', err);
+    });
+
     const unsub = db.subscribe(() => {
       setInstitutions([...db.institutions]);
       setCompanies([...db.companies]);
     });
-    return unsub;
+
+    const handleSync = () => {
+      setInstitutions([...db.institutions]);
+      setCompanies([...db.companies]);
+    };
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -255,14 +272,39 @@ export const VerificationsQueuePage: React.FC = () => {
     }
   };
 
-  const handleToggleCompVerification = (c: Company) => {
-    const updated = db.toggleCompanyVerification(c.id, currentUser);
-    if (updated) {
-      showToast(
-        updated.verification_status === 'verified'
-          ? `Verified "${c.name}". Company now live on homepage & partners directory!`
-          : `Revoked verification for "${c.name}". Company hidden from public directory.`
+  const handleToggleCompVerification = async (c: Company) => {
+    if (processingIds.has(c.id)) return;
+    setProcessingIds(prev => new Set(prev).add(c.id));
+    const targetStatus = c.verification_status === 'verified' ? 'under_verification' : 'verified';
+
+    try {
+      const res = await cloudSync.syncEntityDecisionToCloud(
+        'company',
+        c.id,
+        targetStatus,
+        targetStatus === 'verified'
+          ? `Verified by State Administrator ${currentUser.full_name}`
+          : 'Status set to Under Review by State Administrator',
+        currentUser.full_name
       );
+
+      if (res.success) {
+        showToast(
+          targetStatus === 'verified'
+            ? `Verified "${c.name}". Live across all devices!`
+            : `Set "${c.name}" to Under Review.`
+        );
+      } else {
+        showToast(`Error: ${res.error || 'Failed to update company verification'}`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message || 'Verification update failed'}`);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(c.id);
+        return next;
+      });
     }
   };
 
@@ -366,14 +408,39 @@ export const VerificationsQueuePage: React.FC = () => {
     }
   };
 
-  const handleToggleInstVerification = (inst: Institution) => {
-    const updated = db.toggleInstitutionVerification(inst.id, currentUser);
-    if (updated) {
-      showToast(
-        updated.verification_status === 'verified'
-          ? `Verified "${inst.name}". College now visible on public ecosystem!`
-          : `Set "${inst.name}" to Under Review.`
+  const handleToggleInstVerification = async (inst: Institution) => {
+    if (processingIds.has(inst.id)) return;
+    setProcessingIds(prev => new Set(prev).add(inst.id));
+    const targetStatus = inst.verification_status === 'verified' ? 'under_verification' : 'verified';
+
+    try {
+      const res = await cloudSync.syncEntityDecisionToCloud(
+        'institution',
+        inst.id,
+        targetStatus,
+        targetStatus === 'verified'
+          ? `Verified by State Administrator ${currentUser.full_name}`
+          : 'Status set to Under Review by State Administrator',
+        currentUser.full_name
       );
+
+      if (res.success) {
+        showToast(
+          targetStatus === 'verified'
+            ? `Verified "${inst.name}". Live across all devices!`
+            : `Set "${inst.name}" to Under Review.`
+        );
+      } else {
+        showToast(`Error: ${res.error || 'Failed to update institution verification'}`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message || 'Verification update failed'}`);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(inst.id);
+        return next;
+      });
     }
   };
 
@@ -623,14 +690,19 @@ export const VerificationsQueuePage: React.FC = () => {
                 {/* Action Controls: Verify / Edit / Delete */}
                 <div className="flex items-center gap-2 shrink-0 self-start md:self-center">
                   <button
+                    disabled={processingIds.has(c.id)}
                     onClick={() => handleToggleCompVerification(c)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-sm ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-sm disabled:opacity-60 ${
                       c.verification_status === 'verified'
                         ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border border-emerald-300'
                         : 'bg-[#1C8A3C] hover:bg-emerald-800 text-white'
                     }`}
                   >
-                    {c.verification_status === 'verified' ? (
+                    {processingIds.has(c.id) ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying...
+                      </>
+                    ) : c.verification_status === 'verified' ? (
                       <>
                         <Check className="w-3.5 h-3.5" /> Verified (Click to Unverify)
                       </>
@@ -707,14 +779,19 @@ export const VerificationsQueuePage: React.FC = () => {
                 {/* Action Controls */}
                 <div className="flex items-center gap-2 shrink-0 self-start md:self-center">
                   <button
+                    disabled={processingIds.has(inst.id)}
                     onClick={() => handleToggleInstVerification(inst)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-sm ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1 shadow-sm disabled:opacity-60 ${
                       inst.verification_status === 'verified'
                         ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200 border border-emerald-300'
                         : 'bg-[#0E2350] hover:bg-[#14336F] text-white'
                     }`}
                   >
-                    {inst.verification_status === 'verified' ? (
+                    {processingIds.has(inst.id) ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Verifying...
+                      </>
+                    ) : inst.verification_status === 'verified' ? (
                       <>
                         <Check className="w-3.5 h-3.5" /> Verified (Click to Unverify)
                       </>

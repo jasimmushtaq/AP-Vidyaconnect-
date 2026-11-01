@@ -20,6 +20,7 @@ export interface EntityRegistrationPayload {
 export interface EntityDecisionPayload {
   entityType: 'institution' | 'company';
   id: string;
+  code_or_cin?: string;
   status: 'verified' | 'under_verification' | 'rejected';
   notes?: string;
   adminName?: string;
@@ -30,6 +31,7 @@ class CloudSyncService {
   private isInitialized = false;
   private isSyncing = false;
   private syncPromise: Promise<boolean> | null = null;
+  private inFlightDecisions = new Set<string>();
 
   public init(): Promise<boolean> {
     if (this.isInitialized || typeof window === 'undefined') {
@@ -37,7 +39,7 @@ class CloudSyncService {
     }
     this.isInitialized = true;
 
-    // 1. Initialize Realtime WebSocket Broadcast Channel
+    // 1. Initialize Realtime WebSocket Broadcast & Postgres Changes Channel
     try {
       this.channel = supabase.channel('ap-vidyaconnect-cloud-sync', {
         config: { broadcast: { self: false } }
@@ -71,6 +73,14 @@ class CloudSyncService {
             this.handleIncomingStudents(payload);
           }
         })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'institutions' }, (payload: any) => {
+          console.log('[CloudSync] Realtime Postgres change on institutions table:', payload);
+          this.syncFromCloud();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'companies' }, (payload: any) => {
+          console.log('[CloudSync] Realtime Postgres change on companies table:', payload);
+          this.syncFromCloud();
+        })
         .subscribe((status: string) => {
           console.log('[CloudSync] WebSocket channel status:', status);
         });
@@ -81,12 +91,12 @@ class CloudSyncService {
     // 2. Initial cloud state catch-up on load (awaited by callers)
     this.syncPromise = this.syncFromCloud();
 
-    // 3. Periodic cloud reconciliation (every 60s when tab is active)
+    // 3. Periodic cloud reconciliation (every 30s when tab is active)
     setInterval(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
         this.syncFromCloud();
       }
-    }, 60000);
+    }, 30000);
 
     // 4. Tab focus auto-sync: when user switches tabs or browsers, immediately check for new accounts/proposals
     window.addEventListener('focus', () => {
@@ -97,10 +107,18 @@ class CloudSyncService {
       this.syncFromCloud();
     });
 
-    // 5. Listen to local entity decisions made in this browser to broadcast to all other browsers
+    // 5. Listen to local entity decisions made in this browser to persist permanently to Supabase and broadcast
     window.addEventListener('vidyaconnect:entity_decision', ((e: CustomEvent<EntityDecisionPayload>) => {
       if (e.detail) {
-        this.broadcastDecision(e.detail.entityType, e.detail.id, e.detail.status, e.detail.notes, e.detail.adminName);
+        this.syncEntityDecisionToCloud(
+          e.detail.entityType,
+          e.detail.id,
+          e.detail.status,
+          e.detail.notes,
+          e.detail.adminName
+        ).catch(err => {
+          console.warn('[CloudSync] Auto-sync entity decision error:', err);
+        });
       }
     }) as EventListener);
 
@@ -112,6 +130,18 @@ class CloudSyncService {
     }) as EventListener);
 
     return this.syncPromise;
+  }
+
+  public destroy() {
+    if (this.channel) {
+      try {
+        supabase.removeChannel(this.channel);
+      } catch (e) {
+        console.warn('[CloudSync] Channel removal warning:', e);
+      }
+      this.channel = null;
+    }
+    this.isInitialized = false;
   }
 
   // --- Real-time Inbound Handlers ---
@@ -187,7 +217,10 @@ class CloudSyncService {
     let changed = false;
 
     if (payload.entityType === 'institution') {
-      const inst = db.institutions.find(i => i.id === payload.id);
+      const inst = db.institutions.find(i =>
+        i.id === payload.id ||
+        (payload.code_or_cin && i.code === payload.code_or_cin)
+      );
       if (inst && inst.verification_status !== payload.status) {
         inst.verification_status = payload.status;
         if (payload.notes) inst.verification_notes = payload.notes;
@@ -195,7 +228,10 @@ class CloudSyncService {
         changed = true;
       }
     } else {
-      const comp = db.companies.find(c => c.id === payload.id);
+      const comp = db.companies.find(c =>
+        c.id === payload.id ||
+        (payload.code_or_cin && c.cin === payload.code_or_cin)
+      );
       if (comp && comp.verification_status !== payload.status) {
         comp.verification_status = payload.status;
         if (payload.notes) comp.verification_notes = payload.notes;
@@ -376,7 +412,7 @@ class CloudSyncService {
           'apikey': supabaseAnonKey,
           'Authorization': `Bearer ${supabaseAnonKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify(row)
       });
@@ -403,6 +439,17 @@ class CloudSyncService {
           };
         }
         return { success: false, error: `Database write failed (${res.status}): ${errText}` };
+      }
+
+      // Capture generated Supabase UUID and synchronize IDs across clients
+      try {
+        const insertedRows = await res.json();
+        if (Array.isArray(insertedRows) && insertedRows[0]?.id) {
+          inst.id = insertedRows[0].id;
+          adminProfile.institution_id = insertedRows[0].id;
+        }
+      } catch (jsonErr) {
+        console.warn('[CloudSync] Note parsing inserted institution row:', jsonErr);
       }
 
       console.log('[CloudSync] Successfully saved institution to Supabase cloud database:', inst.name);
@@ -492,7 +539,7 @@ class CloudSyncService {
           'apikey': supabaseAnonKey,
           'Authorization': `Bearer ${supabaseAnonKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
+          'Prefer': 'return=representation'
         },
         body: JSON.stringify(row)
       });
@@ -521,11 +568,173 @@ class CloudSyncService {
         return { success: false, error: `Database write failed (${res.status}): ${errText}` };
       }
 
+      // Capture generated Supabase UUID and synchronize IDs across clients
+      try {
+        const insertedRows = await res.json();
+        if (Array.isArray(insertedRows) && insertedRows[0]?.id) {
+          comp.id = insertedRows[0].id;
+          adminProfile.company_id = insertedRows[0].id;
+        }
+      } catch (jsonErr) {
+        console.warn('[CloudSync] Note parsing inserted company row:', jsonErr);
+      }
+
       console.log('[CloudSync] Successfully saved company to Supabase cloud database:', comp.name);
       return { success: true };
     } catch (e: any) {
       console.error('[CloudSync] Failed to persist company to Supabase cloud:', e);
       return { success: false, error: e?.message || 'Network connection failed' };
+    }
+  }
+
+  /**
+   * Persists Super Admin Verification / Rejection decisions permanently to Supabase PostgreSQL.
+   * Creates an immutable sync decision record in the shared database and broadcasts across all devices.
+   */
+  public async syncEntityDecisionToCloud(
+    entityType: 'institution' | 'company',
+    id: string,
+    status: 'verified' | 'under_verification' | 'rejected',
+    notes?: string,
+    adminName?: string
+  ): Promise<{ success: boolean; error?: string }> {
+    const flightKey = `${entityType}-${id}-${status}`;
+    if (this.inFlightDecisions.has(flightKey)) {
+      return { success: true };
+    }
+    this.inFlightDecisions.add(flightKey);
+
+    try {
+      const isCompany = entityType === 'company';
+      const targetComp = isCompany
+        ? db.companies.find(c => c.id === id || c.cin === id || (c.official_email && c.official_email.toLowerCase() === id.toLowerCase()))
+        : null;
+      const targetInst = !isCompany
+        ? db.institutions.find(i => i.id === id || i.code === id || (i.official_email && i.official_email.toLowerCase() === id.toLowerCase()))
+        : null;
+
+      const targetId = targetComp?.id || targetInst?.id || id;
+      const codeOrCin = isCompany ? (targetComp?.cin || id) : (targetInst?.code || id);
+      const entityName = targetComp?.name || targetInst?.name || `${entityType} ${id}`;
+      const officialEmail = targetComp?.official_email || targetInst?.official_email || '';
+      const decNotes = notes || (status === 'verified'
+        ? `Verified & Certified by State Super Admin ${adminName || 'Dr. Varun Surya, IAS'}`
+        : status === 'rejected'
+        ? `Rejected by State Super Admin ${adminName || 'Dr. Varun Surya, IAS'}: Missing compliance documentation`
+        : 'Status set to Under Review by State Super Admin');
+
+      // 1. Update in-memory and local storage immediately
+      if (isCompany && targetComp) {
+        targetComp.verification_status = status;
+        targetComp.verification_notes = decNotes;
+        db.persist('companies');
+      } else if (!isCompany && targetInst) {
+        targetInst.verification_status = status;
+        targetInst.verification_notes = decNotes;
+        db.persist('institutions');
+      }
+
+      db.logAudit(
+        status === 'verified' ? (isCompany ? 'verify_company' : 'verify_institution') : (isCompany ? 'reject_company' : 'reject_institution'),
+        entityType,
+        targetId,
+        { verification_status: 'under_verification' },
+        { verification_status: status, notes: decNotes },
+        { id: 'user-super-admin', name: adminName || 'Dr. Varun Surya, IAS', role: 'super_admin' }
+      );
+      db.notify();
+      window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
+
+      // 2. Real-time broadcast to all open browser windows & tabs
+      this.broadcast(status === 'verified' ? 'VERIFY_ENTITY' : 'REJECT_ENTITY', {
+        entityType,
+        id: targetId,
+        code_or_cin: codeOrCin,
+        status,
+        notes: decNotes,
+        adminName
+      });
+
+      // 3. Attempt direct PATCH update on table
+      try {
+        const patchUrl = isCompany
+          ? `${supabaseUrl}/rest/v1/companies?id=eq.${encodeURIComponent(targetId)}`
+          : `${supabaseUrl}/rest/v1/institutions?id=eq.${encodeURIComponent(targetId)}`;
+
+        await fetch(patchUrl, {
+          method: 'PATCH',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            verification_status: status,
+            verification_notes: JSON.stringify({ actual_status: status, notes: decNotes })
+          })
+        });
+      } catch (patchErr) {
+        // Continue to persistent decision journal
+      }
+
+      // 4. Persist authoritative decision row to Supabase PostgreSQL (code max 50 chars)
+      const decisionDoc = {
+        sync_type: 'ENTITY_DECISION',
+        entity_type: entityType,
+        entity_id: targetId,
+        code_or_cin: codeOrCin,
+        official_email: officialEmail,
+        status,
+        notes: decNotes,
+        admin_name: adminName || 'Dr. Varun Surya, IAS',
+        decided_at: new Date().toISOString()
+      };
+
+      const cleanId = targetId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
+      const decisionCode = `DEC-${entityType === 'company' ? 'C' : 'I'}-${cleanId}-${Date.now()}`.slice(0, 50);
+
+      const syncRow = {
+        code: decisionCode,
+        name: `State Super Admin Verification: ${entityName}`.slice(0, 255),
+        type: 'govt_degree_college',
+        affiliated_university: 'AP VidyaConnect State Portal',
+        address: 'State Super Admin Verification Audit',
+        district: 'Visakhapatnam',
+        state: 'Andhra Pradesh',
+        pin_code: '530001',
+        principal_name: adminName || 'Dr. Varun Surya, IAS',
+        official_email: `decision.${entityType}.${Date.now()}@sync.vidyaconnect.ap.gov.in`,
+        official_phone: '+91 891 0000000',
+        establishment_year: 2026,
+        verification_status: 'verified',
+        verification_notes: JSON.stringify(decisionDoc),
+        documents: [decisionDoc]
+      };
+
+      const res = await fetch(`${supabaseUrl}/rest/v1/institutions`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(syncRow)
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error('[CloudSync] Failed to persist verification decision to Supabase PostgreSQL:', res.status, errText);
+        return { success: false, error: `Database persistence failed (${res.status}): ${errText}` };
+      }
+
+      console.log(`[CloudSync] Verified & persisted ${entityType} "${entityName}" to Supabase PostgreSQL:`, status);
+      return { success: true };
+    } catch (e: any) {
+      console.error('[CloudSync] Error saving verification decision to Supabase:', e);
+      return { success: false, error: e?.message || 'Network connection failed' };
+    } finally {
+      this.inFlightDecisions.delete(flightKey);
     }
   }
 
@@ -642,6 +851,9 @@ class CloudSyncService {
     let anyChanged = false;
 
     try {
+      // Shared map of authoritative Super Admin ENTITY_DECISION records from Supabase PostgreSQL
+      const decisionMap = new Map<string, { status: 'verified' | 'under_verification' | 'rejected'; notes: string; decidedAt: number }>();
+
       // 1. Fetch institutions & sync records from Supabase
       const instRes = await fetch(`${supabaseUrl}/rest/v1/institutions?select=*`, {
         headers: {
@@ -653,7 +865,49 @@ class CloudSyncService {
       if (instRes.ok) {
         const cloudInstitutions = await instRes.json();
 
+        // Pass 1: Extract all authoritative Super Admin ENTITY_DECISION records
         for (const cloudInst of cloudInstitutions) {
+          if (cloudInst.code?.startsWith('DEC-') || cloudInst.code?.startsWith('SYNC-DECISION-')) {
+            let decDoc = Array.isArray(cloudInst.documents)
+              ? cloudInst.documents.find((d: any) => d && d.sync_type === 'ENTITY_DECISION')
+              : null;
+
+            if (!decDoc && cloudInst.verification_notes) {
+              try {
+                const parsed = JSON.parse(cloudInst.verification_notes);
+                if (parsed.sync_type === 'ENTITY_DECISION' || parsed.status) {
+                  decDoc = parsed;
+                }
+              } catch {}
+            }
+
+            if (decDoc && decDoc.status) {
+              const decidedAt = new Date(decDoc.decided_at || cloudInst.created_at || 0).getTime();
+              const decData = { status: decDoc.status as any, notes: decDoc.notes || '', decidedAt };
+
+              if (decDoc.entity_id) {
+                const existing = decisionMap.get(decDoc.entity_id);
+                if (!existing || decidedAt >= existing.decidedAt) decisionMap.set(decDoc.entity_id, decData);
+              }
+              if (decDoc.code_or_cin) {
+                const existing = decisionMap.get(decDoc.code_or_cin);
+                if (!existing || decidedAt >= existing.decidedAt) decisionMap.set(decDoc.code_or_cin, decData);
+              }
+              if (decDoc.official_email) {
+                const cleanEmail = decDoc.official_email.toLowerCase().trim();
+                const existing = decisionMap.get(cleanEmail);
+                if (!existing || decidedAt >= existing.decidedAt) decisionMap.set(cleanEmail, decData);
+              }
+            }
+          }
+        }
+
+        for (const cloudInst of cloudInstitutions) {
+          // Skip Sync Journal Rows
+          if (cloudInst.code?.startsWith('DEC-') || cloudInst.code?.startsWith('SYNC-DECISION-')) {
+            continue;
+          }
+
           // A. Handle Proposal Sync Rows
           if (cloudInst.code?.startsWith('SYNC-PROP-')) {
             const syncDoc = Array.isArray(cloudInst.documents)
@@ -706,6 +960,7 @@ class CloudSyncService {
             : null;
 
           let actualStatus = cloudInst.verification_status;
+          let actualNotes = cloudInst.verification_notes;
           if (syncDoc?.actual_status) {
             actualStatus = syncDoc.actual_status;
           } else if (cloudInst.verification_notes) {
@@ -715,7 +970,22 @@ class CloudSyncService {
             } catch {}
           }
 
-          let localInst = db.institutions.find(i => i.id === cloudInst.id || i.code === cloudInst.code || (cloudInst.official_email && i.official_email?.toLowerCase() === cloudInst.official_email?.toLowerCase()));
+          // Apply authoritative Super Admin decision from PostgreSQL if one exists
+          const appliedDecision =
+            decisionMap.get(cloudInst.id) ||
+            decisionMap.get(cloudInst.code) ||
+            (cloudInst.official_email && decisionMap.get(cloudInst.official_email.toLowerCase().trim()));
+
+          if (appliedDecision) {
+            actualStatus = appliedDecision.status;
+            if (appliedDecision.notes) actualNotes = appliedDecision.notes;
+          }
+
+          let localInst = db.institutions.find(i =>
+            i.id === cloudInst.id ||
+            i.code === cloudInst.code ||
+            (cloudInst.official_email && i.official_email?.toLowerCase() === cloudInst.official_email?.toLowerCase())
+          );
 
           if (!localInst) {
             const newInst: Institution = {
@@ -735,7 +1005,7 @@ class CloudSyncService {
               establishment_year: cloudInst.establishment_year || 2000,
               accreditation: cloudInst.accreditation,
               verification_status: actualStatus,
-              verification_notes: cloudInst.verification_notes,
+              verification_notes: actualNotes || cloudInst.verification_notes,
               logo_url: cloudInst.logo_url || 'https://images.unsplash.com/photo-1541339907198-e08756dedf3f?w=200',
               document_url: cloudInst.document_url,
               document_name: cloudInst.document_name,
@@ -746,8 +1016,19 @@ class CloudSyncService {
             db.institutions.unshift(newInst);
             anyChanged = true;
           } else {
+            // Reconcile ID: ensure local ID matches centralized Supabase UUID
+            if (localInst.id !== cloudInst.id) {
+              const oldId = localInst.id;
+              localInst.id = cloudInst.id;
+              db.profiles.forEach(p => {
+                if (p.institution_id === oldId) p.institution_id = cloudInst.id;
+              });
+              anyChanged = true;
+            }
+
             if (localInst.verification_status !== actualStatus) {
               localInst.verification_status = actualStatus;
+              if (actualNotes) localInst.verification_notes = actualNotes;
               anyChanged = true;
             }
           }
@@ -764,7 +1045,7 @@ class CloudSyncService {
               });
               anyChanged = true;
             } else {
-              if (existingProf.role !== 'institution_admin') {
+              if (existingProf.role !== 'institution_admin' || existingProf.institution_id !== cloudInst.id) {
                 existingProf.role = 'institution_admin';
                 existingProf.institution_id = cloudInst.id;
                 anyChanged = true;
@@ -802,12 +1083,14 @@ class CloudSyncService {
       if (compRes.ok) {
         const cloudCompanies = await compRes.json();
 
+        // Pass 1 decisions already extracted above in decisionMap
         for (const cloudComp of cloudCompanies) {
           const syncDoc = Array.isArray(cloudComp.documents)
             ? cloudComp.documents.find((d: any) => d && d.sync_type === 'ENTITY_REGISTRATION')
             : null;
 
           let actualStatus = cloudComp.verification_status;
+          let actualNotes = cloudComp.verification_notes;
           if (syncDoc?.actual_status) {
             actualStatus = syncDoc.actual_status;
           } else if (cloudComp.verification_notes) {
@@ -817,7 +1100,22 @@ class CloudSyncService {
             } catch {}
           }
 
-          let localComp = db.companies.find(c => c.id === cloudComp.id || c.cin === cloudComp.cin || (cloudComp.official_email && c.official_email?.toLowerCase() === cloudComp.official_email?.toLowerCase()));
+          // Apply authoritative Super Admin decision from PostgreSQL if one exists
+          const appliedDecision =
+            decisionMap.get(cloudComp.id) ||
+            decisionMap.get(cloudComp.cin) ||
+            (cloudComp.official_email && decisionMap.get(cloudComp.official_email.toLowerCase().trim()));
+
+          if (appliedDecision) {
+            actualStatus = appliedDecision.status;
+            if (appliedDecision.notes) actualNotes = appliedDecision.notes;
+          }
+
+          let localComp = db.companies.find(c =>
+            c.id === cloudComp.id ||
+            c.cin === cloudComp.cin ||
+            (cloudComp.official_email && c.official_email?.toLowerCase() === cloudComp.official_email?.toLowerCase())
+          );
 
           if (!localComp) {
             const newComp: Company = {
@@ -835,7 +1133,7 @@ class CloudSyncService {
               authorized_person_name: cloudComp.authorized_person_name,
               designation: cloudComp.designation,
               verification_status: actualStatus,
-              verification_notes: cloudComp.verification_notes,
+              verification_notes: actualNotes || cloudComp.verification_notes,
               logo_url: cloudComp.logo_url || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200',
               document_url: cloudComp.document_url,
               document_name: cloudComp.document_name,
@@ -846,8 +1144,19 @@ class CloudSyncService {
             db.companies.unshift(newComp);
             anyChanged = true;
           } else {
+            // Reconcile ID: ensure local ID matches centralized Supabase UUID
+            if (localComp.id !== cloudComp.id) {
+              const oldId = localComp.id;
+              localComp.id = cloudComp.id;
+              db.profiles.forEach(p => {
+                if (p.company_id === oldId) p.company_id = cloudComp.id;
+              });
+              anyChanged = true;
+            }
+
             if (localComp.verification_status !== actualStatus) {
               localComp.verification_status = actualStatus;
+              if (actualNotes) localComp.verification_notes = actualNotes;
               anyChanged = true;
             }
           }
@@ -864,7 +1173,7 @@ class CloudSyncService {
               });
               anyChanged = true;
             } else {
-              if (existingProf.role !== 'company_admin') {
+              if (existingProf.role !== 'company_admin' || existingProf.company_id !== cloudComp.id) {
                 existingProf.role = 'company_admin';
                 existingProf.company_id = cloudComp.id;
                 anyChanged = true;

@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../context/ModalContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { Institution, VerificationStatus } from '../../types/database';
 import {
@@ -28,7 +29,8 @@ import {
   X,
   UserPlus,
   Upload,
-  ArrowRight
+  ArrowRight,
+  Loader2
 } from 'lucide-react';
 
 export const InstitutionsDirectoryPage: React.FC = () => {
@@ -39,6 +41,7 @@ export const InstitutionsDirectoryPage: React.FC = () => {
   const [districtFilter, setDistrictFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
 
   // Edit Modal State
   const [editingInst, setEditingInst] = useState<Institution | null>(null);
@@ -67,10 +70,23 @@ export const InstitutionsDirectoryPage: React.FC = () => {
   });
 
   useEffect(() => {
+    cloudSync.syncFromCloud().catch(err => {
+      console.warn('[InstitutionsDirectoryPage] Cloud sync warning:', err);
+    });
+
     const unsub = db.subscribe(() => {
       setInstitutions([...db.institutions]);
     });
-    return unsub;
+
+    const handleSync = () => {
+      setInstitutions([...db.institutions]);
+    };
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+    };
   }, []);
 
   const showToast = (msg: string) => {
@@ -136,14 +152,39 @@ export const InstitutionsDirectoryPage: React.FC = () => {
     }
   };
 
-  const handleToggleVerification = (inst: Institution) => {
-    const updated = db.toggleInstitutionVerification(inst.id, currentUser);
-    if (updated) {
-      showToast(
-        updated.verification_status === 'verified'
-          ? `Verified "${inst.name}". College is live in directory!`
-          : `Set "${inst.name}" to Under Review.`
+  const handleToggleVerification = async (inst: Institution) => {
+    if (processingIds.has(inst.id)) return;
+    setProcessingIds(prev => new Set(prev).add(inst.id));
+    const targetStatus = inst.verification_status === 'verified' ? 'under_verification' : 'verified';
+
+    try {
+      const res = await cloudSync.syncEntityDecisionToCloud(
+        'institution',
+        inst.id,
+        targetStatus,
+        targetStatus === 'verified'
+          ? `Verified by State Super Admin ${currentUser.full_name}`
+          : 'Status set to Under Review by State Super Admin',
+        currentUser.full_name
       );
+
+      if (res.success) {
+        showToast(
+          targetStatus === 'verified'
+            ? `Verified "${inst.name}". Live across all devices!`
+            : `Set "${inst.name}" to Under Review.`
+        );
+      } else {
+        showToast(`Error: ${res.error || 'Failed to update institution verification'}`);
+      }
+    } catch (err: any) {
+      showToast(`Error: ${err?.message || 'Verification update failed'}`);
+    } finally {
+      setProcessingIds(prev => {
+        const next = new Set(prev);
+        next.delete(inst.id);
+        return next;
+      });
     }
   };
 
@@ -304,14 +345,16 @@ export const InstitutionsDirectoryPage: React.FC = () => {
             <div className="pt-3 border-t flex items-center justify-between gap-2">
               <button
                 type="button"
+                disabled={processingIds.has(inst.id)}
                 onClick={() => handleToggleVerification(inst)}
-                className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-all ${
+                className={`text-[11px] font-bold px-2.5 py-1.5 rounded-lg transition-all flex items-center gap-1.5 ${
                   inst.verification_status === 'verified'
-                    ? 'bg-amber-50 text-amber-800 hover:bg-amber-100'
-                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+                    ? 'bg-amber-50 text-amber-800 hover:bg-amber-100 disabled:opacity-60'
+                    : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100 disabled:opacity-60'
                 }`}
               >
-                {inst.verification_status === 'verified' ? 'Set Pending' : 'Verify'}
+                {processingIds.has(inst.id) && <Loader2 className="w-3 h-3 animate-spin" />}
+                <span>{inst.verification_status === 'verified' ? 'Set Pending' : 'Verify'}</span>
               </button>
 
               <div className="flex items-center gap-1.5">

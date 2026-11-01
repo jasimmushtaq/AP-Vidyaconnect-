@@ -62,6 +62,7 @@ import { CompanyDashboard } from './pages/dashboard/CompanyDashboard';
 import { InstitutionDashboard } from './pages/dashboard/InstitutionDashboard';
 import { StudentDashboard } from './pages/dashboard/StudentDashboard';
 import { VidyaConnectChatbot } from './components/common/VidyaConnectChatbot';
+import { MeetingSummarizerPage } from './pages/summarizer/MeetingSummarizerPage';
 
 export function App() {
   // Check if running in mobile APK environment (Android / iOS / Capacitor / testing param)
@@ -151,6 +152,7 @@ export function App() {
                 <Route path="/register" element={<RegisterPage />} />
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/change-password" element={<ChangePasswordPage />} />
+                <Route path="/summarizer" element={<MeetingSummarizerPage />} />
               </Route>
 
               {/* Authenticated Workspace & Workflow Routes */}
