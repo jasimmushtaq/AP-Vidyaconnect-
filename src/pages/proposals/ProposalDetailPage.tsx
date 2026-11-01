@@ -53,13 +53,14 @@ export const ProposalDetailPage: React.FC = () => {
   const [copiedCode, setCopiedCode] = useState(false);
 
   useEffect(() => {
+    // Immediately pull latest proposals from cloud
+    cloudSync.syncFromCloud().catch(console.error);
+
     const load = () => {
       const match = db.proposals.find(p => p.id === id);
       if (match) {
         setProposal({ ...match });
         setStipendOffered(match.stipend_requested || 15000);
-
-
 
         if (match.students) {
           const decs: { [key: string]: boolean } = {};
@@ -72,7 +73,16 @@ export const ProposalDetailPage: React.FC = () => {
     };
     load();
     const unsub = db.subscribe(load);
-    return unsub;
+
+    const handleSync = () => load();
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+    window.addEventListener('vidyaconnect:proposal_updated', handleSync);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+      window.removeEventListener('vidyaconnect:proposal_updated', handleSync);
+    };
   }, [id]);
 
   if (!proposal) {
@@ -210,96 +220,178 @@ export const ProposalDetailPage: React.FC = () => {
       )}
 
       {/* DIRECT COLLEGE DECISION ACTIONS ON PROPOSAL DETAIL PAGE */}
-      {canInstitutionFinalAccept && (
-        <div className="bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white border-2 border-emerald-400 rounded-2xl p-6 shadow-md space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-200/80 pb-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
-                <CheckCircle2 className="w-6 h-6" />
+      {canInstitutionFinalAccept && (() => {
+        const isAcceptedWithChanges = proposal.status === 'company_accepted_with_changes';
+        const suggestedChanges = (proposal as any).suggested_changes;
+        const decisionDate = (proposal as any).company_decided_at || proposal.updated_at;
+        const formattedDate = decisionDate
+          ? new Date(decisionDate).toLocaleDateString('en-IN', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit'
+            })
+          : 'Recent';
+        const confirmedStudents =
+          proposal.students?.filter(s => s.is_accepted_by_company !== false) || proposal.students || [];
+
+        return (
+          <div className={`border-2 rounded-2xl p-6 shadow-md space-y-4 ${
+            isAcceptedWithChanges
+              ? 'bg-gradient-to-r from-amber-50/70 via-orange-50/40 to-white border-amber-400'
+              : 'bg-gradient-to-r from-emerald-50 via-teal-50/50 to-white border-emerald-400'
+          }`}>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b pb-3 border-slate-200/80">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl text-white flex items-center justify-center shadow-xs ${
+                  isAcceptedWithChanges ? 'bg-amber-600' : 'bg-emerald-600'
+                }`}>
+                  {isAcceptedWithChanges ? <Sparkles className="w-6 h-6" /> : <CheckCircle2 className="w-6 h-6" />}
+                </div>
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className={`text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full border ${
+                      isAcceptedWithChanges
+                        ? 'text-amber-900 bg-amber-100 border-amber-300'
+                        : 'text-emerald-800 bg-emerald-100 border-emerald-200'
+                    }`}>
+                      {isAcceptedWithChanges
+                        ? '⚡ Company Accepted With Changes • Review Suggested Terms'
+                        : '⚡ Company Accepted All Terms • Final College Action Required'}
+                    </span>
+                    <span className="text-xs text-slate-500 font-mono font-bold">
+                      ID: {proposal.proposal_code} (v{proposal.version})
+                    </span>
+                  </div>
+                  <h3 className="text-base sm:text-lg font-black text-[#0E2350] mt-1">
+                    {proposal.company?.name || 'Industry Partner'}: {isAcceptedWithChanges ? 'Accepted With Changes' : 'Accepted Proposal'}
+                  </h3>
+                </div>
               </div>
-              <div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 bg-emerald-100 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  ⚡ Company Decision Received • Final Institutional Action Required
+              <div className="text-right">
+                <span className="text-[10px] font-mono text-slate-500 block">Decision Timestamp</span>
+                <span className="text-xs font-semibold text-slate-700">{formattedDate}</span>
+              </div>
+            </div>
+
+            {/* Current Lifecycle Stage Indicator */}
+            <div className="px-3.5 py-2 bg-blue-50/80 border border-blue-200/80 rounded-xl flex items-center justify-between text-xs">
+              <span className="text-[10px] font-bold text-blue-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5" /> Lifecycle Synchronization:
+              </span>
+              <span className="font-extrabold text-[#0E2350] text-[11px]">
+                Stage 5: Institution Accepted (Awaiting College Decision) → Stages 1-4 Complete
+              </span>
+            </div>
+
+            {/* Company Details & Supervisor */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600 bg-white p-3 rounded-xl border border-slate-200/80">
+              <span className="font-bold text-[#F07421] flex items-center gap-1">
+                <Building2 className="w-3.5 h-3.5" /> {proposal.company?.name || 'Industry Partner'}
+              </span>
+              {proposal.company?.cin && (
+                <span className="font-mono text-[10px] text-slate-400">CIN: {proposal.company.cin}</span>
+              )}
+              {proposal.company?.headquarters && (
+                <span className="text-slate-500">HQ: {proposal.company.headquarters}</span>
+              )}
+              {((proposal as any).mentor_name || suggestedChanges?.mentorName) && (
+                <span className="text-slate-700 font-medium">
+                  Supervisor: <strong className="text-[#0E2350]">{(proposal as any).mentor_name || suggestedChanges?.mentorName}</strong>
                 </span>
-                <h3 className="text-base sm:text-lg font-black text-[#0E2350] mt-1">
-                  {proposal.company?.name || 'Industry Partner'} Accepted Terms
-                </h3>
+              )}
+            </div>
+
+            {/* Original Proposal Description */}
+            {proposal.objectives && (
+              <div className="p-3 bg-white border border-slate-200 rounded-xl text-xs space-y-1">
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                  Original Proposal Scope & Description:
+                </span>
+                <p className="text-slate-700 text-[11px] leading-relaxed">
+                  {proposal.objectives}
+                </p>
+              </div>
+            )}
+
+            {/* Company remarks callout */}
+            <div className={`p-4 rounded-xl space-y-1.5 text-xs shadow-2xs border ${
+              isAcceptedWithChanges ? 'bg-amber-50/90 border-amber-200 text-amber-950' : 'bg-emerald-50/90 border-emerald-200 text-emerald-950'
+            }`}>
+              <span className="font-extrabold flex items-center gap-1.5">
+                <span>💬 Company Decision Remarks & Conditions:</span>
+              </span>
+              <p className="text-slate-800 leading-relaxed font-medium italic text-[11px]">
+                "{proposal.additional_terms || (proposal as any).company_remarks || 'Terms accepted with candidate allocations.'}"
+              </p>
+            </div>
+
+            {/* Key confirmed metrics / suggested changes comparison */}
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                {isAcceptedWithChanges ? 'Company’s Suggested Changes & Counter-Offer Terms:' : 'Agreed Terms:'}
+              </span>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+                <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Offered Stipend</span>
+                  <p className="font-black text-emerald-700 text-base font-mono mt-0.5">
+                    ₹{proposal.stipend_requested?.toLocaleString()}/mo
+                  </p>
+                </div>
+                <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Duration & Mode</span>
+                  <p className="font-bold text-slate-800 text-xs mt-0.5 capitalize">
+                    {proposal.duration_weeks} Weeks • {proposal.mode}
+                  </p>
+                </div>
+                <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Confirmed Interns</span>
+                  <p className="font-bold text-emerald-800 text-xs mt-0.5">
+                    {confirmedStudents.length} / {proposal.students?.length || 0} Candidates Accepted
+                  </p>
+                </div>
+                <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">Next Lifecycle Step</span>
+                  <p className="font-bold text-indigo-700 text-xs mt-0.5">
+                    Stage 6: Student Consent
+                  </p>
+                </div>
               </div>
             </div>
-            <span className="text-xs text-slate-500 font-mono">
-              Version {proposal.version}
-            </span>
-          </div>
 
-          {/* Company remarks callout */}
-          <div className="p-4 bg-white border border-emerald-200 rounded-xl space-y-1.5 text-xs shadow-2xs">
-            <span className="font-extrabold text-emerald-900 flex items-center gap-1.5">
-              <span>💬 Company Remarks & Counter-Terms:</span>
-            </span>
-            <p className="text-slate-700 leading-relaxed font-medium">
-              "{proposal.additional_terms || (proposal as any).company_remarks || 'Terms accepted by corporate lead. Candidate nominations confirmed.'}"
-            </p>
-          </div>
-
-          {/* Key confirmed metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Offered Stipend</span>
-              <p className="font-black text-emerald-700 text-base font-mono mt-0.5">
-                ₹{proposal.stipend_requested?.toLocaleString()}/mo
-              </p>
-            </div>
-            <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Duration & Mode</span>
-              <p className="font-bold text-slate-800 text-xs mt-0.5 capitalize">
-                {proposal.duration_weeks} Weeks • {proposal.mode}
-              </p>
-            </div>
-            <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Confirmed Interns</span>
-              <p className="font-bold text-emerald-800 text-xs mt-0.5">
-                {proposal.students?.filter(s => s.is_accepted_by_company !== false).length || proposal.students?.length} Candidates
-              </p>
-            </div>
-            <div className="bg-white border border-slate-200 p-3 rounded-xl shadow-2xs">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Next Step</span>
-              <p className="font-bold text-indigo-700 text-xs mt-0.5">
-                State Batch Charter
-              </p>
-            </div>
-          </div>
-
-          {/* Direct Action Decision Buttons */}
-          <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
-            <button
-              type="button"
-              onClick={() => setShowRejectModal(true)}
-              className="px-4 py-2.5 rounded-xl bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95"
-            >
-              <XCircle className="w-4 h-4 text-rose-600" />
-              <span>Decline Company Terms</span>
-            </button>
-
-            <div className="flex items-center gap-2">
-              <Link
-                to="/proposals/decisions"
-                className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
-              >
-                Decision Center Queue
-              </Link>
-
+            {/* Direct Action Decision Buttons */}
+            <div className="pt-2 flex flex-wrap items-center justify-between gap-3">
               <button
                 type="button"
-                onClick={handleInstitutionFinalAccept}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform active:scale-95"
+                onClick={() => setShowRejectModal(true)}
+                className="px-4 py-2.5 rounded-xl bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs active:scale-95"
               >
-                <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                <span>Accept Proposal & Charter Batch</span>
+                <XCircle className="w-4 h-4 text-rose-600" />
+                <span>{isAcceptedWithChanges ? 'Reject Changes' : 'Decline Company Terms'}</span>
               </button>
+
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/proposals/decisions"
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold transition-all"
+                >
+                  Decision Center Queue
+                </Link>
+
+                <button
+                  type="button"
+                  onClick={handleInstitutionFinalAccept}
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform active:scale-95"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-200" />
+                  <span>{isAcceptedWithChanges ? 'Accept Changes' : 'Accept Proposal & Charter Batch'}</span>
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* MODIFICATIONS REQUESTED NOTICE FOR INSTITUTION */}
       {isInstitution && proposal.status === 'modification_requested' && (

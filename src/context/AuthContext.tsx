@@ -307,6 +307,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('kd_active_user_id', match.id);
     setIsLoggedIn(true);
 
+    // Immediately trigger background cloud sync to ensure latest proposals and data from Supabase
+    cloudSync.syncFromCloud().catch(err => {
+      console.warn('[AuthContext] Background sync on login error:', err);
+    });
+
     return {
       success: true,
       user: match,
@@ -608,8 +613,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isAuthenticated = isLoggedIn && !!currentUser.id && !!currentUser.role;
   const currentRole: UserRole | null = isAuthenticated ? currentUser.role : null;
-  const currentInstitution = currentUser.institution_id ? db.institutions.find(i => i.id === currentUser.institution_id) : undefined;
-  const currentCompany = currentUser.company_id ? db.companies.find(c => c.id === currentUser.company_id) : undefined;
+  const currentInstitution = currentUser.institution_id
+    ? db.institutions.find(i => i.id === currentUser.institution_id) || db.institutions.find(i => i.official_email?.toLowerCase() === currentUser.email?.toLowerCase())
+    : (currentUser.role === 'institution_admin' || currentUser.role === 'faculty_coordinator')
+    ? db.institutions.find(i => i.official_email?.toLowerCase() === currentUser.email?.toLowerCase()) || db.institutions[0]
+    : undefined;
+
+  const currentCompany = currentUser.company_id
+    ? db.companies.find(c => c.id === currentUser.company_id) || db.companies.find(c => c.official_email?.toLowerCase() === currentUser.email?.toLowerCase())
+    : (currentUser.role === 'company_admin' || currentUser.role === 'mentor')
+    ? db.companies.find(c => c.official_email?.toLowerCase() === currentUser.email?.toLowerCase()) || db.companies[0]
+    : undefined;
   const currentStudent = currentUser.role === 'student'
     ? (currentUser.student_id ? db.students.find(s => s.id === currentUser.student_id) : db.students.find(s => s.email?.toLowerCase() === currentUser.email?.toLowerCase()))
     : undefined;

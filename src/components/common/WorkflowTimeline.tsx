@@ -58,10 +58,10 @@ export const WorkflowTimeline: React.FC<WorkflowTimelineProps> = ({
       case 'under_company_review':
       case 'modification_requested': return 2;
       case 'company_accepted':
-      case 'company_accepted_with_changes': return 3;
+      case 'company_accepted_with_changes': return 4; // Stage 1-4 completed, Stage 5 (Institution Accepted) is active awaiting action
       case 'institution_accepted':
-      case 'created': return 4;
-      case 'students_confirmed': return 5;
+      case 'created': return 5; // Stage 5 completed, Stage 6 (Student Consent) is active
+      case 'students_confirmed': return 6;
       case 'active': return 6;
       case 'milestones_verified':
       case 'progress_reviewed': return 7;

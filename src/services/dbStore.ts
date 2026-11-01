@@ -1234,11 +1234,18 @@ class DatabaseStore {
     proposal.version += 1;
     proposal.updated_at = new Date().toISOString();
 
-    (proposal as any).company_decision = action;
+    (proposal as any).company_decision = action === 'accept_with_changes' ? 'Accepted With Changes' : action === 'accept' ? 'Accepted' : action;
     (proposal as any).company_decided_at = new Date().toISOString();
     (proposal as any).company_decided_by = actor.full_name;
     (proposal as any).company_remarks = data.remarks;
     if (data.mentorName) (proposal as any).mentor_name = data.mentorName;
+    (proposal as any).suggested_changes = {
+      stipendOffered: data.stipendOffered,
+      durationWeeks: data.durationWeeks,
+      mentorName: data.mentorName,
+      remarks: data.remarks,
+      studentDecisions: data.studentDecisions
+    };
 
     if (data.remarks) proposal.additional_terms = data.remarks;
     if (data.stipendOffered !== undefined) proposal.stipend_requested = data.stipendOffered;
@@ -1267,6 +1274,15 @@ class DatabaseStore {
 
     this.logAudit('company_respond', 'internship_proposal', proposalId, { status: beforeStatus }, { status: newStatus, ...data }, { id: actor.id, name: actor.full_name, role: actor.role });
 
+    const decisionLabel =
+      action === 'accept_with_changes'
+        ? 'Accepted With Changes'
+        : action === 'accept'
+        ? 'Accepted All Terms'
+        : action === 'request_modification'
+        ? 'Modifications Requested'
+        : 'Rejected';
+
     // Send multi-admin notification to all relevant institution coordinators
     const targetRecipients = new Set<string>();
     if (proposal.created_by) targetRecipients.add(proposal.created_by);
@@ -1282,8 +1298,8 @@ class DatabaseStore {
       this.sendNotification(
         recId,
         'proposal_reviewed',
-        `Proposal Response: ${proposal.company?.name || 'Company'} (${newStatus.replace(/_/g, ' ')})`,
-        `${proposal.company?.name || 'Company'} responded with "${action.replace(/_/g, ' ')}". Remarks: "${data.remarks || 'Terms updated'}". Please open College Dashboard to Accept / Reject.`,
+        `Proposal Response: ${proposal.company?.name || 'Company'} (${decisionLabel})`,
+        `${proposal.company?.name || 'Company'} responded with "${decisionLabel}". Remarks: "${data.remarks || 'Terms updated'}". Review and submit final institutional decision in College Portal.`,
         `/proposals/${proposalId}`,
         {
           recipient_role: 'institution_admin',

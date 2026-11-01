@@ -68,16 +68,34 @@ export const InstitutionDashboard: React.FC = () => {
   const [copiedBatchCode, setCopiedBatchCode] = useState(false);
 
   useEffect(() => {
+    // Immediately fetch latest proposals & records from Supabase on mount
+    cloudSync.syncFromCloud().catch(console.error);
+
     const unsub = db.subscribe(() => {
       setProposals([...db.proposals]);
       setBatches([...db.batches]);
       setStudents([...db.students]);
       setAttendance([...db.attendance]);
     });
-    return unsub;
+
+    const handleSyncUpdate = () => {
+      setProposals([...db.proposals]);
+      setBatches([...db.batches]);
+      setStudents([...db.students]);
+      setAttendance([...db.attendance]);
+    };
+
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleSyncUpdate);
+    window.addEventListener('vidyaconnect:proposal_updated', handleSyncUpdate);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSyncUpdate);
+      window.removeEventListener('vidyaconnect:proposal_updated', handleSyncUpdate);
+    };
   }, []);
 
-  const instId = currentInstitution?.id;
+  const instId = currentInstitution?.id || currentUser?.institution_id;
 
   // 1. Filter Real-Time Data for this Institution strictly with robust matching
   const myStudents = useMemo(() => {
@@ -95,10 +113,20 @@ export const InstitutionDashboard: React.FC = () => {
   }, [myBatches]);
 
   const myProposals = useMemo(() => {
-    return proposals.filter(p =>
+    const matched = proposals.filter(p =>
       isProposalForInstitution(p, instId, currentInstitution, currentUser) ||
       (!instId && !currentInstitution && p.institution_id === 'inst-001')
     );
+    // Fallback: If no proposals matched but user is logged in as an institution admin, check if proposals exist with status awaiting college action
+    if (matched.length === 0 && currentUser?.role === 'institution_admin') {
+      const anyActionable = proposals.filter(p =>
+        p.status === 'company_accepted_with_changes' ||
+        p.status === 'company_accepted' ||
+        p.status === 'modification_requested'
+      );
+      if (anyActionable.length > 0) return anyActionable;
+    }
+    return matched;
   }, [proposals, instId, currentInstitution, currentUser]);
 
   // Company decisions awaiting college final response
@@ -355,22 +383,22 @@ export const InstitutionDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* 2.5 PROPOSAL RESPONSES & PENDING COLLEGE ACTION (BILATERAL WORKFLOW) */}
+      {/* 2.5 COMPANY RESPONSES / AWAITING INSTITUTION ACTION (BILATERAL WORKFLOW) */}
       <div className="bg-white rounded-2xl border border-slate-200/80 p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
           <div className="flex items-center gap-2.5">
             <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${
-              proposalsAwaitingCollegeAction.length > 0 ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-50 text-slate-500'
+              proposalsAwaitingCollegeAction.length > 0 ? 'bg-amber-50 text-amber-700' : 'bg-slate-50 text-slate-500'
             }`}>
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-extrabold text-[#0E2350]">
-                  Company Responses & Pending College Action
+                  Company Responses / Awaiting Institution Action
                 </h3>
                 {proposalsAwaitingCollegeAction.length > 0 ? (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 animate-pulse border border-emerald-300">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 animate-pulse border border-amber-300">
                     ⚡ {proposalsAwaitingCollegeAction.length} Action Required
                   </span>
                 ) : (
@@ -380,7 +408,7 @@ export const InstitutionDashboard: React.FC = () => {
                 )}
               </div>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Two-sided bilateral internship workflow. Review company counter-offers, approved candidate rosters, and confirmed stipends to charter official batches.
+                Bilateral internship workflow. Review corporate counter-offers, seat allocations, and verified candidate rosters to approve terms or decline revisions.
               </p>
             </div>
           </div>
@@ -429,131 +457,234 @@ export const InstitutionDashboard: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {proposalsAwaitingCollegeAction.map((p) => {
-              const isCompanyAccepted =
-                p.status === 'company_accepted' || p.status === 'company_accepted_with_changes';
+              const isAcceptedWithChanges = p.status === 'company_accepted_with_changes';
+              const isCompanyAccepted = p.status === 'company_accepted';
               const confirmedStudents =
                 p.students?.filter(s => s.is_accepted_by_company !== false) || p.students || [];
+              const suggestedChanges = (p as any).suggested_changes;
+              const decisionDate = (p as any).company_decided_at || p.updated_at;
+              const formattedDate = decisionDate
+                ? new Date(decisionDate).toLocaleDateString('en-IN', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  })
+                : 'Recent';
 
               return (
                 <div
                   key={p.id}
-                  className="p-5 rounded-2xl border border-emerald-300 ring-1 ring-emerald-400/30 bg-white hover:shadow-md transition-all space-y-4 flex flex-col justify-between"
+                  className={`p-5 rounded-2xl border transition-all space-y-4 flex flex-col justify-between ${
+                    isAcceptedWithChanges
+                      ? 'border-amber-300 ring-2 ring-amber-400/20 bg-gradient-to-b from-amber-50/20 via-white to-white hover:shadow-lg'
+                      : 'border-emerald-300 ring-1 ring-emerald-400/30 bg-white hover:shadow-md'
+                  }`}
                 >
-                  <div className="space-y-3">
-                    {/* Header: Code, Version & Status */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-[10px] font-bold text-[#0E2350] bg-slate-100 border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
+                  <div className="space-y-3.5">
+                    {/* Header: Proposal ID, Version, Status & Lifecycle Stage */}
+                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2.5">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-xs font-black text-[#0E2350] bg-slate-100 border border-slate-200 px-2.5 py-0.5 rounded shadow-2xs">
                           {p.proposal_code}
                         </span>
                         <span className="text-[10px] font-mono text-slate-400 font-bold">v{p.version}</span>
                       </div>
-                      <StatusBadge status={p.status} size="sm" />
-                    </div>
-
-                    {/* Domain & Partner Identity */}
-                    <div>
-                      <h4 className="text-sm font-extrabold text-[#0E2350]">{p.domain}</h4>
-                      <p className="text-xs text-slate-600 font-semibold flex items-center gap-1.5 mt-0.5">
-                        <Building2 className="w-3.5 h-3.5 text-[#F07421]" />
-                        <span>{p.company?.name || 'Industry Partner'}</span>
-                        {p.company?.cin && <span className="font-mono text-[10px] text-slate-400">({p.company.cin})</span>}
-                      </p>
-                    </div>
-
-                    {/* Company Feedback Quote Box */}
-                    <div className="p-3 bg-emerald-50/70 border border-emerald-200 rounded-xl text-xs space-y-1">
-                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-900 block">
-                        💬 Company Decision Remarks:
-                      </span>
-                      <p className="text-slate-700 italic leading-relaxed text-[11px]">
-                        "{p.additional_terms || (p as any).company_remarks || 'Terms accepted by corporate lead. Candidate nominations confirmed.'}"
-                      </p>
-                    </div>
-
-                    {/* Proposed Terms Ribbon */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-                      <div className="bg-slate-50 border border-slate-200/60 p-2.5 rounded-xl">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Confirmed Stipend</span>
-                        <span className="font-extrabold text-emerald-800 font-mono text-xs">
-                          ₹{p.stipend_requested?.toLocaleString()}/mo
-                        </span>
-                      </div>
-
-                      <div className="bg-slate-50 border border-slate-200/60 p-2.5 rounded-xl">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Duration & Mode</span>
-                        <span className="font-bold text-slate-800 text-xs capitalize">
-                          {p.duration_weeks} Wks • {p.mode}
-                        </span>
-                      </div>
-
-                      <div className="bg-slate-50 border border-slate-200/60 p-2.5 rounded-xl sm:col-span-1 col-span-2">
-                        <span className="text-[9px] font-bold text-slate-400 uppercase block">Confirmed Interns</span>
-                        <span className="font-bold text-indigo-800 text-xs">
-                          {confirmedStudents.length} / {p.students?.length || 0} Candidates
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Candidate Preview */}
-                    <div className="flex flex-wrap gap-1.5 pt-1">
-                      {p.students?.slice(0, 4).map((ps) => {
-                        const stu = ps.student || db.students.find(s => s.id === ps.student_id);
-                        const isAcc = ps.is_accepted_by_company !== false;
-                        return (
-                          <span
-                            key={ps.id}
-                            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
-                              isAcc
-                                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                                : 'bg-rose-50 text-rose-800 border-rose-200 line-through opacity-70'
-                            }`}
-                          >
-                            <span className={`w-1.5 h-1.5 rounded-full ${isAcc ? 'bg-emerald-500' : 'bg-rose-500'}`} />
-                            {stu?.full_name?.split(' ')[0] || 'Candidate'}
+                      
+                      <div className="flex items-center gap-1.5">
+                        {isAcceptedWithChanges ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 shadow-2xs">
+                            <Sparkles className="w-3 h-3 text-amber-600" />
+                            Accepted With Changes
                           </span>
-                        );
-                      })}
-                      {(p.students?.length || 0) > 4 && (
-                        <span className="text-[10px] font-bold text-slate-400 self-center">
-                          +{(p.students?.length || 0) - 4} more
+                        ) : isCompanyAccepted ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900 border border-emerald-300">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            Company Accepted
+                          </span>
+                        ) : (
+                          <StatusBadge status={p.status} size="sm" />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Current Lifecycle Stage Banner */}
+                    <div className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-xl flex items-center justify-between text-xs">
+                      <span className="text-[10px] font-bold text-blue-700 uppercase tracking-wider flex items-center gap-1">
+                        <Layers className="w-3 h-3" /> Current Lifecycle Stage:
+                      </span>
+                      <span className="font-extrabold text-[#0E2350] text-[11px]">
+                        Stage 5: Institution Accepted (Awaiting College Action)
+                      </span>
+                    </div>
+
+                    {/* Domain & Company Information */}
+                    <div>
+                      <h4 className="text-base font-black text-[#0E2350]">{p.domain}</h4>
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-1 text-xs text-slate-600">
+                        <span className="font-bold text-[#F07421] flex items-center gap-1">
+                          <Building2 className="w-3.5 h-3.5" />
+                          {p.company?.name || 'Industry Partner'}
                         </span>
+                        {p.company?.cin && (
+                          <span className="font-mono text-[10px] text-slate-400">CIN: {p.company.cin}</span>
+                        )}
+                        {p.company?.headquarters && (
+                          <span className="text-[10px] text-slate-500">HQ: {p.company.headquarters}</span>
+                        )}
+                      </div>
+                      {((p as any).mentor_name || suggestedChanges?.mentorName) && (
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          Supervisor / Tech Lead: <span className="font-semibold text-slate-700">{(p as any).mentor_name || suggestedChanges?.mentorName}</span>
+                        </p>
                       )}
                     </div>
+
+                    {/* Original Proposal Description */}
+                    {p.objectives && (
+                      <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs space-y-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block tracking-wider">
+                          Original Proposal Description / Objectives:
+                        </span>
+                        <p className="text-slate-700 text-[11px] leading-relaxed line-clamp-2">
+                          {p.objectives}
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Company Decision Details & Remarks */}
+                    <div className={`p-3 rounded-xl border text-xs space-y-1 ${
+                      isAcceptedWithChanges
+                        ? 'bg-amber-50/70 border-amber-200 text-amber-950'
+                        : 'bg-emerald-50/70 border-emerald-200 text-emerald-950'
+                    }`}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1">
+                          💬 Company's Decision & Remarks:
+                        </span>
+                        <span className="text-[10px] text-slate-500 flex items-center gap-1 font-mono">
+                          <Clock className="w-3 h-3" /> {formattedDate}
+                        </span>
+                      </div>
+                      <p className="text-slate-800 italic leading-relaxed text-[11px]">
+                        "{p.additional_terms || (p as any).company_remarks || 'Terms accepted with updated seat allocation.'}"
+                      </p>
+                    </div>
+
+                    {/* Company's Suggested Changes & Confirmed Terms */}
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 block">
+                        {isAcceptedWithChanges ? 'Company’s Suggested Changes & Terms:' : 'Agreed Terms:'}
+                      </span>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+                        <div className="bg-slate-50 border border-slate-200/70 p-2.5 rounded-xl">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block">Offered Stipend</span>
+                          <span className="font-extrabold text-emerald-800 font-mono text-xs">
+                            ₹{p.stipend_requested?.toLocaleString()}/mo
+                          </span>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200/70 p-2.5 rounded-xl">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block">Duration & Mode</span>
+                          <span className="font-bold text-slate-800 text-xs capitalize">
+                            {p.duration_weeks} Wks • {p.mode}
+                          </span>
+                        </div>
+
+                        <div className="bg-slate-50 border border-slate-200/70 p-2.5 rounded-xl sm:col-span-1 col-span-2">
+                          <span className="text-[9px] font-bold text-slate-400 uppercase block">Seat Allocation</span>
+                          <span className="font-bold text-indigo-800 text-xs">
+                            {confirmedStudents.length} / {p.students?.length || 0} Candidates Accepted
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Nominated Students List Preview */}
+                    {p.students && p.students.length > 0 && (
+                      <div className="space-y-1 pt-1">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase block">
+                          Student Roster Decisions:
+                        </span>
+                        <div className="flex flex-wrap gap-1.5">
+                          {p.students.slice(0, 5).map((ps) => {
+                            const stu = ps.student || db.students.find(s => s.id === ps.student_id);
+                            const isAcc = ps.is_accepted_by_company !== false;
+                            return (
+                              <span
+                                key={ps.id}
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                  isAcc
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                                    : 'bg-rose-50 text-rose-800 border-rose-200 line-through opacity-70'
+                                }`}
+                              >
+                                <span className={`w-1.5 h-1.5 rounded-full ${isAcc ? 'bg-emerald-500' : 'bg-rose-500'}`} />
+                                {stu?.full_name?.split(' ')[0] || 'Candidate'}
+                              </span>
+                            );
+                          })}
+                          {p.students.length > 5 && (
+                            <span className="text-[10px] font-bold text-slate-400 self-center">
+                              +{p.students.length - 5} more
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Action Buttons Bar */}
+                  {/* Two Functional Buttons Bar */}
                   <div className="pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
                     <Link
                       to={`/proposals/${p.id}`}
                       className="text-xs font-bold text-[#2A4E96] hover:underline flex items-center gap-1"
                     >
-                      <span>View Full Dossier</span>
+                      <span>View Full Proposal</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </Link>
 
-                    {isCompanyAccepted ? (
+                    {isAcceptedWithChanges ? (
                       <div className="flex items-center gap-2">
                         <button
                           type="button"
                           onClick={() => setRejectingProposal(p)}
-                          className="px-3 py-1.5 rounded-lg border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-all shadow-2xs"
+                          className="px-3.5 py-1.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-all shadow-2xs"
                         >
-                          Decline
+                          Reject Changes
                         </button>
                         <button
                           type="button"
                           onClick={() => setAcceptingProposal(p)}
-                          className="px-4 py-1.5 rounded-lg bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
+                          className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Final Accept & Charter Batch</span>
+                          <span>Accept Changes</span>
+                        </button>
+                      </div>
+                    ) : isCompanyAccepted ? (
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setRejectingProposal(p)}
+                          className="px-3 py-1.5 rounded-xl border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-all shadow-2xs"
+                        >
+                          Decline Terms
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setAcceptingProposal(p)}
+                          className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 text-white text-xs font-black shadow-sm transition-all flex items-center gap-1.5 active:scale-95"
+                        >
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Accept Terms & Charter Batch</span>
                         </button>
                       </div>
                     ) : (
                       <Link
                         to={`/proposals/${p.id}`}
-                        className="px-3 py-1.5 rounded-lg bg-[#0E2350] hover:bg-[#14336F] text-white text-xs font-bold shadow-2xs"
+                        className="px-3.5 py-1.5 rounded-xl bg-[#0E2350] hover:bg-[#14336F] text-white text-xs font-bold shadow-2xs"
                       >
                         Review Revision Terms
                       </Link>

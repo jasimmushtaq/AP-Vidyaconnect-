@@ -154,3 +154,4 @@ export function isProposalDeclined(proposal: InternshipProposal): boolean {
   if (!proposal) return false;
   return proposal.status === 'rejected' || proposal.status === 'declined';
 }
+

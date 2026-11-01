@@ -934,23 +934,31 @@ class CloudSyncService {
           // A. Handle Proposal Sync Rows
           if (cloudInst.code?.startsWith('PROP-') || cloudInst.code?.startsWith('SYNC-PROP-')) {
             let syncDoc = Array.isArray(cloudInst.documents)
-              ? cloudInst.documents.find((d: any) => d && d.sync_type === 'INTERNSHIP_PROPOSAL')
+              ? cloudInst.documents.find((d: any) => d && (d.sync_type === 'INTERNSHIP_PROPOSAL' || d.proposal || d.proposal_code))
               : null;
-            if (!syncDoc && cloudInst.verification_notes) {
+
+            let p: any = syncDoc?.proposal || (syncDoc?.proposal_code ? syncDoc : null);
+            if (!p && cloudInst.verification_notes) {
               try {
                 const parsed = JSON.parse(cloudInst.verification_notes);
-                if (parsed.sync_type === 'INTERNSHIP_PROPOSAL' && parsed.proposal) {
-                  syncDoc = parsed;
-                }
+                p = parsed.proposal || (parsed.proposal_code ? parsed : null);
               } catch {}
             }
-            if (syncDoc?.proposal) {
-              const p = syncDoc.proposal;
+
+            if (p && (p.id || p.proposal_code)) {
               const idx = db.proposals.findIndex(existing => existing.id === p.id || existing.proposal_code === p.proposal_code);
               if (idx >= 0) {
                 const cloudTime = new Date(p.updated_at || p.created_at || 0).getTime();
                 const localTime = new Date(db.proposals[idx].updated_at || db.proposals[idx].created_at || 0).getTime();
-                if (cloudTime >= localTime) {
+                const isStatusAdvanced =
+                  p.status === 'company_accepted_with_changes' ||
+                  p.status === 'company_accepted' ||
+                  p.status === 'institution_accepted' ||
+                  p.status === 'modification_requested' ||
+                  p.status === 'declined' ||
+                  p.status === 'rejected';
+
+                if (cloudTime >= localTime || (isStatusAdvanced && (db.proposals[idx].status === 'submitted' || db.proposals[idx].status === 'draft'))) {
                   db.proposals[idx] = { ...db.proposals[idx], ...p };
                   anyChanged = true;
                 }
@@ -1053,6 +1061,10 @@ class CloudSyncService {
               localInst.id = cloudInst.id;
               db.profiles.forEach(p => {
                 if (p.institution_id === oldId) p.institution_id = cloudInst.id;
+              });
+              db.proposals.forEach(prop => {
+                if (prop.institution_id === oldId) prop.institution_id = cloudInst.id;
+                if (prop.institution && prop.institution.id === oldId) prop.institution.id = cloudInst.id;
               });
               anyChanged = true;
             }
@@ -1181,6 +1193,10 @@ class CloudSyncService {
               localComp.id = cloudComp.id;
               db.profiles.forEach(p => {
                 if (p.company_id === oldId) p.company_id = cloudComp.id;
+              });
+              db.proposals.forEach(prop => {
+                if (prop.company_id === oldId) prop.company_id = cloudComp.id;
+                if (prop.company && prop.company.id === oldId) prop.company.id = cloudComp.id;
               });
               anyChanged = true;
             }

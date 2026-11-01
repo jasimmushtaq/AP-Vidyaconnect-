@@ -45,20 +45,43 @@ export const ProposalDecisionsPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
 
   useEffect(() => {
+    // Immediately pull latest proposals from cloud
+    cloudSync.syncFromCloud().catch(console.error);
+
     const unsub = db.subscribe(() => {
       setProposals([...db.proposals]);
     });
-    return unsub;
+
+    const handleSync = () => {
+      setProposals([...db.proposals]);
+    };
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+    window.addEventListener('vidyaconnect:proposal_updated', handleSync);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+      window.removeEventListener('vidyaconnect:proposal_updated', handleSync);
+    };
   }, []);
 
   const instId = currentInstitution?.id || currentUser?.institution_id;
 
   // Filter proposals strictly relevant to this institution with robust fallback matching
   const myProposals = useMemo(() => {
-    return proposals.filter(p =>
+    const matched = proposals.filter(p =>
       isProposalForInstitution(p, instId, currentInstitution, currentUser) ||
       (!instId && !currentInstitution && p.institution_id === 'inst-001')
     );
+    if (matched.length === 0 && currentUser?.role === 'institution_admin') {
+      const anyActionable = proposals.filter(p =>
+        p.status === 'company_accepted_with_changes' ||
+        p.status === 'company_accepted' ||
+        p.status === 'modification_requested'
+      );
+      if (anyActionable.length > 0) return anyActionable;
+    }
+    return matched;
   }, [proposals, instId, currentInstitution, currentUser]);
 
   // 1. Proposals waiting for institution's final acceptance/rejection (Company accepted terms)
@@ -374,7 +397,7 @@ export const ProposalDecisionsPage: React.FC = () => {
                         className="px-4 py-2.5 rounded-xl bg-white border border-rose-300 text-rose-700 hover:bg-rose-50 text-xs font-bold transition-all flex items-center gap-1.5 shadow-2xs"
                       >
                         <XCircle className="w-4 h-4 text-rose-600" />
-                        <span>Reject / Decline Terms</span>
+                        <span>{p.status === 'company_accepted_with_changes' ? 'Reject Changes' : 'Decline Terms'}</span>
                       </button>
 
                       <button
@@ -383,7 +406,7 @@ export const ProposalDecisionsPage: React.FC = () => {
                         className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform active:scale-95"
                       >
                         <CheckCircle2 className="w-4 h-4 text-emerald-200" />
-                        <span>Final Accept & Generate Batch</span>
+                        <span>{p.status === 'company_accepted_with_changes' ? 'Accept Changes' : 'Final Accept & Generate Batch'}</span>
                       </button>
                     </div>
                   ) : isAccepted ? (

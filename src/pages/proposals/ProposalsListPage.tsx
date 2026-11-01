@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { InternshipProposal, ProposalStatus } from '../../types/database';
 import { isProposalForInstitution, isProposalForCompany } from '../../utils/proposalHelpers';
@@ -49,10 +50,24 @@ export const ProposalsListPage: React.FC = () => {
   }, [searchParams]);
 
   useEffect(() => {
+    // Immediately pull latest proposals from cloud
+    cloudSync.syncFromCloud().catch(console.error);
+
     const unsub = db.subscribe(() => {
       setProposals([...db.proposals]);
     });
-    return unsub;
+
+    const handleSync = () => {
+      setProposals([...db.proposals]);
+    };
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+    window.addEventListener('vidyaconnect:proposal_updated', handleSync);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+      window.removeEventListener('vidyaconnect:proposal_updated', handleSync);
+    };
   }, []);
 
   const handleFilterChange = (st: string) => {
@@ -266,7 +281,7 @@ export const ProposalsListPage: React.FC = () => {
                 : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
             }`}
           >
-            Company Accepted ({acceptedCount})
+            Company Accepted / Changes ({acceptedCount})
           </button>
 
           <button

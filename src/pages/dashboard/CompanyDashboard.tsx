@@ -7,6 +7,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import {
   ResponsiveContainer,
@@ -69,6 +70,9 @@ export const CompanyDashboard: React.FC = () => {
   const [batchForStudents, setBatchForStudents] = useState<InternshipBatch | null>(null);
 
   useEffect(() => {
+    // Immediately pull latest proposals from cloud
+    cloudSync.syncFromCloud().catch(console.error);
+
     const unsub = db.subscribe(() => {
       setProposals([...db.proposals]);
       setBatches([...db.batches]);
@@ -78,7 +82,25 @@ export const CompanyDashboard: React.FC = () => {
       setEmailLogs([...db.emailLogs]);
       setMous([...db.mous]);
     });
-    return unsub;
+
+    const handleSync = () => {
+      setProposals([...db.proposals]);
+      setBatches([...db.batches]);
+      setOpportunities([...db.opportunities]);
+      setMentors([...db.mentors]);
+      setAttendance([...db.attendance]);
+      setEmailLogs([...db.emailLogs]);
+      setMous([...db.mous]);
+    };
+
+    window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+    window.addEventListener('vidyaconnect:proposal_updated', handleSync);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
+      window.removeEventListener('vidyaconnect:proposal_updated', handleSync);
+    };
   }, []);
 
   const handleStartActivation = async () => {
