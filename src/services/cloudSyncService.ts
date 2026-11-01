@@ -5,7 +5,7 @@
 
 import { supabase, supabaseUrl, supabaseAnonKey } from './supabaseClient';
 import { db } from './dbStore';
-import { Institution, Company, Profile, AppNotification, AuditLog, InternshipProposal, Student } from '../types/database';
+import { Institution, Company, Profile, AppNotification, AuditLog, InternshipProposal, Student, InternshipBatch } from '../types/database';
 
 export interface EntityRegistrationPayload {
   entityType: 'institution' | 'company';
@@ -33,6 +33,7 @@ class CloudSyncService {
   private syncPromise: Promise<boolean> | null = null;
   private inFlightDecisions = new Set<string>();
   private inFlightProposals = new Set<string>();
+  private inFlightBatches = new Set<string>();
 
   public init(): Promise<boolean> {
     db.registerCloudSyncProvider(this);
@@ -75,6 +76,16 @@ class CloudSyncService {
             this.handleIncomingStudents(payload);
           }
         })
+        .on('broadcast', { event: 'BATCH_UPDATED' }, ({ payload }: { payload: { batch: InternshipBatch } }) => {
+          if (payload?.batch) {
+            this.handleIncomingBatch(payload.batch);
+          }
+        })
+        .on('broadcast', { event: 'STUDENT_CONSENT_SIGNED' }, ({ payload }: any) => {
+          if (payload) {
+            this.handleIncomingConsent(payload);
+          }
+        })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'institutions' }, (payload: any) => {
           console.log('[CloudSync] Realtime Postgres change on institutions table:', payload);
           this.syncFromCloud();
@@ -100,7 +111,7 @@ class CloudSyncService {
       }
     }, 30000);
 
-    // 4. Tab focus auto-sync: when user switches tabs or browsers, immediately check for new accounts/proposals
+    // 4. Tab focus auto-sync: when user switches tabs or browsers, immediately check for new accounts/proposals/batches
     window.addEventListener('focus', () => {
       this.syncFromCloud();
     });
@@ -136,6 +147,15 @@ class CloudSyncService {
       if (e.detail?.proposal) {
         this.syncProposalToCloud(e.detail.proposal).catch(err => {
           console.warn('[CloudSync] Auto-sync proposal error:', err);
+        });
+      }
+    }) as EventListener);
+
+    // 8. Listen to local batch state transitions to persist permanently to Supabase and broadcast
+    window.addEventListener('vidyaconnect:batch_updated', ((e: CustomEvent<{ batch: InternshipBatch }>) => {
+      if (e.detail?.batch) {
+        this.syncBatchToCloud(e.detail.batch).catch(err => {
+          console.warn('[CloudSync] Auto-sync batch error:', err);
         });
       }
     }) as EventListener);
@@ -306,6 +326,86 @@ class CloudSyncService {
       db.persist('students');
       db.notify();
       window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
+    }
+  }
+
+  private handleIncomingBatch(incomingBatch: InternshipBatch) {
+    if (!incomingBatch || !incomingBatch.id) return;
+    const idx = db.batches.findIndex(b => b.id === incomingBatch.id || b.batch_code === incomingBatch.batch_code || (incomingBatch.proposal_id && b.proposal_id === incomingBatch.proposal_id));
+    if (idx >= 0) {
+      const existing = db.batches[idx];
+      const mergedStudents = (incomingBatch.students || []).map(newStu => {
+        const existStu = existing.students?.find(es => es.student_id === newStu.student_id || es.id === newStu.id || (es.student?.email && newStu.student?.email && es.student.email.toLowerCase() === newStu.student.email.toLowerCase()));
+        return {
+          ...existStu,
+          ...newStu,
+          has_joined: Boolean(newStu.has_joined || existStu?.has_joined),
+          joined_at: newStu.joined_at || existStu?.joined_at,
+          consent_recorded_at: newStu.consent_recorded_at || existStu?.consent_recorded_at
+        };
+      });
+
+      // Preserve any student who signed locally that wasn't in incoming list
+      if (existing.students) {
+        existing.students.forEach(es => {
+          const found = mergedStudents.find(ms => ms.student_id === es.student_id || ms.id === es.id);
+          if (found && es.has_joined) {
+            found.has_joined = true;
+            found.joined_at = found.joined_at || es.joined_at;
+            found.consent_recorded_at = found.consent_recorded_at || es.consent_recorded_at;
+          }
+        });
+      }
+
+      const allJoined = mergedStudents.length > 0 && mergedStudents.every(s => s.has_joined);
+      const status = incomingBatch.status === 'active' || existing.status === 'active'
+        ? 'active'
+        : allJoined
+        ? 'students_confirmed'
+        : (incomingBatch.status || existing.status);
+
+      db.batches[idx] = {
+        ...existing,
+        ...incomingBatch,
+        students: mergedStudents,
+        status
+      };
+    } else {
+      db.batches.unshift(incomingBatch);
+    }
+    db.persist('batches');
+    db.notify();
+    try {
+      window.dispatchEvent(new CustomEvent('vidyaconnect:batch_updated', { detail: { batch: incomingBatch } }));
+      window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
+    } catch {}
+  }
+
+  private handleIncomingConsent(payload: { batch_id: string; student_id: string; joined_at: string; batch?: InternshipBatch }) {
+    if (!payload?.batch_id || !payload?.student_id) return;
+    const batch = db.batches.find(b => b.id === payload.batch_id || (payload.batch && b.batch_code === payload.batch.batch_code));
+    if (batch) {
+      const cleanTarget = payload.student_id.toLowerCase().trim();
+      const member = batch.students?.find(s =>
+        s.student_id === payload.student_id ||
+        s.student?.id === payload.student_id ||
+        (s.student?.email && s.student.email.toLowerCase().trim() === cleanTarget)
+      );
+      if (member) {
+        member.has_joined = true;
+        member.joined_at = payload.joined_at || new Date().toISOString();
+        member.consent_recorded_at = payload.joined_at || new Date().toISOString();
+      }
+      if (batch.students?.length && batch.students.every(s => s.has_joined)) {
+        batch.status = 'students_confirmed';
+      }
+      batch.updated_at = new Date().toISOString();
+      db.persist('batches');
+      db.notify();
+      try {
+        window.dispatchEvent(new CustomEvent('vidyaconnect:batch_updated', { detail: { batch } }));
+        window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
+      } catch {}
     }
   }
 
@@ -938,6 +1038,98 @@ class CloudSyncService {
     }
   }
 
+  public async syncBatchToCloud(batch: InternshipBatch): Promise<{ success: boolean; error?: string }> {
+    if (!batch || !batch.id) {
+      return { success: false, error: 'Invalid batch object' };
+    }
+
+    const flightKey = `${batch.id}-${batch.status}-${(batch.students || []).filter(s => s.has_joined).length}`;
+    if (this.inFlightBatches.has(flightKey)) {
+      return { success: true };
+    }
+    this.inFlightBatches.add(flightKey);
+
+    // 1. Broadcast immediately to all active browser windows & tabs
+    this.broadcast('BATCH_UPDATED', { batch });
+
+    // Also broadcast student consent signed event if any
+    const joinedStudents = (batch.students || []).filter(s => s.has_joined);
+    if (joinedStudents.length > 0) {
+      const latestJoined = joinedStudents[joinedStudents.length - 1];
+      this.broadcast('STUDENT_CONSENT_SIGNED', {
+        batch_id: batch.id,
+        student_id: latestJoined.student_id,
+        joined_at: latestJoined.joined_at || new Date().toISOString(),
+        batch
+      });
+    }
+
+    try {
+      // 2. Authoritative shared PostgreSQL persistence using institutions table journal
+      const ts = Date.now();
+      const idPart = (batch.id || 'batch').replace(/[^a-zA-Z0-9]/g, '').slice(-10);
+      const syncCode = `BATCH-${idPart}-${ts}`.slice(0, 48);
+      const syncEmail = `b.${idPart}.${ts}.${Math.floor(Math.random() * 1000)}@sync.apvidya.gov.in`.slice(0, 50);
+
+      const syncRow = {
+        code: syncCode,
+        name: `Batch Sync: ${(batch.batch_code || batch.id).slice(0, 30)}`,
+        type: 'govt_degree_college',
+        affiliated_university: 'AP VidyaConnect Portal',
+        address: 'State Wide Batch Registry',
+        district: 'Visakhapatnam',
+        state: 'Andhra Pradesh',
+        pin_code: '530001',
+        principal_name: batch.faculty_coordinator_id || 'Coordinator',
+        official_email: syncEmail,
+        official_phone: '+91 891 0000000',
+        establishment_year: 2026,
+        verification_status: 'verified',
+        verification_notes: JSON.stringify({
+          sync_type: 'INTERNSHIP_BATCH',
+          batch_id: batch.id,
+          batch_code: batch.batch_code,
+          proposal_id: batch.proposal_id,
+          status: batch.status,
+          updated_at: batch.updated_at || new Date().toISOString()
+        }),
+        documents: [{
+          sync_type: 'INTERNSHIP_BATCH',
+          batch_id: batch.id,
+          batch_code: batch.batch_code,
+          proposal_id: batch.proposal_id,
+          batch: batch,
+          timestamp: new Date().toISOString()
+        }]
+      };
+
+      const res = await fetch(`${supabaseUrl}/rest/v1/institutions`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=representation'
+        },
+        body: JSON.stringify(syncRow)
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error('[CloudSync] Failed to persist batch to Supabase:', res.status, errText);
+        return { success: false, error: `Batch database persistence failed (${res.status}): ${errText}` };
+      }
+
+      console.log('[CloudSync] Authoritative batch saved to Supabase database:', batch.batch_code || batch.id, batch.status);
+      return { success: true };
+    } catch (e: any) {
+      console.error('[CloudSync] Error syncing batch to Supabase:', e);
+      return { success: false, error: e?.message || 'Network communication failed' };
+    } finally {
+      this.inFlightBatches.delete(flightKey);
+    }
+  }
+
   // --- Cloud Inbound Synchronization (Catch up from Supabase) ---
 
   public async syncFromCloud(): Promise<boolean> {
@@ -1016,6 +1208,35 @@ class CloudSyncService {
             if (p && (p.id || p.proposal_code)) {
               candidateProposals.push(p);
             }
+          }
+        }
+
+        // Pass 2.5: Extract and consolidate all batches across sync journal rows
+        const candidateBatches: any[] = [];
+        for (const cloudInst of cloudInstitutions) {
+          if (cloudInst.code?.startsWith('BATCH-') || cloudInst.code?.startsWith('SYNC-BATCH-')) {
+            let syncDoc = Array.isArray(cloudInst.documents)
+              ? cloudInst.documents.find((d: any) => d && (d.sync_type === 'INTERNSHIP_BATCH' || d.batch || d.batch_code))
+              : null;
+
+            let b: any = syncDoc?.batch || (syncDoc?.batch_code ? syncDoc : null);
+            if (!b && cloudInst.verification_notes) {
+              try {
+                const parsed = JSON.parse(cloudInst.verification_notes);
+                b = parsed.batch || (parsed.batch_code ? parsed : null);
+              } catch {}
+            }
+
+            if (b && (b.id || b.batch_code)) {
+              candidateBatches.push(b);
+            }
+          }
+        }
+
+        // Also extract embedded batches from candidate proposals
+        for (const p of candidateProposals) {
+          if (p && p.batch && (p.batch.id || p.batch.batch_code)) {
+            candidateBatches.push(p.batch);
           }
         }
 
@@ -1111,9 +1332,113 @@ class CloudSyncService {
           }
         }
 
+        // Pass 4.5: Authoritative batch resolution and student consent synchronization
+        for (const candBatch of candidateBatches) {
+          const bKey = candBatch.id || candBatch.batch_code;
+          if (!bKey) continue;
+
+          const existingIdx = db.batches.findIndex(b => b.id === candBatch.id || b.batch_code === candBatch.batch_code || (candBatch.proposal_id && b.proposal_id === candBatch.proposal_id));
+          if (existingIdx >= 0) {
+            const existing = db.batches[existingIdx];
+            // Merge students to preserve any consent signed locally or remotely
+            const mergedStudents = (candBatch.students || []).map((cs: any) => {
+              const es = existing.students?.find(s => s.student_id === cs.student_id || s.id === cs.id || (s.student?.email && cs.student?.email && s.student.email.toLowerCase() === cs.student.email.toLowerCase()));
+              return {
+                ...es,
+                ...cs,
+                has_joined: Boolean(cs.has_joined || es?.has_joined),
+                joined_at: cs.joined_at || es?.joined_at,
+                consent_recorded_at: cs.consent_recorded_at || es?.consent_recorded_at
+              };
+            });
+
+            // Also check if any existing student has joined that cloud doesn't have yet
+            if (existing.students) {
+              existing.students.forEach((es: any) => {
+                const found: any = mergedStudents.find((ms: any) => ms.student_id === es.student_id || ms.id === es.id);
+                if (found && es.has_joined) {
+                  found.has_joined = true;
+                  found.joined_at = found.joined_at || es.joined_at;
+                  found.consent_recorded_at = found.consent_recorded_at || es.consent_recorded_at;
+                }
+              });
+            }
+
+            const allJoined = mergedStudents.length > 0 && mergedStudents.every((s: any) => s.has_joined);
+            const status = candBatch.status === 'active' || existing.status === 'active'
+              ? 'active'
+              : allJoined
+              ? 'students_confirmed'
+              : (candBatch.status || existing.status);
+
+            db.batches[existingIdx] = {
+              ...existing,
+              ...candBatch,
+              students: mergedStudents,
+              status
+            };
+            anyChanged = true;
+          } else {
+            db.batches.unshift(candBatch);
+            anyChanged = true;
+          }
+        }
+
+        // Auto-heal: Ensure every institution_accepted / students_confirmed proposal has a corresponding batch
+        for (const p of db.proposals) {
+          if ((p.status as string) === 'institution_accepted' || (p.status as string) === 'students_confirmed') {
+            const hasBatch = db.batches.some(b => b.proposal_id === p.id || (p as any).batch_id === b.id || (p as any).batch_code === b.batch_code);
+            if (!hasBatch) {
+              const year = new Date().getFullYear();
+              const compCode = (p.company?.name || 'CMP').replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase();
+              const instCode = (p.institution?.code || 'INST').replace(/[^a-zA-Z0-9]/g, '').slice(0, 5).toUpperCase();
+              const batchCode = (p as any).batch_code || `KD-${year}-${compCode}-${instCode}-${String(db.batches.length + 1).padStart(3, '0')}`;
+
+              const acceptedStudents = (p.students || [])
+                .filter(ps => ps.is_accepted_by_company !== false)
+                .map(ps => ({
+                  id: `bs-${Date.now()}-${ps.student_id}`,
+                  batch_id: `batch-${p.id}`,
+                  student_id: ps.student_id,
+                  student: ps.student,
+                  has_joined: Boolean((ps as any).has_joined),
+                  completion_status: 'in_progress' as const
+                }));
+
+              const healedBatch: InternshipBatch = {
+                id: (p as any).batch_id || `batch-${p.id}`,
+                batch_code: batchCode,
+                proposal_id: p.id,
+                institution_id: p.institution_id,
+                institution: p.institution,
+                company_id: p.company_id,
+                company: p.company,
+                mentor_id: 'mentor-001',
+                mentor: (p.company as any)?.mentor || undefined,
+                faculty_coordinator_id: (p as any).created_by || 'coord',
+                title: `${p.domain} Batch (${p.institution?.name?.split(',')[0] || 'Institution'})`,
+                domain: p.domain,
+                mode: p.mode,
+                stipend_amount: p.stipend_requested,
+                start_date: p.start_date,
+                end_date: p.end_date,
+                working_hours: '9:30 AM - 5:30 PM (Mon-Fri)',
+                location: p.company?.headquarters || 'Onsite HQ',
+                status: acceptedStudents.length > 0 && acceptedStudents.every(s => s.has_joined) ? 'students_confirmed' : 'created',
+                students: acceptedStudents,
+                created_at: p.updated_at || new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              };
+
+              db.batches.unshift(healedBatch);
+              anyChanged = true;
+            }
+          }
+        }
+
         for (const cloudInst of cloudInstitutions) {
           // Skip Sync Journal Rows
-          if (cloudInst.code?.startsWith('DEC-') || cloudInst.code?.startsWith('SYNC-DECISION-') || cloudInst.code?.startsWith('PROP-') || cloudInst.code?.startsWith('SYNC-PROP-')) {
+          if (cloudInst.code?.startsWith('DEC-') || cloudInst.code?.startsWith('SYNC-DECISION-') || cloudInst.code?.startsWith('PROP-') || cloudInst.code?.startsWith('SYNC-PROP-') || cloudInst.code?.startsWith('BATCH-') || cloudInst.code?.startsWith('SYNC-BATCH-')) {
             continue;
           }
 
@@ -1400,10 +1725,12 @@ class CloudSyncService {
         db.persist('profiles');
         db.persist('passwords');
         db.persist('proposals');
+        db.persist('batches');
         db.persist('students');
         db.persist('notifications');
         db.notify();
         window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
+        window.dispatchEvent(new CustomEvent('vidyaconnect:batch_updated'));
       }
     } catch (e) {
       console.warn('[CloudSync] syncFromCloud error:', e);

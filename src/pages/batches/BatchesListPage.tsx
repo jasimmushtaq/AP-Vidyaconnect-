@@ -23,13 +23,21 @@ export const BatchesListPage: React.FC = () => {
   const { currentRole, currentUser, currentInstitution, currentCompany } = useAuth();
   const [batches, setBatches] = useState<InternshipBatch[]>(db.batches);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'created' | 'active' | 'completed'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'created' | 'students_confirmed' | 'active' | 'completed'>('all');
 
   useEffect(() => {
-    const unsub = db.subscribe(() => {
+    const load = () => {
       setBatches([...db.batches]);
-    });
-    return unsub;
+    };
+    const unsub = db.subscribe(load);
+    window.addEventListener('vidyaconnect:cloud_sync_updated', load);
+    window.addEventListener('vidyaconnect:batch_updated', load);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', load);
+      window.removeEventListener('vidyaconnect:batch_updated', load);
+    };
   }, []);
 
   const isMentor = currentRole === 'mentor';

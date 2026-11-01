@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../context/ModalContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import {
   Briefcase,
@@ -48,14 +49,24 @@ export const StudentDashboard: React.FC = () => {
 
 
   useEffect(() => {
-    const unsub = db.subscribe(() => {
+    // Background cloud sync on dashboard load
+    cloudSync.syncFromCloud().catch(err => console.warn('Student sync error:', err));
+
+    const load = () => {
       setBatches([...db.batches]);
       setTasks([...db.tasks]);
       setAttendance([...db.attendance]);
-    });
+    };
+
+    const unsub = db.subscribe(load);
+    window.addEventListener('vidyaconnect:cloud_sync_updated', load);
+    window.addEventListener('vidyaconnect:batch_updated', load);
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+
     return () => {
       unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', load);
+      window.removeEventListener('vidyaconnect:batch_updated', load);
       clearInterval(timer);
     };
   }, []);
@@ -85,21 +96,31 @@ export const StudentDashboard: React.FC = () => {
 
   const handleJoinConsent = async () => {
     if (myBatch) {
-      db.studentAcceptConsent(myBatch.id, studentId);
-      await showAlert({
-        title: 'Internship Consent Recorded!',
-        subtitle: 'Official APSCHE Student Joining Verification',
-        type: 'success',
-        badge: 'Digital Consent Timestamped',
-        confirmText: 'Go to Internship Workspace',
-        message: 'Your formal "JOIN INTERNSHIP" digital acceptance has been securely logged on the state audit ledger with your cryptographic timestamp. Attendance tracking is now fully unlocked.',
-        details: [
-          { label: 'Batch Code', value: myBatch.batch_code },
-          { label: 'Company Partner', value: myBatch.company?.name || 'Partner Company' },
-          { label: 'Monthly Stipend', value: `₹${myBatch.stipend_amount?.toLocaleString()}/mo` },
-          { label: 'Status', value: 'Consent Signed (Active)' }
-        ]
-      });
+      try {
+        await db.studentAcceptConsent(myBatch.id, studentId, (currentUser || currentStudent) as any);
+        setBatches([...db.batches]);
+        await showAlert({
+          title: 'Internship Consent Recorded!',
+          subtitle: 'Official APSCHE Student Joining Verification',
+          type: 'success',
+          badge: 'Digital Consent Timestamped',
+          confirmText: 'Go to Internship Workspace',
+          message: 'Your formal "JOIN INTERNSHIP" digital acceptance has been securely logged on the state audit ledger and synchronized with the College Portal. Attendance tracking is now fully unlocked.',
+          details: [
+            { label: 'Batch Code', value: myBatch.batch_code },
+            { label: 'Company Partner', value: myBatch.company?.name || 'Partner Company' },
+            { label: 'Monthly Stipend', value: `₹${myBatch.stipend_amount?.toLocaleString()}/mo` },
+            { label: 'Status', value: 'Consent Signed (Active)' }
+          ]
+        });
+      } catch (err: any) {
+        await showAlert({
+          title: 'Consent Error',
+          subtitle: err?.message || 'Failed to record consent',
+          type: 'danger',
+          message: 'There was an issue recording your digital consent. Please try again.'
+        });
+      }
     }
   };
 

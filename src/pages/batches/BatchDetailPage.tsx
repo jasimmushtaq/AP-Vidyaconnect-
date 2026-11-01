@@ -6,6 +6,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { WorkflowTimeline } from '../../components/common/WorkflowTimeline';
 import { InternshipBatch } from '../../types/database';
@@ -43,16 +44,56 @@ export const BatchDetailPage: React.FC = () => {
   const [batch, setBatch] = useState<InternshipBatch | null>(null);
   const [showActivationConfirm, setShowActivationConfirm] = useState(false);
   const [activationProgress, setActivationProgress] = useState<ActivationProgressUpdate | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
+    // Immediate background sync from Supabase so latest student consent reflects across devices
+    cloudSync.syncFromCloud().catch(err => console.warn('Batch detail sync error:', err));
+
     const load = () => {
-      const match = db.batches.find(b => b.id === id);
-      if (match) setBatch({ ...match });
+      const match = db.batches.find(b =>
+        b.id === id ||
+        b.batch_code === id ||
+        b.proposal_id === id ||
+        (b as any).proposal_code === id
+      );
+      if (match) {
+        setBatch({ ...match });
+      } else {
+        // Check if there is an accepted proposal for this id
+        const prop = db.proposals.find(p => p.id === id || (p as any).batch_id === id);
+        if (prop && ((prop.status as string) === 'institution_accepted' || (prop.status as string) === 'students_confirmed')) {
+          const autoBatch = db.batches.find(b => b.proposal_id === prop.id);
+          if (autoBatch) setBatch({ ...autoBatch });
+        }
+      }
     };
     load();
     const unsub = db.subscribe(load);
-    return unsub;
+    window.addEventListener('vidyaconnect:cloud_sync_updated', load);
+    window.addEventListener('vidyaconnect:batch_updated', load);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', load);
+      window.removeEventListener('vidyaconnect:batch_updated', load);
+    };
   }, [id]);
+
+  const handleManualRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      await cloudSync.syncFromCloud();
+      const match = db.batches.find(b =>
+        b.id === id ||
+        b.batch_code === id ||
+        b.proposal_id === id
+      );
+      if (match) setBatch({ ...match });
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   if (!batch) {
     return (
@@ -99,6 +140,16 @@ export const BatchDetailPage: React.FC = () => {
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold">
                 <CheckCircle2 className="w-3.5 h-3.5" /> Institution Final Accepted
               </span>
+              <button
+                type="button"
+                onClick={handleManualRefresh}
+                disabled={isRefreshing}
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold transition-all cursor-pointer active:scale-95"
+                title="Sync latest student consents from central cloud"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-blue-300 ${isRefreshing ? 'animate-spin' : ''}`} />
+                <span>{isRefreshing ? 'Syncing...' : 'Live Sync'}</span>
+              </button>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white">
               {batch.title}

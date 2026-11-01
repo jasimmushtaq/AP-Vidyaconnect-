@@ -8,6 +8,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../context/ModalContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import {
   Briefcase,
@@ -44,11 +45,23 @@ export const StudentMyInternshipsPage: React.FC = () => {
   const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsub = db.subscribe(() => {
+    // Background cloud sync to ensure latest batches from college coordinator
+    cloudSync.syncFromCloud().catch(err => console.warn('Student sync error:', err));
+
+    const load = () => {
       setBatches([...db.batches]);
       setAttendance([...db.attendance]);
-    });
-    return unsub;
+    };
+
+    const unsub = db.subscribe(load);
+    window.addEventListener('vidyaconnect:cloud_sync_updated', load);
+    window.addEventListener('vidyaconnect:batch_updated', load);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', load);
+      window.removeEventListener('vidyaconnect:batch_updated', load);
+    };
   }, []);
 
   const studentEmail = currentStudent?.email?.toLowerCase() || currentUser?.email?.toLowerCase() || '';
@@ -81,21 +94,31 @@ export const StudentMyInternshipsPage: React.FC = () => {
   const totalCreditsEarned = completedBatches.length * 6 + (activeBatches.length > 0 ? 6 : 0);
 
   const handleJoinConsent = async (batch: any) => {
-    db.studentAcceptConsent(batch.id, studentId);
-    await showAlert({
-      title: 'Internship Consent Recorded!',
-      subtitle: `Official APSCHE Student Joining Verification • ${batch.batch_code}`,
-      type: 'success',
-      badge: 'Digital Consent Timestamped',
-      confirmText: 'Continue to Attendance Telemetry',
-      message: 'Your formal "JOIN INTERNSHIP" digital acceptance has been securely logged on the state audit ledger. Geofenced daily attendance is now fully unlocked.',
-      details: [
-        { label: 'Batch Code', value: batch.batch_code },
-        { label: 'Corporate Host', value: batch.company?.name || 'Industry Partner' },
-        { label: 'Stipend Package', value: `₹${batch.stipend_amount?.toLocaleString()}/month` },
-        { label: 'Status', value: 'Consent Signed (Active)' }
-      ]
-    });
+    try {
+      await db.studentAcceptConsent(batch.id, studentId, (currentUser || currentStudent) as any);
+      setBatches([...db.batches]);
+      await showAlert({
+        title: 'Internship Consent Recorded!',
+        subtitle: `Official APSCHE Student Joining Verification • ${batch.batch_code}`,
+        type: 'success',
+        badge: 'Digital Consent Timestamped',
+        confirmText: 'Continue to Attendance Telemetry',
+        message: 'Your formal "JOIN INTERNSHIP" digital acceptance has been securely logged on the state audit ledger and synchronized with the College Portal. Geofenced daily attendance is now fully unlocked.',
+        details: [
+          { label: 'Batch Code', value: batch.batch_code },
+          { label: 'Corporate Host', value: batch.company?.name || 'Industry Partner' },
+          { label: 'Stipend Package', value: `₹${batch.stipend_amount?.toLocaleString()}/month` },
+          { label: 'Status', value: 'Consent Signed (Active)' }
+        ]
+      });
+    } catch (err: any) {
+      await showAlert({
+        title: 'Consent Error',
+        subtitle: err?.message || 'Failed to record consent',
+        type: 'danger',
+        message: 'There was an issue recording your digital consent. Please try again.'
+      });
+    }
   };
 
   return (

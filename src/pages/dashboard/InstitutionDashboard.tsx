@@ -87,11 +87,13 @@ export const InstitutionDashboard: React.FC = () => {
 
     window.addEventListener('vidyaconnect:cloud_sync_updated', handleSyncUpdate);
     window.addEventListener('vidyaconnect:proposal_updated', handleSyncUpdate);
+    window.addEventListener('vidyaconnect:batch_updated', handleSyncUpdate);
 
     return () => {
       unsub();
       window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSyncUpdate);
       window.removeEventListener('vidyaconnect:proposal_updated', handleSyncUpdate);
+      window.removeEventListener('vidyaconnect:batch_updated', handleSyncUpdate);
     };
   }, []);
 
@@ -109,7 +111,7 @@ export const InstitutionDashboard: React.FC = () => {
   }, [batches, instId]);
 
   const myActiveBatches = useMemo(() => {
-    return myBatches.filter(b => b.status === 'active' || b.status === 'created');
+    return myBatches.filter(b => b.status === 'active' || b.status === 'created' || b.status === 'students_confirmed');
   }, [myBatches]);
 
   const myProposals = useMemo(() => {

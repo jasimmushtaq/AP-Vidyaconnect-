@@ -58,15 +58,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
         const instId = currentInstitution?.id || currentUser.institution_id;
         const decisionCount = instId
           ? db.proposals.filter(
-              p => p.institution_id === instId &&
-                (p.status === 'company_accepted' || p.status === 'company_accepted_with_changes' || p.status === 'modification_requested')
-            ).length
+            p => p.institution_id === instId &&
+              (p.status === 'company_accepted' || p.status === 'company_accepted_with_changes' || p.status === 'modification_requested')
+          ).length
           : 0;
         const pendingMous = instId
           ? db.mous.filter(
-              m => m.institution_id === instId &&
-                (m.status === 'sent_to_college' || m.status === 'company_signed' || m.status === 'college_accepted')
-            ).length
+            m => m.institution_id === instId &&
+              (m.status === 'sent_to_college' || m.status === 'company_signed' || m.status === 'college_accepted')
+          ).length
           : 0;
 
         return [
@@ -86,8 +86,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
         const compId = currentCompany?.id || currentUser.company_id;
         const pendingCount = compId
           ? db.proposals.filter(
-              p => p.company_id === compId && (p.status === 'submitted' || p.status === 'under_company_review')
-            ).length
+            p => p.company_id === compId && (p.status === 'submitted' || p.status === 'under_company_review')
+          ).length
           : 0;
         const compMousCount = compId
           ? db.mous.filter(m => m.company_id === compId && m.status === 'active').length
@@ -140,9 +140,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
 
   return (
     <aside
-      className={`bg-[#0E2350] text-white flex flex-col transition-all duration-300 z-20 ${
-        collapsed ? 'w-20' : 'w-64'
-      } h-full max-h-screen shadow-xl select-none`}
+      className={`bg-[#0E2350] text-white flex flex-col transition-all duration-300 z-20 ${collapsed ? 'w-20' : 'w-64'
+        } h-full max-h-screen shadow-xl select-none`}
     >
       {/* Top Brand Banner & Active Context (Anchored at Top) */}
       <div className="shrink-0">
@@ -189,10 +188,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
                   if (onMobileClose) onMobileClose();
                 }}
                 className={({ isActive: active }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${
-                    active
-                      ? 'bg-[#14336F] text-white shadow-sm border-l-4 border-[#F07421]'
-                      : 'text-[#DCE5F5]/80 hover:bg-[#102A60] hover:text-white'
+                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${active
+                    ? 'bg-[#14336F] text-white shadow-sm border-l-4 border-[#F07421]'
+                    : 'text-[#DCE5F5]/80 hover:bg-[#102A60] hover:text-white'
                   } ${collapsed ? 'justify-center' : ''}`
                 }
                 title={collapsed ? item.label : undefined}
@@ -221,7 +219,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
               Helpdesk & SOP
             </p>
             <p className="text-gray-300 text-[10px] leading-relaxed">
-              Toll-free helpline: 1800-425-0012
+              Toll-free helpline: 9398496327
             </p>
           </div>
         )}
@@ -230,9 +228,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
         <button
           type="button"
           onClick={handleLogout}
-          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-600/30 active:bg-rose-600/40 border border-rose-500/25 transition-all cursor-pointer group shadow-xs ${
-            collapsed ? 'justify-center' : ''
-          }`}
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold text-rose-300 hover:text-white bg-rose-500/10 hover:bg-rose-600/30 active:bg-rose-600/40 border border-rose-500/25 transition-all cursor-pointer group shadow-xs ${collapsed ? 'justify-center' : ''
+            }`}
           title={collapsed ? "Sign Out / Logout" : undefined}
         >
           <LogOut className="w-4 h-4 text-rose-400 group-hover:text-rose-200 shrink-0 transition-transform group-hover:-translate-x-0.5" />

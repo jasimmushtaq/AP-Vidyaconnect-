@@ -144,15 +144,28 @@ class DatabaseStore {
     'rahul.sharma23@student.gdck.ac.in': 'pixelwind@2005'
   });
 
-  private cloudSyncProvider: { syncProposalToCloud: (proposal: InternshipProposal) => Promise<{ success: boolean; error?: string }> } | null = null;
+  private cloudSyncProvider: {
+    syncProposalToCloud: (proposal: InternshipProposal) => Promise<{ success: boolean; error?: string }>;
+    syncBatchToCloud?: (batch: InternshipBatch) => Promise<{ success: boolean; error?: string }>;
+  } | null = null;
 
-  public registerCloudSyncProvider(provider: { syncProposalToCloud: (proposal: InternshipProposal) => Promise<{ success: boolean; error?: string }> }) {
+  public registerCloudSyncProvider(provider: {
+    syncProposalToCloud: (proposal: InternshipProposal) => Promise<{ success: boolean; error?: string }>;
+    syncBatchToCloud?: (batch: InternshipBatch) => Promise<{ success: boolean; error?: string }>;
+  }) {
     this.cloudSyncProvider = provider;
   }
 
   public async syncProposal(proposal: InternshipProposal): Promise<{ success: boolean; error?: string }> {
     if (this.cloudSyncProvider) {
       return await this.cloudSyncProvider.syncProposalToCloud(proposal);
+    }
+    return { success: true };
+  }
+
+  public async syncBatch(batch: InternshipBatch): Promise<{ success: boolean; error?: string }> {
+    if (this.cloudSyncProvider?.syncBatchToCloud) {
+      return await this.cloudSyncProvider.syncBatchToCloud(batch);
     }
     return { success: true };
   }
@@ -1431,6 +1444,13 @@ class DatabaseStore {
     this.persist('batches');
     this.persist('proposals');
 
+    // Synchronize newly chartered batch to Supabase cloud
+    try {
+      await this.syncBatch(newBatch);
+    } catch (batchErr) {
+      console.warn('[dbStore] Cloud batch sync warning during final accept:', batchErr);
+    }
+
     this.logAudit(
       'institution_final_accept_batch_created',
       'internship_batch',
@@ -1733,18 +1753,133 @@ class DatabaseStore {
     return this.completeBatch(batchId, actor);
   }
 
-  studentAcceptConsent(batchId: string, studentId: string) {
-    const batch = this.batches.find(b => b.id === batchId);
-    if (!batch) throw new Error('Batch not found');
-
-    const member = batch.students?.find(s => s.student_id === studentId);
-    if (member) {
-      member.has_joined = true;
-      member.joined_at = new Date().toISOString();
-      member.consent_recorded_at = new Date().toISOString();
-      this.persist('batches');
-      this.logAudit('student_join_consent', 'internship_batch', batchId, { has_joined: false }, { has_joined: true, student_id: studentId });
+  async studentAcceptConsent(
+    batchId: string,
+    studentIdOrEmail: string,
+    actor?: Profile | Student
+  ): Promise<{ success: boolean; batch?: InternshipBatch; error?: string }> {
+    // 1. Locate batch (by ID, code, or proposal link)
+    let batch = this.batches.find(b => b.id === batchId || b.batch_code === batchId);
+    if (!batch) {
+      const matchedProp = this.proposals.find(p => p.id === batchId || (p as any).batch_id === batchId || (p as any).batch_code === batchId);
+      if (matchedProp) {
+        batch = this.batches.find(b => b.proposal_id === matchedProp.id);
+      }
     }
+    if (!batch) {
+      throw new Error(`Batch not found for ID "${batchId}"`);
+    }
+
+    // 2. Identify student in batch.students
+    const cleanIdOrEmail = (studentIdOrEmail || '').toLowerCase().trim();
+    const actorEmail = (actor as any)?.email?.toLowerCase()?.trim() || '';
+    const actorId = actor?.id || '';
+
+    let member = batch.students?.find(s =>
+      s.student_id === studentIdOrEmail ||
+      s.student_id === actorId ||
+      s.student?.id === studentIdOrEmail ||
+      s.student?.id === actorId ||
+      (s.student?.email && s.student.email.toLowerCase().trim() === cleanIdOrEmail) ||
+      (actorEmail && s.student?.email && s.student.email.toLowerCase().trim() === actorEmail)
+    );
+
+    // Fallback: If single student in batch
+    if (!member && batch.students && batch.students.length === 1) {
+      member = batch.students[0];
+    }
+
+    if (!member) {
+      throw new Error(`Student "${studentIdOrEmail}" is not enrolled in batch ${batch.batch_code}`);
+    }
+
+    // 3. Mark consent
+    const nowIso = new Date().toISOString();
+    member.has_joined = true;
+    member.joined_at = nowIso;
+    member.consent_recorded_at = nowIso;
+
+    // 4. Update batch status if all students confirmed
+    if (batch.students && batch.students.length > 0 && batch.students.every(s => s.has_joined)) {
+      batch.status = 'students_confirmed';
+    }
+    batch.updated_at = nowIso;
+    this.persist('batches');
+
+    // 5. Update corresponding proposal
+    const matchedProposal = this.proposals.find(p => p.id === batch.proposal_id || (p as any).batch_id === batch.id || (p as any).batch_code === batch.batch_code);
+    if (matchedProposal) {
+      if (matchedProposal.students) {
+        const propStudent = matchedProposal.students.find(ps =>
+          ps.student_id === member!.student_id ||
+          ps.student?.id === member!.student_id ||
+          (ps.student?.email && ps.student.email.toLowerCase().trim() === cleanIdOrEmail) ||
+          (actorEmail && ps.student?.email && ps.student.email.toLowerCase().trim() === actorEmail)
+        );
+        if (propStudent) {
+          (propStudent as any).has_joined = true;
+          (propStudent as any).joined_at = nowIso;
+          (propStudent as any).consent_recorded_at = nowIso;
+        }
+      }
+      if (batch.status === 'students_confirmed') {
+        (matchedProposal as any).students_confirmed_at = nowIso;
+      }
+      this.persist('proposals');
+    }
+
+    // 6. Notify in-memory subscribers & dispatch DOM events
+    this.notify();
+    try {
+      window.dispatchEvent(new CustomEvent('vidyaconnect:batch_updated', { detail: { batch, studentId: studentIdOrEmail } }));
+      window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
+    } catch {}
+
+    // 7. Log audit trail
+    this.logAudit(
+      'student_join_consent',
+      'internship_batch',
+      batch.id,
+      { has_joined: false },
+      { has_joined: true, student_id: member.student_id, student_name: member.student?.full_name },
+      actor ? { id: actor.id, name: actor.full_name, role: (actor as any).role || 'student' } : undefined
+    );
+
+    // 8. Create multi-party in-app notification for College Coordinator & Company Admins
+    const studentDisplayName = member.student?.full_name || (actor as any)?.full_name || 'Enrolled Student';
+    const notif: AppNotification = {
+      id: `notif-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      user_id: batch.faculty_coordinator_id || batch.institution_id || 'coordinator',
+      title: 'Student Joining Consent Recorded',
+      message: `${studentDisplayName} has digitally signed the "JOIN INTERNSHIP" onboarding consent for batch ${batch.batch_code}.`,
+      type: 'student_onboarded',
+      link_url: `/batches/${batch.id}`,
+      is_read: false,
+      created_at: nowIso
+    };
+    this.notifications.unshift(notif);
+    this.persist('notifications');
+    try {
+      window.dispatchEvent(new CustomEvent('vidyaconnect:realtime_notification', { detail: notif }));
+    } catch {}
+
+    // 9. Synchronize batch and proposal to Supabase PostgreSQL cloud storage
+    let syncError: string | undefined;
+    try {
+      const batchSyncRes = await this.syncBatch(batch);
+      if (!batchSyncRes.success) {
+        syncError = batchSyncRes.error;
+        console.warn('[dbStore] Cloud batch sync warning:', batchSyncRes.error);
+      }
+      if (matchedProposal) {
+        await this.syncProposal(matchedProposal);
+      }
+    } catch (err: any) {
+      console.warn('[dbStore] Cloud sync invocation error:', err);
+      syncError = err?.message || 'Network error';
+    }
+
+    return { success: true, batch, error: syncError };
   }
 
   markAttendance(batchId: string, records: { student_id: string; date: string; status: AttendanceStatus; notes?: string }[], actor: Profile) {
