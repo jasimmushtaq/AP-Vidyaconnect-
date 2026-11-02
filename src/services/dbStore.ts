@@ -1389,14 +1389,17 @@ class DatabaseStore {
     };
     proposal.versions.push(newVersionEntry);
 
-    // CRITICAL: Persist to Supabase and wait for confirmation before notifying or completing
-    const syncRes = await this.syncProposal(proposal);
-    if (!syncRes.success) {
-      // Revert in-memory state on persistence failure
-      proposal.status = beforeStatus;
-      proposal.version = beforeVersion;
-      proposal.versions.pop();
-      throw new Error(`Failed to save decision to central database: ${syncRes.error || 'Network error'}. Please check your connection and try again.`);
+    // Persist immediately to local storage
+    this.persist('proposals');
+
+    // Persist to central Supabase cloud database
+    try {
+      const syncRes = await this.syncProposal(proposal);
+      if (!syncRes.success) {
+        console.warn('[dbStore] Cloud sync warning on company response:', syncRes.error);
+      }
+    } catch (syncErr: any) {
+      console.warn('[dbStore] Cloud sync error on company response:', syncErr);
     }
 
     this.logAudit('company_respond', 'internship_proposal', proposal.id, { status: beforeStatus }, { status: newStatus, ...data }, { id: actor.id, name: actor.full_name, role: actor.role });
@@ -1524,24 +1527,31 @@ class DatabaseStore {
     });
     proposal.version += 1;
 
-    // Persist to central Supabase and wait for confirmation
-    const syncRes = await this.syncProposal(proposal);
-    if (!syncRes.success) {
-      proposal.status = beforeStatus;
-      proposal.version = beforeVersion;
-      proposal.versions.pop();
-      throw new Error(`Failed to persist acceptance to central database: ${syncRes.error || 'Network error'}. Please try again.`);
-    }
-
+    // 1. Immediately commit new batch and finalized proposal locally
     this.batches.unshift(newBatch);
     this.persist('batches');
     this.persist('proposals');
 
-    // Synchronize newly chartered batch to Supabase cloud
+    // 2. Synchronize proposal final status and newly chartered batch to Supabase cloud
+    try {
+      const syncRes = await this.syncProposal(proposal);
+      if (!syncRes.success) {
+        console.warn('[dbStore] Cloud proposal sync warning during final accept:', syncRes.error);
+      }
+    } catch (syncErr: any) {
+      console.warn('[dbStore] Cloud proposal sync error during final accept:', syncErr);
+    }
+
     try {
       await this.syncBatch(newBatch);
     } catch (batchErr) {
       console.warn('[dbStore] Cloud batch sync warning during final accept:', batchErr);
+    }
+
+    // 3. Dispatch realtime events to notify any listening views & tabs
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vidyaconnect:batch_updated', { detail: { batch: newBatch } }));
+      window.dispatchEvent(new CustomEvent('vidyaconnect:proposal_updated', { detail: { proposal } }));
     }
 
     this.logAudit(

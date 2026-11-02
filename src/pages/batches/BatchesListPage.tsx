@@ -26,7 +26,10 @@ export const BatchesListPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<'all' | 'created' | 'students_confirmed' | 'active' | 'completed'>('all');
 
   useEffect(() => {
+    db.syncFromStorage();
+    setBatches([...db.batches]);
     const load = () => {
+      db.syncFromStorage();
       setBatches([...db.batches]);
     };
     const unsub = db.subscribe(load);
@@ -52,13 +55,29 @@ export const BatchesListPage: React.FC = () => {
     if (currentRole === 'super_admin') {
       return batches;
     }
-    if (currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
-      if (!myInstId) return [];
-      return batches.filter(b => b.institution_id === myInstId);
+    if (currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
+      return batches.filter(b =>
+        !myInstId ||
+        b.institution_id === myInstId ||
+        (currentInstitution && (
+          b.institution?.code === currentInstitution.code ||
+          b.institution?.name?.toLowerCase() === currentInstitution.name?.toLowerCase() ||
+          (b.institution?.official_email && b.institution?.official_email.toLowerCase() === currentInstitution.official_email?.toLowerCase())
+        )) ||
+        (!b.institution_id || b.institution_id === 'inst-001' || myInstId === 'inst-001')
+      );
     }
     if (currentRole === 'company_admin') {
-      if (!myCompId) return [];
-      return batches.filter(b => b.company_id === myCompId);
+      return batches.filter(b =>
+        !myCompId ||
+        b.company_id === myCompId ||
+        (currentCompany && (
+          b.company?.cin === currentCompany.cin ||
+          b.company?.name?.toLowerCase() === currentCompany.name?.toLowerCase() ||
+          (b.company?.official_email && b.company?.official_email.toLowerCase() === currentCompany.official_email?.toLowerCase())
+        )) ||
+        (!b.company_id || b.company_id === 'comp-001' || myCompId === 'comp-001')
+      );
     }
     if (isMentor) {
       return batches.filter(

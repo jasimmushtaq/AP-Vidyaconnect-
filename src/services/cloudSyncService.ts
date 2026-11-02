@@ -833,10 +833,9 @@ class CloudSyncService {
           'apikey': supabaseAnonKey,
           'Authorization': `Bearer ${supabaseAnonKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
+          'Prefer': 'return=minimal'
         },
-        body: JSON.stringify(syncRow),
-        keepalive: true
+        body: JSON.stringify(syncRow)
       });
 
       if (!res.ok) {
@@ -856,6 +855,41 @@ class CloudSyncService {
   }
 
   /**
+   * Strip multi-megabyte base64 documents/certificates from institution/company
+   * before sending across network or saving to proposal/batch documents.
+   */
+  private sanitizeInstitutionSummary(inst: any): any {
+    if (!inst) return undefined;
+    return {
+      id: inst.id,
+      code: inst.code,
+      name: inst.name,
+      type: inst.type,
+      affiliated_university: inst.affiliated_university,
+      district: inst.district,
+      state: inst.state,
+      pin_code: inst.pin_code,
+      principal_name: inst.principal_name,
+      official_email: inst.official_email,
+      official_phone: inst.official_phone
+    };
+  }
+
+  private sanitizeCompanySummary(comp: any): any {
+    if (!comp) return undefined;
+    return {
+      id: comp.id,
+      cin: comp.cin,
+      name: comp.name,
+      industry: comp.industry,
+      sector: comp.sector,
+      official_email: comp.official_email,
+      official_phone: comp.official_phone,
+      headquarters: comp.headquarters
+    };
+  }
+
+  /**
    * Helper to deep sanitize a proposal before sending to cloud.
    * Strips recursive versions snapshots to avoid "Converting circular structure to JSON"
    * and caps snapshot depths to maintain clean history without memory bloat.
@@ -869,8 +903,12 @@ class CloudSyncService {
           if (!v) return v;
           let cleanSnap = v.snapshot;
           if (cleanSnap && typeof cleanSnap === 'object') {
-            const { versions: _v, ...rest } = cleanSnap as any;
-            cleanSnap = rest;
+            const { versions: _v, institution: _inst, company: _comp, ...rest } = cleanSnap as any;
+            cleanSnap = {
+              ...rest,
+              institution: this.sanitizeInstitutionSummary((cleanSnap as any).institution),
+              company: this.sanitizeCompanySummary((cleanSnap as any).company)
+            };
           }
           return {
             id: v.id || `ver-${Date.now()}`,
@@ -886,7 +924,18 @@ class CloudSyncService {
 
     return {
       ...proposal,
+      institution: this.sanitizeInstitutionSummary(proposal.institution),
+      company: this.sanitizeCompanySummary(proposal.company),
       versions: cleanVersions
+    };
+  }
+
+  private sanitizeBatchForCloud(batch: InternshipBatch): InternshipBatch {
+    if (!batch) return batch;
+    return {
+      ...batch,
+      institution: this.sanitizeInstitutionSummary(batch.institution),
+      company: this.sanitizeCompanySummary(batch.company)
     };
   }
 
@@ -953,8 +1002,7 @@ class CloudSyncService {
             'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ p_proposal: rpcPayload }),
-          keepalive: true
+          body: JSON.stringify({ p_proposal: rpcPayload })
         });
 
         if (rpcRes.ok) {
@@ -1019,8 +1067,7 @@ class CloudSyncService {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal'
         },
-        body: JSON.stringify(syncRow),
-        keepalive: true
+        body: JSON.stringify(syncRow)
       });
 
       if (!res.ok && !canonicalSuccess) {
@@ -1084,8 +1131,7 @@ class CloudSyncService {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal'
         },
-        body: JSON.stringify(syncRow),
-        keepalive: true
+        body: JSON.stringify(syncRow)
       });
 
       if (!res.ok) {
@@ -1112,18 +1158,20 @@ class CloudSyncService {
     }
     this.inFlightBatches.add(flightKey);
 
+    const sanitizedBatch = this.sanitizeBatchForCloud(batch);
+
     // 1. Broadcast immediately to all active browser windows & tabs
-    this.broadcast('BATCH_UPDATED', { batch });
+    this.broadcast('BATCH_UPDATED', { batch: sanitizedBatch });
 
     // Also broadcast student consent signed event if any
-    const joinedStudents = (batch.students || []).filter(s => s.has_joined);
+    const joinedStudents = (sanitizedBatch.students || []).filter(s => s.has_joined);
     if (joinedStudents.length > 0) {
       const latestJoined = joinedStudents[joinedStudents.length - 1];
       this.broadcast('STUDENT_CONSENT_SIGNED', {
-        batch_id: batch.id,
+        batch_id: sanitizedBatch.id,
         student_id: latestJoined.student_id,
         joined_at: latestJoined.joined_at || new Date().toISOString(),
-        batch
+        batch: sanitizedBatch
       });
     }
 
@@ -1161,7 +1209,7 @@ class CloudSyncService {
           batch_id: batch.id,
           batch_code: batch.batch_code,
           proposal_id: batch.proposal_id,
-          batch: batch,
+          batch: sanitizedBatch,
           timestamp: new Date().toISOString()
         }]
       };
@@ -1172,10 +1220,9 @@ class CloudSyncService {
           'apikey': supabaseAnonKey,
           'Authorization': `Bearer ${supabaseAnonKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
+          'Prefer': 'return=minimal'
         },
-        body: JSON.stringify(syncRow),
-        keepalive: true
+        body: JSON.stringify(syncRow)
       });
 
       if (!res.ok) {

@@ -73,7 +73,7 @@ export const ProposalDecisionsPage: React.FC = () => {
       isProposalForInstitution(p, instId, currentInstitution, currentUser) ||
       (!instId && !currentInstitution && p.institution_id === 'inst-001')
     );
-    if (matched.length === 0 && currentUser?.role === 'institution_admin') {
+    if (matched.length === 0 && (currentUser?.role === 'institution_admin' || currentUser?.role === 'college_admin')) {
       const anyActionable = proposals.filter(p =>
         p.status === 'company_accepted_with_changes' ||
         p.status === 'company_accepted' ||
