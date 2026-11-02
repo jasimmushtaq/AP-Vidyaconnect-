@@ -58,6 +58,13 @@ export function isProposalForInstitution(
     }
   }
 
+  // 5. User email direct match against institution official email
+  if (user?.email && proposal.institution?.official_email) {
+    if (user.email.toLowerCase().trim() === proposal.institution.official_email.toLowerCase().trim()) {
+      return true;
+    }
+  }
+
   return false;
 }
 
@@ -106,6 +113,22 @@ export function isProposalForCompany(
       if (n1 === n2 || n1.includes(n2) || n2.includes(n1)) {
         return true;
       }
+    }
+  }
+
+  // 4. User email direct match against company official email
+  if (user?.email && proposal.company?.official_email) {
+    if (user.email.toLowerCase().trim() === proposal.company.official_email.toLowerCase().trim()) {
+      return true;
+    }
+  }
+
+  // 5. User full name match against authorized person name
+  if (user?.full_name && proposal.company?.authorized_person_name) {
+    const fn1 = user.full_name.toLowerCase().trim();
+    const fn2 = proposal.company.authorized_person_name.toLowerCase().trim();
+    if (fn1 === fn2 || fn1.includes(fn2) || fn2.includes(fn1)) {
+      return true;
     }
   }
 

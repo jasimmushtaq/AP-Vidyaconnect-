@@ -1271,7 +1271,7 @@ class CloudSyncService {
           // Ignore if table RLS requires migration
         }
 
-        // Pass 4: Authoritative proposal resolution by ID and Code
+        // Pass 4: Authoritative proposal resolution by Code and ID
         const statusWeights: Record<string, number> = {
           'draft': 1,
           'submitted': 2,
@@ -1284,15 +1284,46 @@ class CloudSyncService {
           'rejected': 7,
         };
 
-        const resolvedProposalMap = new Map<string, any>();
+        const resolvedProposals: any[] = [];
         for (const cand of candidateProposals) {
-          const key = cand.id || cand.proposal_code;
-          if (!key) continue;
+          if (!cand) continue;
+          const candId = cand.id;
+          const candCode = cand.proposal_code;
+          if (!candId && !candCode) continue;
 
-          const existing = resolvedProposalMap.get(key);
-          if (!existing) {
-            resolvedProposalMap.set(key, { ...cand });
+          // Find if already present in resolvedProposals
+          const existingIdx = resolvedProposals.findIndex(p =>
+            (candId && (p.id === candId || p.canonical_id === candId || p.original_id === candId)) ||
+            (candCode && p.proposal_code === candCode) ||
+            (cand.canonical_id && (p.id === cand.canonical_id || p.canonical_id === cand.canonical_id)) ||
+            (cand.original_id && (p.id === cand.original_id || p.original_id === cand.original_id))
+          );
+
+          if (existingIdx === -1) {
+            resolvedProposals.push({ ...cand });
           } else {
+            const existing = resolvedProposals[existingIdx];
+
+            // ID Preservation: Always preserve the frontend 'prop-...' identifier
+            const existingIsProp = existing.id && existing.id.startsWith('prop-');
+            const candIsProp = cand.id && cand.id.startsWith('prop-');
+
+            let bestId = existing.id;
+            let canonicalId = existing.canonical_id || cand.canonical_id;
+            let originalId = existing.original_id || cand.original_id;
+
+            if (candIsProp && !existingIsProp) {
+              bestId = cand.id;
+              canonicalId = existing.id;
+              originalId = cand.id;
+            } else if (existingIsProp && !candIsProp) {
+              bestId = existing.id;
+              canonicalId = cand.id;
+              originalId = existing.id;
+            } else if (!bestId && cand.id) {
+              bestId = cand.id;
+            }
+
             const candVer = cand.version || 1;
             const exVer = existing.version || 1;
             const candWeight = statusWeights[cand.status] || 0;
@@ -1310,21 +1341,42 @@ class CloudSyncService {
               }
             }
 
-            if (candVer > exVer || (candVer === exVer && (candWeight > exWeight || (candWeight === exWeight && candTime >= exTime)))) {
-              resolvedProposalMap.set(key, {
-                ...existing,
-                ...cand,
-                versions: mergedVersions
-              });
-            } else {
-              existing.versions = mergedVersions;
-            }
+            // CRITICAL: Preserve rich documents (students, company, institution) from being erased by scalar canonical table rows
+            const mergedStudents = (Array.isArray(cand.students) && cand.students.length > 0)
+              ? cand.students
+              : (existing.students || []);
+            const mergedCompany = cand.company || existing.company;
+            const mergedInstitution = cand.institution || existing.institution;
+
+            const candIsNewer = candVer > exVer || (candVer === exVer && (candWeight > exWeight || (candWeight === exWeight && candTime >= exTime)));
+            const baseObj = candIsNewer ? existing : cand;
+            const topObj = candIsNewer ? cand : existing;
+
+            resolvedProposals[existingIdx] = {
+              ...baseObj,
+              ...topObj,
+              id: bestId,
+              canonical_id: canonicalId,
+              original_id: originalId || bestId,
+              proposal_code: cand.proposal_code || existing.proposal_code,
+              students: mergedStudents,
+              company: mergedCompany,
+              institution: mergedInstitution,
+              versions: mergedVersions
+            };
           }
         }
 
         // Apply consolidated authoritative proposals to dbStore
-        for (const [_, resolved] of resolvedProposalMap.entries()) {
-          const idx = db.proposals.findIndex(p => p.id === resolved.id || p.proposal_code === resolved.proposal_code);
+        for (const resolved of resolvedProposals) {
+          const idx = db.proposals.findIndex(p =>
+            p.id === resolved.id ||
+            p.proposal_code === resolved.proposal_code ||
+            (resolved.canonical_id && (p.id === resolved.canonical_id || p.canonical_id === resolved.canonical_id)) ||
+            (resolved.original_id && (p.id === resolved.original_id || p.original_id === resolved.original_id)) ||
+            (p.canonical_id && p.canonical_id === resolved.id)
+          );
+
           if (idx >= 0) {
             const current = db.proposals[idx];
             const currentWeight = statusWeights[current.status] || 0;
@@ -1332,12 +1384,37 @@ class CloudSyncService {
             const resolvedTime = new Date(resolved.updated_at || resolved.created_at || 0).getTime();
             const currentTime = new Date(current.updated_at || current.created_at || 0).getTime();
 
+            // Preserve best ID
+            const currentIsProp = current.id && current.id.startsWith('prop-');
+            const resolvedIsProp = resolved.id && resolved.id.startsWith('prop-');
+            const preservedId = currentIsProp ? current.id : (resolvedIsProp ? resolved.id : (current.id || resolved.id));
+            const canonicalId = resolved.canonical_id || current.canonical_id || (!currentIsProp ? current.id : (!resolvedIsProp ? resolved.id : undefined));
+            const originalId = current.original_id || resolved.original_id || (currentIsProp ? current.id : resolved.id);
+
+            const mergedStudents = (Array.isArray(resolved.students) && resolved.students.length > 0)
+              ? resolved.students
+              : (current.students || []);
+
             if ((resolved.version || 1) >= (current.version || 1) || resolvedWeight > currentWeight || resolvedTime >= currentTime) {
               db.proposals[idx] = {
-                ...db.proposals[idx],
-                ...resolved
+                ...current,
+                ...resolved,
+                id: preservedId,
+                canonical_id: canonicalId,
+                original_id: originalId,
+                students: mergedStudents,
+                company: resolved.company || current.company,
+                institution: resolved.institution || current.institution
               };
               anyChanged = true;
+            } else {
+              // Ensure IDs and students are kept consistent even if current had a higher status weight
+              db.proposals[idx].canonical_id = canonicalId;
+              db.proposals[idx].original_id = originalId;
+              if ((!db.proposals[idx].students || db.proposals[idx].students?.length === 0) && mergedStudents.length > 0) {
+                db.proposals[idx].students = mergedStudents;
+                anyChanged = true;
+              }
             }
           } else {
             db.proposals.unshift(resolved);

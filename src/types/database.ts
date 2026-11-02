@@ -297,6 +297,8 @@ export interface InternshipProposal {
   additional_terms?: string;
   status: ProposalStatus;
   version: number;
+  canonical_id?: string;
+  original_id?: string;
   students?: ProposalStudent[];
   versions?: ProposalVersion[];
   created_at: string;

@@ -1203,8 +1203,26 @@ class DatabaseStore {
 
   // --- STATE MACHINE RPCs ---
 
+  findProposal(idOrCode?: string): InternshipProposal | undefined {
+    if (!idOrCode) return undefined;
+    const clean = decodeURIComponent(idOrCode).trim();
+    const lower = clean.toLowerCase();
+    return this.proposals.find(p =>
+      p.id === clean ||
+      p.proposal_code === clean ||
+      p.canonical_id === clean ||
+      p.original_id === clean ||
+      p.id?.toLowerCase() === lower ||
+      p.proposal_code?.toLowerCase() === lower ||
+      p.canonical_id?.toLowerCase() === lower ||
+      p.original_id?.toLowerCase() === lower ||
+      (clean.startsWith('prop-') && p.id?.includes(clean.replace('prop-', ''))) ||
+      (p.id?.startsWith('prop-') && clean.includes(p.id.replace('prop-', '')))
+    );
+  }
+
   submitProposal(proposalId: string, actor: Profile) {
-    const proposal = this.proposals.find(p => p.id === proposalId);
+    const proposal = this.findProposal(proposalId);
     if (!proposal) throw new Error('Proposal not found');
     if (proposal.status !== 'draft' && proposal.status !== 'modification_requested') {
       throw new Error(`Cannot submit proposal from status ${proposal.status}`);
@@ -1241,7 +1259,7 @@ class DatabaseStore {
   }
 
   startCompanyReview(proposalId: string, actor: Profile) {
-    const proposal = this.proposals.find(p => p.id === proposalId);
+    const proposal = this.findProposal(proposalId);
     if (!proposal) throw new Error('Proposal not found');
     
     const beforeStatus = proposal.status;
@@ -1265,7 +1283,7 @@ class DatabaseStore {
     },
     actor: Profile
   ): Promise<{ success: boolean; status: ProposalStatus }> {
-    const proposal = this.proposals.find(p => p.id === proposalId || p.proposal_code === proposalId);
+    const proposal = this.findProposal(proposalId);
     if (!proposal) throw new Error('Proposal not found');
 
     let newStatus: ProposalStatus;
@@ -1384,7 +1402,7 @@ class DatabaseStore {
   }
 
   async institutionFinalAccept(proposalId: string, actor: Profile): Promise<{ success: boolean; batch_id: string; batch_code: string }> {
-    const proposal = this.proposals.find(p => p.id === proposalId || p.proposal_code === proposalId);
+    const proposal = this.findProposal(proposalId);
     if (!proposal) throw new Error('Proposal not found');
 
     if (proposal.status !== 'company_accepted' && proposal.status !== 'company_accepted_with_changes') {
@@ -1527,7 +1545,7 @@ class DatabaseStore {
   }
 
   async institutionReject(proposalId: string, remarks: string, actor: Profile): Promise<{ success: boolean }> {
-    const proposal = this.proposals.find(p => p.id === proposalId || p.proposal_code === proposalId);
+    const proposal = this.findProposal(proposalId);
     if (!proposal) throw new Error('Proposal not found');
 
     const beforeStatus = proposal.status;

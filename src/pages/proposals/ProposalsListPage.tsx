@@ -84,13 +84,13 @@ export const ProposalsListPage: React.FC = () => {
 
   // Role Scoped Proposals with robust entity matching
   const scopedProposals = useMemo(() => {
-    if (currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
+    if (currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
       return proposals.filter(p =>
         isProposalForInstitution(p, instId, currentInstitution, currentUser) ||
         (!instId && !currentInstitution && p.institution_id === 'inst-001')
       );
     }
-    if (currentRole === 'company_admin') {
+    if (currentRole === 'company_admin' || currentRole === 'mentor') {
       return proposals.filter(p =>
         isProposalForCompany(p, compId, currentCompany, currentUser) ||
         (!compId && !currentCompany && p.company_id === 'comp-001')

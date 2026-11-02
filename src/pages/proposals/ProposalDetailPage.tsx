@@ -11,6 +11,7 @@ import { cloudSync } from '../../services/cloudSyncService';
 import { WorkflowTimeline } from '../../components/common/WorkflowTimeline';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { InternshipProposal, ProposalStudent } from '../../types/database';
+import { supabaseUrl, supabaseAnonKey } from '../../services/supabaseClient';
 import {
   School,
   Building2,
@@ -38,6 +39,7 @@ export const ProposalDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { currentRole, currentUser } = useAuth();
   const [proposal, setProposal] = useState<InternshipProposal | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Company response form state
   const [responseAction, setResponseAction] = useState<'accept' | 'accept_with_changes' | 'request_modification' | 'reject'>('accept_with_changes');
@@ -53,57 +55,233 @@ export const ProposalDetailPage: React.FC = () => {
   const [copiedCode, setCopiedCode] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Robust proposal lookup supporting IDs, canonical UUIDs, and proposal codes
+  const findMatchingProposal = (searchId?: string): InternshipProposal | null => {
+    if (!searchId) return null;
+    const clean = decodeURIComponent(searchId).trim();
+    const lower = clean.toLowerCase();
+
+    // 1. Check authoritative dbStore lookup
+    const found = db.findProposal(clean);
+    if (found) return found;
+
+    // 2. Fallback search across all proposals in memory
+    const match = db.proposals.find(p =>
+      p.id === clean ||
+      p.proposal_code === clean ||
+      p.canonical_id === clean ||
+      p.original_id === clean ||
+      p.id?.toLowerCase() === lower ||
+      p.proposal_code?.toLowerCase() === lower ||
+      p.canonical_id?.toLowerCase() === lower ||
+      p.original_id?.toLowerCase() === lower ||
+      (clean.startsWith('prop-') && p.id?.includes(clean.replace('prop-', ''))) ||
+      (p.id?.startsWith('prop-') && clean.includes(p.id.replace('prop-', '')))
+    );
+    return match || null;
+  };
+
   useEffect(() => {
-    // Immediately pull latest proposals from cloud
-    cloudSync.syncFromCloud().catch(console.error);
+    let isMounted = true;
+    let directFetchAttempted = false;
 
-    const load = () => {
-      const match = db.proposals.find(
-        p => p.id === id || 
-             p.proposal_code === id || 
-             p.id?.toLowerCase() === id?.toLowerCase() || 
-             p.proposal_code?.toLowerCase() === id?.toLowerCase()
-      );
+    const applyMatch = (match: InternshipProposal) => {
+      setProposal({ ...match });
+      setStipendOffered(match.stipend_requested || 15000);
+
+      if (match.students) {
+        const decs: { [key: string]: boolean } = {};
+        match.students.forEach(s => {
+          decs[s.student_id] = s.is_accepted_by_company !== false;
+        });
+        setStudentDecisions(decs);
+      }
+      setIsLoading(false);
+    };
+
+    const tryLoad = () => {
+      const match = findMatchingProposal(id);
       if (match) {
-        setProposal({ ...match });
-        setStipendOffered(match.stipend_requested || 15000);
+        applyMatch(match);
+        return true;
+      }
+      return false;
+    };
 
-        if (match.students) {
-          const decs: { [key: string]: boolean } = {};
-          match.students.forEach(s => {
-            decs[s.student_id] = s.is_accepted_by_company !== false;
-          });
-          setStudentDecisions(decs);
+    // 1. Immediate in-memory check
+    if (tryLoad()) return;
+
+    // 2. Trigger full cloud synchronization and re-evaluate
+    cloudSync.syncFromCloud().then(() => {
+      if (!isMounted) return;
+      if (tryLoad()) return;
+
+      // 3. If still not found after full cloud sync, perform direct targeted query
+      if (!directFetchAttempted) {
+        directFetchAttempted = true;
+        fetchDirectFromSupabase();
+      }
+    }).catch(err => {
+      console.warn('[ProposalDetail] Cloud sync attempt error:', err);
+      if (!directFetchAttempted) {
+        directFetchAttempted = true;
+        fetchDirectFromSupabase();
+      }
+    });
+
+    const fetchDirectFromSupabase = async () => {
+      if (!id || !isMounted) return;
+      const clean = decodeURIComponent(id).trim();
+
+      try {
+        // Query canonical table by id or code
+        const canUrl = `${supabaseUrl}/rest/v1/internship_proposals?or=(id.eq.${clean},proposal_code.eq.${clean})&select=*`;
+        const canRes = await fetch(canUrl, {
+          headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` }
+        });
+        let canonicalRow: any = null;
+        if (canRes.ok) {
+          const rows = await canRes.json();
+          if (rows.length > 0) canonicalRow = rows[0];
+        }
+
+        // Query institutions registry for PROP-* document rows
+        const instUrl = `${supabaseUrl}/rest/v1/institutions?code=like.PROP-*&select=*&order=created_at.desc&limit=50`;
+        const instRes = await fetch(instUrl, {
+          headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` }
+        });
+        let richProposal: any = null;
+        if (instRes.ok) {
+          const instRows = await instRes.json();
+          for (const row of instRows) {
+            const docP = row.documents?.[0]?.proposal;
+            const docId = docP?.id || row.documents?.[0]?.proposal_id;
+            const docCode = docP?.proposal_code || row.documents?.[0]?.proposal_code;
+
+            if (
+              (docId && (docId === clean || docId.toLowerCase() === clean.toLowerCase())) ||
+              (docCode && (docCode === clean || docCode.toLowerCase() === clean.toLowerCase())) ||
+              (canonicalRow?.proposal_code && docCode === canonicalRow.proposal_code) ||
+              (row.code && row.code.includes(clean.replace('prop-', '')))
+            ) {
+              richProposal = docP;
+              break;
+            }
+          }
+        }
+
+        if (richProposal || canonicalRow) {
+          const resolvedP: InternshipProposal = {
+            ...(richProposal || {}),
+            ...(canonicalRow || {}),
+            id: clean.startsWith('prop-') ? clean : (richProposal?.id || canonicalRow?.id || clean),
+            canonical_id: canonicalRow?.id || richProposal?.canonical_id,
+            original_id: clean.startsWith('prop-') ? clean : (richProposal?.id || clean),
+            proposal_code: richProposal?.proposal_code || canonicalRow?.proposal_code || clean,
+            students: richProposal?.students || canonicalRow?.students || [],
+            company: richProposal?.company || db.companies.find(c => c.id === (canonicalRow?.company_id || richProposal?.company_id)),
+            institution: richProposal?.institution || db.institutions.find(i => i.id === (canonicalRow?.institution_id || richProposal?.institution_id)),
+            versions: richProposal?.versions || []
+          };
+
+          // Cache into db.proposals so all future queries and state machine calls succeed
+          const existingIdx = db.proposals.findIndex(p => p.id === resolvedP.id || p.proposal_code === resolvedP.proposal_code);
+          if (existingIdx >= 0) {
+            db.proposals[existingIdx] = { ...db.proposals[existingIdx], ...resolvedP };
+          } else {
+            db.proposals.unshift(resolvedP);
+          }
+          db.persist('proposals');
+          db.notify();
+
+          if (isMounted) {
+            applyMatch(resolvedP);
+          }
+          return;
+        }
+      } catch (e) {
+        console.error('[ProposalDetail] Direct targeted fetch failed:', e);
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
         }
       }
     };
-    load();
-    // In case local storage doesn't have it yet, sync and retry
-    cloudSync.syncFromCloud().then(() => load()).catch(console.error);
 
-    const unsub = db.subscribe(load);
-
-    const handleSync = () => load();
+    const unsub = db.subscribe(tryLoad);
+    const handleSync = () => tryLoad();
     window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
     window.addEventListener('vidyaconnect:proposal_updated', handleSync);
 
+    // Timeout safety fallback
+    const timeoutTimer = setTimeout(() => {
+      if (isMounted) setIsLoading(false);
+    }, 4000);
+
     return () => {
+      isMounted = false;
+      clearTimeout(timeoutTimer);
       unsub();
       window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
       window.removeEventListener('vidyaconnect:proposal_updated', handleSync);
     };
   }, [id]);
 
+  if (isLoading) {
+    return (
+      <div className="bg-white rounded-2xl border border-[#E3E6EB] p-16 text-center space-y-4 shadow-sm max-w-xl mx-auto my-12 animate-in fade-in">
+        <div className="w-12 h-12 border-3 border-[#0E2350] border-t-[#F07421] rounded-full animate-spin mx-auto" />
+        <div className="space-y-1">
+          <h3 className="text-base font-bold text-[#0E2350]">Loading Proposal Dossier</h3>
+          <p className="text-xs text-gray-500">
+            Verifying state credentials and retrieving authoritative proposal details from the Andhra Pradesh central registry...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   if (!proposal) {
     return (
-      <div className="bg-white rounded-xl border border-[#E3E6EB] p-12 text-center text-gray-500 text-xs">
-        Proposal not found.
+      <div className="bg-white rounded-2xl border border-[#E3E6EB] p-12 text-center max-w-xl mx-auto my-12 space-y-4 shadow-sm animate-in fade-in">
+        <div className="w-12 h-12 rounded-full bg-rose-50 text-rose-600 flex items-center justify-center mx-auto">
+          <AlertCircle className="w-6 h-6" />
+        </div>
+        <div className="space-y-1">
+          <h3 className="text-base font-extrabold text-[#0E2350]">Proposal Dossier Not Found</h3>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            The requested proposal <code className="bg-slate-100 px-2 py-0.5 rounded text-slate-800 font-mono text-[11px]">{id}</code> could not be located in local memory or the central state registry.
+          </p>
+        </div>
+        <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+          <button
+            onClick={() => {
+              setIsLoading(true);
+              cloudSync.syncFromCloud().then(() => {
+                const match = findMatchingProposal(id);
+                if (match) {
+                  setProposal({ ...match });
+                }
+                setIsLoading(false);
+              });
+            }}
+            className="px-4 py-2 bg-[#0E2350] hover:bg-[#15346F] text-white text-xs font-bold rounded-xl transition-all shadow-sm flex items-center gap-2"
+          >
+            <span>Refresh State Registry</span>
+          </button>
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all"
+          >
+            Return to Dashboard
+          </button>
+        </div>
       </div>
     );
   }
 
   // Check state machine permissions (strictly bilateral between college & company)
-  const isInstitution = currentRole === 'institution_admin' || currentRole === 'faculty_coordinator';
+  const isInstitution = currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator';
   const isCompany = currentRole === 'company_admin' || currentRole === 'mentor';
   const isSuperAdmin = currentRole === 'super_admin';
 

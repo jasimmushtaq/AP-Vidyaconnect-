@@ -98,16 +98,18 @@ export const ProposalBuilderPage: React.FC = () => {
     const instId = verifiedInstId;
     const proposalCode = `PROP-2027-${effectiveInstitution?.code || 'INST'}-${selectedCompany?.name.slice(0, 3).toUpperCase() || 'CMP'}-${Math.floor(100 + Math.random() * 900)}`;
 
+    const proposalId = `prop-${Date.now()}`;
     const proposalStudents = selectedStudentIds.map((sid, idx) => ({
       id: `ps-${Date.now()}-${idx}`,
-      proposal_id: `prop-${Date.now()}`,
+      proposal_id: proposalId,
       student_id: sid,
       student: db.students.find(s => s.id === sid && s.institution_id === instId),
       is_accepted_by_company: null
     }));
 
     const newProposal: InternshipProposal = {
-      id: `prop-${Date.now()}`,
+      id: proposalId,
+      original_id: proposalId,
       proposal_code: proposalCode,
       institution_id: instId,
       institution: effectiveInstitution,
@@ -129,7 +131,7 @@ export const ProposalBuilderPage: React.FC = () => {
       versions: [
         {
           id: `ver-${Date.now()}`,
-          proposal_id: `prop-${Date.now()}`,
+          proposal_id: proposalId,
           version_number: 1,
           snapshot: { domain, stipendRequested, durationWeeks, studentCount: selectedStudentIds.length },
           changed_by_name: currentUser?.full_name || 'Faculty Coordinator',
