@@ -45,6 +45,7 @@ export const LoginPage: React.FC = () => {
             case 'mentor':
               navigate('/company/dashboard', { replace: true });
               break;
+            case 'college_admin':
             case 'institution_admin':
             case 'faculty_coordinator':
               navigate('/institution/dashboard', { replace: true });

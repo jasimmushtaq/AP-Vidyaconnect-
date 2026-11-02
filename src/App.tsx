@@ -163,7 +163,7 @@ export function App() {
                 {/* Explicit Role Dashboard Routes (Protected) */}
                 <Route path="/admin/dashboard" element={<RoleGuard allowedRoles={['super_admin']}><SuperAdminDashboard /></RoleGuard>} />
                 <Route path="/company/dashboard" element={<RoleGuard allowedRoles={['company_admin', 'mentor', 'super_admin']}><CompanyDashboard /></RoleGuard>} />
-                <Route path="/institution/dashboard" element={<RoleGuard allowedRoles={['institution_admin', 'faculty_coordinator', 'super_admin']}><InstitutionDashboard /></RoleGuard>} />
+                <Route path="/institution/dashboard" element={<RoleGuard allowedRoles={['college_admin', 'institution_admin', 'faculty_coordinator', 'super_admin']}><InstitutionDashboard /></RoleGuard>} />
                 <Route path="/student/dashboard" element={<RoleGuard allowedRoles={['student', 'super_admin']}><StudentDashboard /></RoleGuard>} />
 
                 {/* General Profile & Settings */}
@@ -183,19 +183,19 @@ export function App() {
 
                 {/* MoUs & Inbound Proposals (Accessible to Institutional and Corporate Admins) */}
                 <Route path="/mous" element={<MoUListPage />} />
-                <Route path="/mous/new" element={<RoleGuard allowedRoles={['institution_admin', 'company_admin', 'super_admin']}><CreateMoUPage /></RoleGuard>} />
+                <Route path="/mous/new" element={<RoleGuard allowedRoles={['college_admin', 'institution_admin', 'company_admin', 'super_admin']}><CreateMoUPage /></RoleGuard>} />
                 <Route path="/mous/:id" element={<MoUDetailPage />} />
                 <Route path="/company/mous" element={<Navigate to="/mous" replace />} />
                 <Route path="/institution/mous" element={<Navigate to="/mous" replace />} />
                 <Route path="/proposals" element={<ProposalsListPage />} />
-                <Route path="/proposals/decisions" element={<RoleGuard allowedRoles={['institution_admin', 'company_admin', 'super_admin']}><ProposalDecisionsPage /></RoleGuard>} />
-                <Route path="/proposals/new" element={<RoleGuard allowedRoles={['institution_admin', 'super_admin']}><ProposalBuilderPage /></RoleGuard>} />
+                <Route path="/proposals/decisions" element={<RoleGuard allowedRoles={['college_admin', 'institution_admin', 'company_admin', 'super_admin']}><ProposalDecisionsPage /></RoleGuard>} />
+                <Route path="/proposals/new" element={<RoleGuard allowedRoles={['college_admin', 'institution_admin', 'super_admin']}><ProposalBuilderPage /></RoleGuard>} />
                 <Route path="/proposals/:id" element={<ProposalDetailPage />} />
                 <Route path="/batches" element={<BatchesListPage />} />
                 <Route path="/batches/:id" element={<BatchDetailPage />} />
 
                 {/* Institution Student Management */}
-                <Route path="/students" element={<RoleGuard allowedRoles={['institution_admin', 'faculty_coordinator', 'super_admin']}><StudentManagementPage /></RoleGuard>} />
+                <Route path="/students" element={<RoleGuard allowedRoles={['college_admin', 'institution_admin', 'faculty_coordinator', 'super_admin']}><StudentManagementPage /></RoleGuard>} />
                 <Route path="/attendance" element={<AttendancePage />} />
                 <Route path="/tasks" element={<Navigate to="/dashboard" replace />} />
                 <Route path="/evaluations" element={<EvaluationsPage />} />

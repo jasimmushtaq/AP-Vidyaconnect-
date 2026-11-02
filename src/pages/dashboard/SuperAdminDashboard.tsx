@@ -45,13 +45,13 @@ import {
 } from 'recharts';
 
 const DISTRICT_DATA = [
-  { district: 'Hyderabad', colleges: 48, interns: 6800 },
-  { district: 'Rangareddy', colleges: 32, interns: 4200 },
-  { district: 'Medchal', colleges: 28, interns: 3600 },
-  { district: 'Warangal', colleges: 22, interns: 2400 },
-  { district: 'Karimnagar', colleges: 18, interns: 1900 },
-  { district: 'Nizamabad', colleges: 15, interns: 1400 },
-  { district: 'Khammam', colleges: 14, interns: 1200 },
+  { district: 'Visakhapatnam', colleges: 48, interns: 6800 },
+  { district: 'NTR (Vijayawada)', colleges: 38, interns: 5200 },
+  { district: 'Guntur', colleges: 32, interns: 4200 },
+  { district: 'Tirupati', colleges: 28, interns: 3600 },
+  { district: 'Kurnool', colleges: 22, interns: 2400 },
+  { district: 'Kakinada', colleges: 18, interns: 1900 },
+  { district: 'Anantapur', colleges: 15, interns: 1400 },
 ];
 
 const SECTOR_DATA = [

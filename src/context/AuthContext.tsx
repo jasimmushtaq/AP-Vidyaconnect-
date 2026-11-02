@@ -284,7 +284,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // Check if the organization was explicitly rejected by State Super Admin
-    if (match.role === 'institution_admin' || match.role === 'faculty_coordinator') {
+    if (match.role === 'college_admin' || match.role === 'institution_admin' || match.role === 'faculty_coordinator') {
       const inst = db.institutions.find(i => i.id === match?.institution_id);
       if (inst && inst.verification_status === 'rejected') {
         return {
@@ -553,8 +553,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const switchRole = (role: UserRole) => {
-    const targetRole = (role as string) === 'mentor' ? 'company_admin' : role;
-    const userForRole = db.profiles.find(p => p.role === targetRole);
+    const targetRole = (role as string) === 'mentor' ? 'company_admin' : (role as string) === 'college_admin' ? 'institution_admin' : role;
+    const userForRole = db.profiles.find(p => p.role === targetRole || (role === 'college_admin' && (p.role === 'college_admin' || p.role === 'institution_admin')));
     if (userForRole) {
       setCurrentUser(userForRole);
       localStorage.setItem('kd_active_user_id', userForRole.id);
@@ -615,7 +615,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const currentRole: UserRole | null = isAuthenticated ? currentUser.role : null;
   const currentInstitution = currentUser.institution_id
     ? db.institutions.find(i => i.id === currentUser.institution_id) || db.institutions.find(i => i.official_email?.toLowerCase() === currentUser.email?.toLowerCase())
-    : (currentUser.role === 'institution_admin' || currentUser.role === 'faculty_coordinator')
+    : (currentUser.role === 'college_admin' || currentUser.role === 'institution_admin' || currentUser.role === 'faculty_coordinator')
     ? db.institutions.find(i => i.official_email?.toLowerCase() === currentUser.email?.toLowerCase()) || db.institutions[0]
     : undefined;
 

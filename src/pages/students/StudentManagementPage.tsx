@@ -167,7 +167,7 @@ export const StudentManagementPage: React.FC = () => {
       currentUser || undefined
     );
 
-    cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId), db.passwords);
+    cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId));
     setShowAddModal(false);
     setToastMsg(`Added student ${created.full_name} (${created.roll_number}) with Portal Login credentials!`);
     setTimeout(() => setToastMsg(null), 4000);
@@ -261,7 +261,7 @@ export const StudentManagementPage: React.FC = () => {
     );
     const myInstId = currentInstitution?.id || currentUser?.institution_id || selectedStudentForCreds.institution_id;
     if (myInstId) {
-      cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId), db.passwords);
+      cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId));
     }
     setShowSingleCredModal(false);
     setToastMsg(`Generated & activated portal credentials for ${res.student.full_name} (${res.email})!`);
@@ -281,7 +281,7 @@ export const StudentManagementPage: React.FC = () => {
       return;
     }
     const result = db.generateAllStudentsCredentials(myInstId, currentUser || undefined);
-    cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId), db.passwords);
+    cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId));
     setGeneratedBatchCreds(result.credentials);
     setShowBatchCredsModal(true);
     setToastMsg(`Generated email and password credentials for ${result.count} students!`);
@@ -349,7 +349,7 @@ export const StudentManagementPage: React.FC = () => {
     const myInstId = currentInstitution?.id || currentUser?.institution_id || '';
     db.bulkImportStudents(myInstId, previewRows, currentUser || undefined);
     if (myInstId) {
-      cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId), db.passwords);
+      cloudSync.syncStudentsToCloud(myInstId, db.students.filter(s => s.institution_id === myInstId));
     }
     setToastMsg(`Successfully imported ${previewRows.length} students into college database with auto-generated login passwords!`);
     setTimeout(() => setToastMsg(null), 4000);

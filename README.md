@@ -827,6 +827,45 @@ disha/
 
 ---
 
+## 🛡️ Security Risks and Future Enhancements
+
+> [!WARNING]
+> **Pending Security Hardening Disclosure (Pre-Production Academic Evaluation)**  
+> The current academic demonstration milestone of AP VidyaConnect utilizes a client-side state store and mock authentication layer for agile evaluation and UI showcase purposes. The following known security limitations have been identified and formally documented for Phase 2B production hardening.
+
+### 1. Client-Side Authentication Limitations
+- **Current State:** Active user sessions and role assignments are resolved and maintained via client-side React state and local storage keys (`kd_active_user_id`).
+- **Risk:** Client-side role resolution does not provide cryptographic tamper-proofing against local inspection or client-side modification in browser developer tools.
+- **Future Enhancement:** Full migration to native **Supabase Auth JWT sessions** (`supabase.auth.signInWithPassword`), where identity tokens are cryptographically signed using asymmetric ECDSA/HMAC and validated on every backend request.
+
+### 2. Browser LocalStorage Credential Storage Risks
+- **Current State:** Legacy demonstration user accounts and initial temporary passwords were saved into browser `localStorage` structures (`ap_vidyaconnect_v3_passwords`, `kd_auth_users`).
+- **Risk:** Sensitive authentication credentials stored unencrypted in browser local storage are susceptible to local workstation extraction or cross-site scripting (XSS) compromise.
+- **Future Enhancement:** Removal of all client-side password dictionaries. Transition to HttpOnly, secure, SameSite session cookies and PKCE OAuth flows managed by Supabase Auth.
+
+### 3. Historical Cloud Credential Exposure Containment
+- **Current State:** Prior synchronization routines in earlier development stages serialized student roster records into `public.institutions.documents` under synchronization journal rows.
+- **Risk:** Aggregated JSON columns could expose student contact metadata and historical temporary credentials if table-level read access is granted.
+- **Future Enhancement:** Execution of the **Phase 2B.0.1 Emergency Containment Plan**, which scrubs legacy JSON documents (`documents = '[]'::jsonb`), quarantines sync rows (`code LIKE 'SYNC-%'`), and deploys an isolated public directory view (`institution_directory`) that strictly excludes documents and financial details.
+
+### 4. Permissive Database Policies
+- **Current State:** Baseline development schema migrations (Migration 001) contained permissive policies (such as `institutions_insert_public` with `WITH CHECK (true)` and public select policies).
+- **Risk:** Unauthenticated anonymous API clients could potentially invoke PostgREST endpoints to insert or read database records without tenant validation.
+- **Future Enhancement:** Complete deployment of **Migration 007**, dropping all 19 permissive legacy policies across all tables and enforcing zero-trust, explicit role-based PostgreSQL RLS policies.
+
+### 5. Database-Level Multi-Tenant Isolation
+- **Current State:** Data segmentation between academic institutions and corporate enterprises is currently enforced primarily through client-side query filters (`.filter(s => s.institution_id === myInstId)`).
+- **Risk:** Client-side filtering ensures UI isolation, but does not prevent direct REST API access to records belonging to other institutions if PostgreSQL RLS policies are permissive.
+- **Future Enhancement:** Enforcement of PostgreSQL row-level security predicates evaluating `auth.uid()` against verified institutional and corporate tenant foreign keys (`profiles.institution_id = institutions.id`), ensuring absolute cryptographic multi-tenant isolation at the database engine level.
+
+### 6. Planned Supabase Auth and Zero-Trust RLS Implementation Roadmap
+- **Step 1:** Provision an isolated Supabase Staging Environment separate from production.
+- **Step 2:** Deploy Migration 007 containing strict RLS policies, trigger-based immutability locks (`enforce_proposal_integrity()`, `protect_notification_immutability()`), and session-independent Asia/Kolkata attendance functions (`mark_student_self_attendance()`).
+- **Step 3:** Implement server-side student account claiming (`claim_student_account()`) via cryptographically hashed one-time activation tokens delivered to official student institutional emails.
+- **Step 4:** Enforce mandatory password rotation on all demo and pilot user accounts.
+
+---
+
 ## 📞 Support & Institutional Contact
 
 - **Operating Desk**: Andhra Pradesh Higher Education Nodal Desk

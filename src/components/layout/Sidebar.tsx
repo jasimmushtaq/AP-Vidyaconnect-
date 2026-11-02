@@ -53,6 +53,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
 
   const getNavLinks = () => {
     switch (currentRole) {
+      case 'college_admin':
       case 'institution_admin':
       case 'faculty_coordinator': {
         const instId = currentInstitution?.id || currentUser.institution_id;

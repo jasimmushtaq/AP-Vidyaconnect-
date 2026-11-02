@@ -4,11 +4,12 @@
 
 export type UserRole = 
   | 'super_admin'
-  | 'institution_admin'
-  | 'faculty_coordinator'
   | 'company_admin'
-  | 'mentor'
-  | 'student';
+  | 'college_admin'
+  | 'student'
+  | 'institution_admin'      // Legacy alias for college_admin
+  | 'faculty_coordinator'    // Legacy alias for college_admin
+  | 'mentor';                // Legacy alias for company_admin
 
 export type InstitutionType = 
   | 'govt_degree_college'

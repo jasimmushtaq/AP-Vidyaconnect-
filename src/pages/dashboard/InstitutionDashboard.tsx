@@ -119,15 +119,7 @@ export const InstitutionDashboard: React.FC = () => {
       isProposalForInstitution(p, instId, currentInstitution, currentUser) ||
       (!instId && !currentInstitution && p.institution_id === 'inst-001')
     );
-    // Fallback: If no proposals matched but user is logged in as an institution admin, check if proposals exist with status awaiting college action
-    if (matched.length === 0 && currentUser?.role === 'institution_admin') {
-      const anyActionable = proposals.filter(p =>
-        p.status === 'company_accepted_with_changes' ||
-        p.status === 'company_accepted' ||
-        p.status === 'modification_requested'
-      );
-      if (anyActionable.length > 0) return anyActionable;
-    }
+    // Phase 1 Security: Strict tenant isolation. Never fall back to other colleges' proposals.
     return matched;
   }, [proposals, instId, currentInstitution, currentUser]);
 

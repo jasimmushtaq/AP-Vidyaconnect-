@@ -18,7 +18,7 @@ export const AppLayout: React.FC = () => {
 
   // Check if current user is an institution or company pending verification
   const isInstitutionUnderReview =
-    (currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') &&
+    (currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') &&
     currentInstitution &&
     currentInstitution.verification_status !== 'verified';
 

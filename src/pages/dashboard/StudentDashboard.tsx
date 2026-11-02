@@ -31,7 +31,6 @@ import {
   Layers,
   Compass,
   Check,
-  RotateCcw,
   User,
   Upload
 } from 'lucide-react';
@@ -73,9 +72,10 @@ export const StudentDashboard: React.FC = () => {
 
   const studentEmail = currentStudent?.email?.toLowerCase() || currentUser.email.toLowerCase();
   const studentId = currentStudent?.id || 'stu-001';
+  // Phase 1 Security: Strict cohort assignment. Never assign an arbitrary cohort if the student is unassigned.
   const myBatch = batches.find(b =>
     b.students?.some(s => s.student_id === studentId || s.student?.email?.toLowerCase() === studentEmail)
-  ) || batches[0];
+  ) || null;
   const myBatchStudent = myBatch?.students?.find(
     s => s.student_id === studentId || s.student?.email?.toLowerCase() === studentEmail
   );
@@ -93,10 +93,6 @@ export const StudentDashboard: React.FC = () => {
   const attendancePercent = Math.round((presentCount / totalDays) * 100) || 100;
 
   const studentInstitution = db.institutions.find(i => i.id === currentStudent?.institution_id || i.id === myBatch?.institution_id) || db.institutions[0];
-
-  const handleResetToday = () => {
-    db.resetTodayAttendance(studentId, todayStr);
-  };
 
   const studentFullName = currentStudent?.full_name || currentUser.full_name || 'Rahul Sharma';
   const studentPhoto = (currentStudent?.photo_url && !currentStudent.photo_url.includes('1539571696357-5a69c17a67c6')) 
@@ -308,7 +304,12 @@ export const StudentDashboard: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
-            {!todayRecord ? (
+            {!myBatch ? (
+              <div className="w-full sm:w-auto px-4 py-3 bg-amber-50 border border-amber-200 rounded-xl text-xs text-amber-900 font-semibold flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>No active internship cohort assigned. Attendance check-in is unavailable until your institution assigns you to a cohort.</span>
+              </div>
+            ) : !todayRecord ? (
               <button
                 onClick={() => setShowSelfAttendanceModal(true)}
                 className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-[#F07421] via-orange-500 to-[#E05E09] hover:from-[#D96214] hover:to-[#C55005] text-white rounded-xl text-xs font-black shadow-lg hover:shadow-orange-500/25 transition-all flex items-center justify-center gap-2.5 transform active:scale-95"
@@ -324,18 +325,10 @@ export const StudentDashboard: React.FC = () => {
                 <button
                   onClick={() => setShowSelfAttendanceModal(true)}
                   className="px-4 py-2.5 bg-gradient-to-r from-[#F07421] to-orange-600 hover:from-[#D96214] hover:to-[#C55005] text-white rounded-xl text-xs font-black shadow-md transition-all flex items-center justify-center gap-2 transform active:scale-95"
-                  title="Re-open guided verification to test selfie and GPS again"
+                  title="Re-open guided verification to review selfie and GPS check-in"
                 >
                   <Camera className="w-3.5 h-3.5 text-white" />
-                  <span>Test Verification Again</span>
-                </button>
-                <button
-                  onClick={handleResetToday}
-                  className="px-3.5 py-2.5 bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 shadow-2xs"
-                  title="Clear today's record to reset check-in state back to Not Marked"
-                >
-                  <RotateCcw className="w-3.5 h-3.5 text-rose-600" />
-                  <span>Reset Today</span>
+                  <span>Review Check-In</span>
                 </button>
                 <Link
                   to="/attendance"
@@ -355,20 +348,21 @@ export const StudentDashboard: React.FC = () => {
           <div className="bg-slate-50/80 border border-slate-200/70 p-4 rounded-xl hover:border-blue-200 transition">
             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Internship Company</span>
             <p className="font-extrabold text-[#0E2350] mt-1 text-sm truncate">
-              {myBatch?.company?.name || 'PixelWind Technology Pvt Ltd'}
+              {myBatch?.company?.name || 'Not Assigned'}
             </p>
             <span className="text-xs text-slate-500 block truncate mt-0.5">
-              {myBatch?.title || 'Full-Stack Web Engineering'}
+              {myBatch?.title || 'Pending Cohort Placement'}
             </span>
           </div>
 
           <div className="bg-slate-50/80 border border-slate-200/70 p-4 rounded-xl hover:border-blue-200 transition">
             <span className="text-[10px] text-slate-400 uppercase font-bold tracking-wider block">Internship Batch</span>
             <p className="font-mono font-bold text-[#0E2350] mt-1 text-sm">
-              {myBatch?.batch_code || 'KD-2026-PIX-GDCNL-036'}
+              {myBatch?.batch_code || 'UNASSIGNED'}
             </p>
-            <span className="inline-flex items-center gap-1 text-xs text-emerald-700 font-semibold mt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Status: Active Batch
+            <span className="inline-flex items-center gap-1 text-xs text-slate-500 font-semibold mt-0.5">
+              <span className={`w-1.5 h-1.5 rounded-full ${myBatch ? 'bg-emerald-500' : 'bg-slate-400'}`}></span>
+              Status: {myBatch ? 'Active Batch' : 'No Active Cohort'}
             </span>
           </div>
 
@@ -596,9 +590,9 @@ export const StudentDashboard: React.FC = () => {
       </div>
 
       {/* Student Self Attendance Guided Verification Modal */}
-      {showSelfAttendanceModal && (
+      {showSelfAttendanceModal && myBatch && (
         <StudentSelfAttendanceModal
-          batch={myBatch || batches[0] || db.batches[0]}
+          batch={myBatch}
           studentId={studentId}
           studentUser={currentUser}
           onClose={() => setShowSelfAttendanceModal(false)}

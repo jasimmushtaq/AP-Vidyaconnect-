@@ -57,7 +57,7 @@ export const AttendancePage: React.FC = () => {
           (myCompId && b.company_id === myCompId)
       );
     }
-    if (currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
+    if (currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
       if (!myInstId) return [];
       return db.batches.filter(b => b.institution_id === myInstId);
     }
@@ -95,7 +95,7 @@ export const AttendancePage: React.FC = () => {
   // ONLY students can add / mark attendance (using GPS Geofencing & Selfie verification).
   // Company Admin, Industry Mentor, Faculty Coordinator, and Institution Admin have VIEW ONLY and DOWNLOAD ONLY access.
   const isCompany = currentRole === 'company_admin' || isMentor;
-  const isFaculty = currentRole === 'faculty_coordinator' || currentRole === 'institution_admin';
+  const isFaculty = currentRole === 'college_admin' || currentRole === 'faculty_coordinator' || currentRole === 'institution_admin';
   const isSuperAdmin = currentRole === 'super_admin';
   const isStudent = currentRole === 'student';
   const canMarkOrUpload = false; // Strictly view-only for admins/companies — only students add attendance

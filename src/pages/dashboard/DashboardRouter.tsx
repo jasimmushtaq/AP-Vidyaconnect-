@@ -33,6 +33,7 @@ export const DashboardRouter: React.FC = () => {
 
   // 3. Strict role resolution - each role opens strictly their own dashboard
   switch (currentRole) {
+    case 'college_admin':
     case 'institution_admin':
     case 'faculty_coordinator':
       return <InstitutionDashboard />;

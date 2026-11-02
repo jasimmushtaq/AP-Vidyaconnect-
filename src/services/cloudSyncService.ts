@@ -305,22 +305,41 @@ class CloudSyncService {
   }
 
   private handleIncomingStudents(payload: { institution_id: string; students: Student[]; passwords?: Record<string, string> }) {
-    if (!payload?.students) return;
+    if (!payload?.students || !payload.institution_id) return;
+
+    // Multi-tenant check: Only accept roster updates if active session belongs to this institution or super_admin
+    const activeUserId = typeof window !== 'undefined' ? localStorage.getItem('kd_active_user_id') : null;
+    const activeUser = activeUserId ? db.profiles.find(p => p.id === activeUserId) : null;
+
+    const isAuthorized = activeUser && (
+      activeUser.role === 'super_admin' ||
+      activeUser.institution_id === payload.institution_id ||
+      (activeUser.role === 'student' && activeUser.institution_id === payload.institution_id)
+    );
+
+    if (!isAuthorized) {
+      // Reject cross-tenant student roster pollution
+      return;
+    }
+
     let changed = false;
     payload.students.forEach(s => {
-      const idx = db.students.findIndex(existing => existing.id === s.id || (s.email && existing.email?.toLowerCase() === s.email.toLowerCase()));
+      // Ensure student is strictly tagged with authorized institution_id
+      if (s.institution_id && s.institution_id !== payload.institution_id) return;
+
+      // Sanitize: strip plaintext temporary passwords
+      const { temp_password, ...sanitizedStudent } = s;
+
+      const idx = db.students.findIndex(existing => existing.id === sanitizedStudent.id || (sanitizedStudent.email && existing.email?.toLowerCase() === sanitizedStudent.email.toLowerCase()));
       if (idx >= 0) {
-        db.students[idx] = { ...db.students[idx], ...s };
+        db.students[idx] = { ...db.students[idx], ...sanitizedStudent };
       } else {
-        db.students.unshift(s);
+        db.students.unshift(sanitizedStudent as Student);
       }
       changed = true;
     });
 
-    if (payload.passwords) {
-      Object.assign(db.passwords, payload.passwords);
-      db.persist('passwords');
-    }
+    // Security: Do NOT ingest plaintext passwords from broadcast payloads
 
     if (changed) {
       db.persist('students');
@@ -971,11 +990,20 @@ class CloudSyncService {
     }
   }
 
-  public async syncStudentsToCloud(institutionId: string, students: Student[], passwords?: Record<string, string>): Promise<{ success: boolean; error?: string }> {
-    // 1. Broadcast immediately
-    this.broadcast('STUDENTS_UPDATED', { institution_id: institutionId, students, passwords });
+  public async syncStudentsToCloud(institutionId: string, students: Student[], _passwords?: Record<string, string>): Promise<{ success: boolean; error?: string }> {
+    // Phase 1 Security: Sanitize students to ensure NO plaintext passwords are sent or broadcast
+    const sanitizedStudents = (students || []).map(s => {
+      const { temp_password, ...sanitized } = s;
+      return {
+        ...sanitized,
+        institution_id: institutionId
+      };
+    });
 
-    // 2. Persist to shared Supabase PostgreSQL database
+    // 1. Broadcast sanitized roster to active tabs belonging to the same institution
+    this.broadcast('STUDENTS_UPDATED', { institution_id: institutionId, students: sanitizedStudents });
+
+    // 2. Persist to shared Supabase PostgreSQL database without plaintext passwords
     try {
       const syncRow = {
         code: `SYNC-STU-${institutionId}-${Date.now()}`,
@@ -994,8 +1022,7 @@ class CloudSyncService {
         documents: [{
           sync_type: 'STUDENT_RECORDS',
           institution_id: institutionId,
-          students,
-          passwords: passwords || {},
+          students: sanitizedStudents,
           timestamp: new Date().toISOString()
         }]
       };
@@ -1416,26 +1443,47 @@ class CloudSyncService {
             continue;
           }
 
-          // B. Handle Student Roster Sync Rows
+          // B. Handle Student Roster Sync Rows (Strict Multi-Tenant Scoping)
           if (cloudInst.code?.startsWith('SYNC-STU-')) {
             const syncDoc = Array.isArray(cloudInst.documents)
               ? cloudInst.documents.find((d: any) => d && d.sync_type === 'STUDENT_RECORDS')
               : null;
+
+            const targetInstId = syncDoc?.institution_id || cloudInst.code.replace('SYNC-STU-', '').split('-')[0];
+
+            // Multi-tenant check: Verify caller authorization before ingesting any student roster
+            const activeUserId = typeof window !== 'undefined' ? localStorage.getItem('kd_active_user_id') : null;
+            const activeUser = activeUserId ? db.profiles.find(p => p.id === activeUserId) : null;
+
+            const isAuthorized = activeUser && (
+              activeUser.role === 'super_admin' ||
+              activeUser.institution_id === targetInstId ||
+              (activeUser.role === 'student' && activeUser.institution_id === targetInstId)
+            );
+
+            if (!isAuthorized) {
+              // Strictly do NOT load another institution's student roster into local memory
+              continue;
+            }
+
             if (syncDoc?.students && Array.isArray(syncDoc.students)) {
               for (const stu of syncDoc.students) {
-                const idx = db.students.findIndex(s => s.id === stu.id || (stu.email && s.email?.toLowerCase() === stu.email.toLowerCase()));
+                // Ensure student is strictly assigned to authorized institution
+                if (stu.institution_id && stu.institution_id !== targetInstId) continue;
+
+                // Sanitize: never accept plaintext passwords from cloud storage
+                const { temp_password, ...sanitizedStu } = stu;
+
+                const idx = db.students.findIndex(s => s.id === sanitizedStu.id || (sanitizedStu.email && s.email?.toLowerCase() === sanitizedStu.email.toLowerCase()));
                 if (idx >= 0) {
-                  db.students[idx] = { ...db.students[idx], ...stu };
+                  db.students[idx] = { ...db.students[idx], ...sanitizedStu };
                 } else {
-                  db.students.unshift(stu);
+                  db.students.unshift(sanitizedStu as Student);
                 }
                 anyChanged = true;
               }
             }
-            if (syncDoc?.passwords) {
-              Object.assign(db.passwords, syncDoc.passwords);
-              anyChanged = true;
-            }
+            // SECURITY: Never import plaintext passwords from cloud sync rows
             continue;
           }
 

@@ -3,9 +3,10 @@
 // Multi-step Stepper for drafting and submitting verified proposals
 // ============================================================================
 
-import React, { useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useMemo } from 'react';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useModal } from '../../context/ModalContext';
 import { db } from '../../services/dbStore';
 import { cloudSync } from '../../services/cloudSyncService';
 import { InternshipProposal, Student, InternshipMode } from '../../types/database';
@@ -26,6 +27,7 @@ export const ProposalBuilderPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { currentInstitution, currentUser } = useAuth();
+  const { showAlert } = useModal();
   const [step, setStep] = useState(1);
 
   const queryCompanyId = searchParams.get('companyId');
@@ -41,12 +43,27 @@ export const ProposalBuilderPage: React.FC = () => {
   const [endDate, setEndDate] = useState('2026-08-31');
   const [stipendRequested, setStipendRequested] = useState(15000);
   const [objectives, setObjectives] = useState('Provide immersive industry exposure on modern production web applications, version control workflows, and cloud deployments.');
-  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([db.students[0]?.id, db.students[1]?.id]);
+  
+  // Phase 1 Security: Start with empty selection; do not pre-select arbitrary students
+  const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
   const [studentSearch, setStudentSearch] = useState('');
 
+  // Verified institution resolution
+  const effectiveInstitution =
+    currentInstitution ||
+    (currentUser?.institution_id ? db.institutions.find(i => i.id === currentUser.institution_id) : undefined) ||
+    (currentUser?.email ? db.institutions.find(i => i.official_email?.toLowerCase() === currentUser.email.toLowerCase()) : undefined);
+
+  const verifiedInstId = effectiveInstitution?.id || currentUser?.institution_id;
+
   const companies = db.companies.filter(c => c.verification_status === 'verified');
-  const students = db.students;
+
+  // Phase 1 Security: Candidates strictly scoped to the authenticated institution's roster
+  const verifiedStudents = useMemo(() => {
+    if (!verifiedInstId) return [];
+    return db.students.filter(s => s.institution_id === verifiedInstId);
+  }, [verifiedInstId, db.students]);
 
   const toggleStudent = (stuId: string) => {
     if (selectedStudentIds.includes(stuId)) {
@@ -57,21 +74,35 @@ export const ProposalBuilderPage: React.FC = () => {
   };
 
   const handleSubmitProposal = (asDraft: boolean) => {
-    const selectedCompany = db.companies.find(c => c.id === selectedCompanyId);
-    const effectiveInstitution =
-      currentInstitution ||
-      (currentUser?.institution_id ? db.institutions.find(i => i.id === currentUser.institution_id) : undefined) ||
-      db.institutions.find(i => i.official_email?.toLowerCase() === currentUser?.email?.toLowerCase()) ||
-      db.institutions[0];
+    if (!verifiedInstId) {
+      showAlert({
+        title: 'Institution Required',
+        subtitle: 'Authorization',
+        type: 'warning',
+        message: 'You must be authenticated as an authorized institution coordinator or administrator to create proposals.'
+      });
+      return;
+    }
 
-    const instId = effectiveInstitution?.id || currentUser?.institution_id || 'inst-001';
+    if (!asDraft && selectedStudentIds.length === 0) {
+      showAlert({
+        title: 'Nominate Candidates',
+        subtitle: 'Student Selection Required',
+        type: 'warning',
+        message: 'Please nominate at least one student from your college roster to submit this proposal to the partner company.'
+      });
+      return;
+    }
+
+    const selectedCompany = db.companies.find(c => c.id === selectedCompanyId);
+    const instId = verifiedInstId;
     const proposalCode = `PROP-2027-${effectiveInstitution?.code || 'INST'}-${selectedCompany?.name.slice(0, 3).toUpperCase() || 'CMP'}-${Math.floor(100 + Math.random() * 900)}`;
 
     const proposalStudents = selectedStudentIds.map((sid, idx) => ({
       id: `ps-${Date.now()}-${idx}`,
       proposal_id: `prop-${Date.now()}`,
       student_id: sid,
-      student: db.students.find(s => s.id === sid),
+      student: db.students.find(s => s.id === sid && s.institution_id === instId),
       is_accepted_by_company: null
     }));
 
@@ -407,44 +438,59 @@ export const ProposalBuilderPage: React.FC = () => {
             </div>
 
             <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-              {students
-                .filter(s => s.full_name.toLowerCase().includes(studentSearch.toLowerCase()) || s.roll_number.toLowerCase().includes(studentSearch.toLowerCase()))
-                .map((s) => {
-                  const isSelected = selectedStudentIds.includes(s.id);
-                  return (
-                    <div
-                      key={s.id}
-                      onClick={() => toggleStudent(s.id)}
-                      className={`p-3 rounded-lg border flex items-center justify-between gap-3 cursor-pointer transition-all ${
-                        isSelected ? 'border-[#0E2350] bg-[#EEF2FA]/50' : 'border-[#E3E6EB] hover:bg-gray-50 bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <input
-                          type="checkbox"
-                          checked={isSelected}
-                          onChange={() => {}}
-                          className="w-4 h-4 text-[#0E2350] rounded"
-                        />
-                        <div>
-                          <p className="text-xs font-bold text-gray-900">{s.full_name}</p>
-                          <p className="text-[10px] text-gray-500 font-mono">Roll: {s.roll_number} • CGPA: {s.cgpa}</p>
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {s.skills?.map((sk) => (
-                              <span key={sk} className="text-[9px] bg-white border border-gray-200 px-1.5 py-0.2 rounded text-gray-600">
-                                {sk}
-                              </span>
-                            ))}
+              {verifiedStudents.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                  <p className="text-xs font-bold text-slate-700">No students enrolled in this college cohort</p>
+                  <p className="text-[11px] text-slate-500">
+                    Only students belonging to your verified institution can be nominated for corporate proposals. Please import or add students in the Student Management directory first.
+                  </p>
+                  <Link
+                    to="/students"
+                    className="inline-block px-3.5 py-1.5 bg-[#0E2350] hover:bg-[#14336F] text-white rounded-lg text-xs font-bold mt-2 transition"
+                  >
+                    Go to Student Management
+                  </Link>
+                </div>
+              ) : (
+                verifiedStudents
+                  .filter(s => s.full_name.toLowerCase().includes(studentSearch.toLowerCase()) || s.roll_number.toLowerCase().includes(studentSearch.toLowerCase()))
+                  .map((s) => {
+                    const isSelected = selectedStudentIds.includes(s.id);
+                    return (
+                      <div
+                        key={s.id}
+                        onClick={() => toggleStudent(s.id)}
+                        className={`p-3 rounded-lg border flex items-center justify-between gap-3 cursor-pointer transition-all ${
+                          isSelected ? 'border-[#0E2350] bg-[#EEF2FA]/50' : 'border-[#E3E6EB] hover:bg-gray-50 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {}}
+                            className="w-4 h-4 text-[#0E2350] rounded"
+                          />
+                          <div>
+                            <p className="text-xs font-bold text-gray-900">{s.full_name}</p>
+                            <p className="text-[10px] text-gray-500 font-mono">Roll: {s.roll_number} • CGPA: {s.cgpa}</p>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {s.skills?.map((sk) => (
+                                <span key={sk} className="text-[9px] bg-white border border-gray-200 px-1.5 py-0.2 rounded text-gray-600">
+                                  {sk}
+                                </span>
+                              ))}
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      <span className="text-xs font-bold text-[#0E2350]">
-                        {isSelected ? 'Selected' : '+ Add'}
-                      </span>
-                    </div>
-                  );
-                })}
+                        <span className="text-xs font-bold text-[#0E2350]">
+                          {isSelected ? 'Selected' : '+ Add'}
+                        </span>
+                      </div>
+                    );
+                  })
+              )}
             </div>
 
             <div className="pt-4 flex justify-between">
