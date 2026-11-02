@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
 import { cloudSync } from '../../services/cloudSyncService';
@@ -89,9 +89,33 @@ export const AttendancePage: React.FC = () => {
     return db.batches.length > 0 ? [...db.batches] : [];
   };
 
+  const [searchParams] = useSearchParams();
+  const queryBatchId = searchParams.get('batch');
+  const queryDate = searchParams.get('date');
+  const queryStudentId = searchParams.get('student');
+
+  const todayIso = new Date().toISOString().split('T')[0];
+
+  const resolveInitialBatchId = (scoped: InternshipBatch[]) => {
+    if (queryBatchId) {
+      if (queryBatchId === 'all') return 'all';
+      const found = scoped.find(b => b.id === queryBatchId || b.batch_code === queryBatchId);
+      if (found) return found.id;
+    }
+    // Check if any batch in scope has attendance marked for today
+    const withTodayAttendance = scoped.find(b =>
+      db.attendance.some(a =>
+        (a.date === todayIso || a.attendance_date === todayIso) &&
+        (a.batch_id === b.id || a.internship_batch_id === b.id || (b.students || []).some(s => s.student_id === a.student_id))
+      )
+    );
+    if (withTodayAttendance) return withTodayAttendance.id;
+    return scoped[0]?.id || '';
+  };
+
   const [batches, setBatches] = useState<InternshipBatch[]>(() => getScopedBatches());
-  const [selectedBatchId, setSelectedBatchId] = useState<string>(() => getScopedBatches()[0]?.id || '');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedBatchId, setSelectedBatchId] = useState<string>(() => resolveInitialBatchId(getScopedBatches()));
+  const [selectedDate, setSelectedDate] = useState<string>(() => queryDate || todayIso);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>(db.attendance);
   const [activeTab, setActiveTab] = useState<'daily' | 'cumulative'>('daily');
   const [filterAtRiskOnly, setFilterAtRiskOnly] = useState(false);
@@ -118,15 +142,37 @@ export const AttendancePage: React.FC = () => {
   const canMarkOrUpload = false; // Strictly view-only for admins/companies — only students add attendance
   const canDownload = true; // All authorized roles can download Excel & CSV reports
 
-  const activeBatch = batches.find(b => b.id === selectedBatchId) || batches[0] || null;
+  const isAllBatches = selectedBatchId === 'all';
+  const activeBatch: InternshipBatch | null = isAllBatches
+    ? ({
+        id: 'all',
+        proposal_id: 'prop-all',
+        batch_code: 'ALL-COHORTS',
+        title: 'All Active Internship Cohorts',
+        domain: 'Statewide Enterprise & Academic Roster',
+        mode: 'onsite',
+        status: 'active',
+        stipend_amount: 15000,
+        working_hours: '9:30 AM - 5:30 PM',
+        location: 'Enterprise State Partner Sites',
+        start_date: '2026-01-01',
+        end_date: '2026-12-31',
+        institution_id: currentInstitution?.id || 'inst-all',
+        company_id: currentCompany?.id || 'comp-all',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+        students: batches.flatMap(b => b.students || [])
+      } as InternshipBatch)
+    : (batches.find(b => b.id === selectedBatchId) || batches[0] || null);
 
   const loadData = () => {
     db.syncFromStorage();
     const scoped = getScopedBatches();
     setBatches(scoped);
     setSelectedBatchId(prev => {
+      if (prev === 'all') return 'all';
       if (scoped.some(b => b.id === prev)) return prev;
-      return scoped[0]?.id || '';
+      return resolveInitialBatchId(scoped);
     });
     setAttendance([...db.attendance]);
   };
@@ -182,20 +228,62 @@ export const AttendancePage: React.FC = () => {
     setTimeout(() => setSaveSuccessMsg(null), 4000);
   };
 
+  // Auto open selfie modal if student query parameter is present in URL
+  useEffect(() => {
+    if (queryStudentId && attendance.length > 0) {
+      const match = attendance.find(a =>
+        a.student_id === queryStudentId &&
+        (a.date === selectedDate || a.attendance_date === selectedDate)
+      );
+      if (match && !selectedSelfieRecord) {
+        setSelectedSelfieRecord(match);
+      }
+    }
+  }, [queryStudentId, attendance, selectedDate]);
+
   // --- Calculate Cumulative Stats Per Student ---
-  const batchStudents = activeBatch?.students || [];
-  const batchAttendance = attendance.filter(a =>
-    a.batch_id === activeBatch?.id ||
-    a.internship_batch_id === activeBatch?.id ||
-    (activeBatch && a.student_id && activeBatch.students?.some(s => s.student_id === a.student_id))
-  );
+  const batchStudents = useMemo(() => {
+    if (isAllBatches) {
+      const stuMap = new Map();
+      batches.flatMap(b => b.students || []).forEach(bs => {
+        if (!stuMap.has(bs.student_id)) stuMap.set(bs.student_id, bs);
+      });
+      return Array.from(stuMap.values());
+    }
+    return activeBatch?.students || [];
+  }, [isAllBatches, activeBatch, batches]);
+
+  const batchAttendance = useMemo(() => {
+    return attendance.filter(a => {
+      if (isAllBatches) {
+        return (
+          batches.some(b =>
+            b.id === a.batch_id ||
+            b.batch_code === a.batch_id ||
+            (b.students || []).some(s => s.student_id === a.student_id)
+          ) ||
+          (myCompId && (a.company_id === myCompId || (a as any).company?.id === myCompId)) ||
+          (myInstId && a.institution_id === myInstId)
+        );
+      }
+      return (
+        a.batch_id === activeBatch?.id ||
+        a.internship_batch_id === activeBatch?.id ||
+        (activeBatch && a.student_id && activeBatch.students?.some(s => s.student_id === a.student_id))
+      );
+    });
+  }, [attendance, isAllBatches, activeBatch, batches, myCompId, myInstId]);
 
   // Unique recorded dates for this batch
-  const recordedDates = Array.from(new Set(batchAttendance.map(a => a.date))).sort();
+  const recordedDates = Array.from(new Set(batchAttendance.map(a => a.date || a.attendance_date))).filter(Boolean).sort();
 
   const studentStats = batchStudents.map(bs => {
     const stu = bs.student || db.students.find(s => s.id === bs.student_id);
-    const stuRecords = batchAttendance.filter(a => a.student_id === bs.student_id);
+    const stuRecords = batchAttendance.filter(a =>
+      a.student_id === bs.student_id ||
+      (stu?.id && a.student_id === stu.id) ||
+      (stu?.email && a.student?.email?.toLowerCase() === stu.email.toLowerCase())
+    );
     const totalRecorded = stuRecords.length;
     const presentCount = stuRecords.filter(a => a.status === 'present').length;
     const halfDayCount = stuRecords.filter(a => a.status === 'half_day').length;
@@ -897,9 +985,21 @@ export const AttendancePage: React.FC = () => {
               onChange={(e) => setSelectedBatchId(e.target.value)}
               className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-[#0E2350] focus:outline-none focus:ring-2 focus:ring-[#0E2350]"
             >
-              {batches.map(b => (
-                <option key={b.id} value={b.id}>{b.batch_code} — {b.domain}</option>
-              ))}
+              {batches.length > 1 && (
+                <option value="all">🌟 All Cohorts (Consolidated View — {batches.reduce((acc, b) => acc + (b.students?.length || 0), 0)} Interns)</option>
+              )}
+              {batches.map(b => {
+                const todayCount = attendance.filter(a =>
+                  (a.date === selectedDate || a.attendance_date === selectedDate) &&
+                  (a.batch_id === b.id || (b.students || []).some(s => s.student_id === a.student_id)) &&
+                  (a.status === 'present' || a.status === 'late')
+                ).length;
+                return (
+                  <option key={b.id} value={b.id}>
+                    {b.batch_code} — {b.domain} {todayCount > 0 ? `(${todayCount} checked in)` : ''}
+                  </option>
+                );
+              })}
             </select>
           </div>
 
@@ -972,7 +1072,10 @@ export const AttendancePage: React.FC = () => {
             {batchStudents.map((bs) => {
               const stu = bs.student || db.students.find(s => s.id === bs.student_id);
               const stat = studentStats.find(s => s.studentId === bs.student_id);
-              const existingRec = batchAttendance.find(a => a.student_id === bs.student_id && a.date === selectedDate);
+              const existingRec = batchAttendance.find(a =>
+                (a.student_id === bs.student_id || (stu?.id && a.student_id === stu.id) || (stu?.email && a.student?.email?.toLowerCase() === stu.email.toLowerCase())) &&
+                (a.date === selectedDate || a.attendance_date === selectedDate)
+              );
               const isLate = existingRec?.is_late || existingRec?.notes?.toLowerCase().includes('late');
 
               return (
@@ -982,7 +1085,7 @@ export const AttendancePage: React.FC = () => {
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0A1938] to-[#1E3A8A] text-white flex items-center justify-center font-black text-xs shrink-0 border border-blue-900/30 shadow-xs">
-                      {stu?.full_name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'ST'}
+                      {stu?.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || 'ST'}
                     </div>
                     <div>
                       <div className="flex items-center gap-2">

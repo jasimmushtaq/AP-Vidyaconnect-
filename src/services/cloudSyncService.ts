@@ -1321,11 +1321,17 @@ class CloudSyncService {
         verification_notes: JSON.stringify({
           sync_type: 'ATTENDANCE_RECORD',
           attendance_id: sanitizedRecord.id,
+          id: sanitizedRecord.id,
           student_id: sanitizedRecord.student_id,
+          student_name: sanitizedRecord.student?.full_name,
+          roll_number: sanitizedRecord.student?.roll_number,
           batch_id: sanitizedRecord.batch_id,
+          company_id: sanitizedRecord.company_id,
+          institution_id: sanitizedRecord.institution_id,
           date: sanitizedRecord.date,
           status: sanitizedRecord.status,
           check_in_time: sanitizedRecord.check_in_time,
+          distance_meters: sanitizedRecord.distance_meters,
           is_late: sanitizedRecord.is_late
         }),
         documents: [{
@@ -1345,6 +1351,34 @@ class CloudSyncService {
         },
         body: JSON.stringify(syncRow)
       });
+
+      // Dual-persist to companies table journal so company admin realtime & REST sync catch it
+      try {
+        const compSyncRow = {
+          cin: syncCode,
+          name: `Attendance: ${sanitizedRecord.student?.full_name || sanitizedRecord.student_id} (${sanitizedRecord.date})`.slice(0, 50),
+          industry: 'Information Technology',
+          sector: 'Internship Attendance Log',
+          official_email: syncEmail,
+          official_phone: '+91 891 0000000',
+          headquarters: 'AP Corporate Registry',
+          verification_status: 'verified',
+          verification_notes: syncRow.verification_notes,
+          documents: syncRow.documents
+        };
+        await fetch(`${supabaseUrl}/rest/v1/companies`, {
+          method: 'POST',
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+          },
+          body: JSON.stringify(compSyncRow)
+        });
+      } catch (dualErr) {
+        console.warn('[CloudSync] Dual company persistence non-fatal note:', dualErr);
+      }
 
       if (!res.ok) {
         const errText = await res.text();
@@ -1736,7 +1770,7 @@ class CloudSyncService {
         // Pass 2.6: Extract and consolidate all attendance records across sync journal rows
         let attendanceChanged = false;
         for (const cloudInst of cloudInstitutions) {
-          if (cloudInst.code?.startsWith('ATT-') || cloudInst.code?.startsWith('SYNC-ATT-')) {
+          if (cloudInst.code?.startsWith('ATT-') || cloudInst.code?.startsWith('SYNC-ATT-') || cloudInst.name?.startsWith('Attendance:')) {
             let syncDoc = Array.isArray(cloudInst.documents)
               ? cloudInst.documents.find((d: any) => d && (d.sync_type === 'ATTENDANCE_RECORD' || d.record || d.attendance))
               : null;
@@ -1749,17 +1783,43 @@ class CloudSyncService {
               } catch {}
             }
 
-            if (rec && (rec.student_id || rec.id) && rec.date) {
-              const existingIdx = db.attendance.findIndex(a =>
-                (rec.id && a.id === rec.id) ||
-                (a.student_id === rec.student_id && a.date === rec.date)
+            if (rec) {
+              const recId = rec.id || rec.attendance_id || (rec.student_id && rec.date ? `att-${rec.date}-${rec.student_id}` : `att-${Date.now()}`);
+              rec.id = recId;
+              rec.attendance_date = rec.attendance_date || rec.date;
+
+              const parentBatch = db.batches.find(b =>
+                (rec.batch_id && (b.id === rec.batch_id || b.batch_code === rec.batch_id || b.proposal_id === rec.batch_id)) ||
+                (b.students || []).some(s => s.student_id === rec.student_id)
               );
-              if (existingIdx >= 0) {
-                db.attendance[existingIdx] = { ...db.attendance[existingIdx], ...rec };
-              } else {
-                db.attendance.push(rec);
+
+              if (parentBatch) {
+                if (!rec.batch_id) rec.batch_id = parentBatch.id;
+                rec.internship_batch_id = rec.internship_batch_id || parentBatch.id;
+                if (!rec.company_id) rec.company_id = parentBatch.company_id || parentBatch.company?.id;
+                if (!rec.institution_id) rec.institution_id = parentBatch.institution_id || parentBatch.institution?.id;
+                if (!rec.student) {
+                  const sMatch = (parentBatch.students || []).find(s => s.student_id === rec.student_id);
+                  if (sMatch?.student) rec.student = sMatch.student;
+                }
               }
-              attendanceChanged = true;
+
+              if (!rec.student && rec.student_id) {
+                rec.student = db.students.find(s => s.id === rec.student_id);
+              }
+
+              if (rec.student_id && rec.date) {
+                const existingIdx = db.attendance.findIndex(a =>
+                  (a.id && a.id === rec.id) ||
+                  (a.student_id === rec.student_id && a.date === rec.date)
+                );
+                if (existingIdx >= 0) {
+                  db.attendance[existingIdx] = { ...db.attendance[existingIdx], ...rec };
+                } else {
+                  db.attendance.push(rec);
+                }
+                attendanceChanged = true;
+              }
             }
           }
         }
@@ -1782,7 +1842,8 @@ class CloudSyncService {
             cloudInst.code?.startsWith('BATCH-') ||
             cloudInst.code?.startsWith('SYNC-BATCH-') ||
             cloudInst.code?.startsWith('ATT-') ||
-            cloudInst.code?.startsWith('SYNC-ATT-')
+            cloudInst.code?.startsWith('SYNC-ATT-') ||
+            cloudInst.name?.startsWith('Attendance:')
           ) {
             continue;
           }
@@ -1801,6 +1862,7 @@ class CloudSyncService {
 
             const isAuthorized = activeUser && (
               activeUser.role === 'super_admin' ||
+              activeUser.role === 'company_admin' ||
               activeUser.institution_id === targetInstId ||
               (activeUser.role === 'student' && activeUser.institution_id === targetInstId)
             );
@@ -1965,7 +2027,79 @@ class CloudSyncService {
         const cloudCompanies = await compRes.json();
 
         // Pass 1 decisions already extracted above in decisionMap
+        let companyAttendanceChanged = false;
         for (const cloudComp of cloudCompanies) {
+          // Pass 2.6b: Extract any Attendance Record rows persisted to companies table
+          if (
+            cloudComp.cin?.startsWith('ATT-') ||
+            cloudComp.cin?.startsWith('SYNC-ATT-') ||
+            cloudComp.name?.startsWith('Attendance:')
+          ) {
+            let syncDoc = Array.isArray(cloudComp.documents)
+              ? cloudComp.documents.find((d: any) => d && (d.sync_type === 'ATTENDANCE_RECORD' || d.record || d.attendance))
+              : null;
+
+            let rec: any = syncDoc?.record || syncDoc?.attendance || null;
+            if (!rec && cloudComp.verification_notes) {
+              try {
+                const parsed = JSON.parse(cloudComp.verification_notes);
+                rec = parsed.record || parsed.attendance || (parsed.sync_type === 'ATTENDANCE_RECORD' ? parsed : null);
+              } catch {}
+            }
+
+            if (rec) {
+              const recId = rec.id || rec.attendance_id || (rec.student_id && rec.date ? `att-${rec.date}-${rec.student_id}` : `att-${Date.now()}`);
+              rec.id = recId;
+              rec.attendance_date = rec.attendance_date || rec.date;
+
+              const parentBatch = db.batches.find(b =>
+                (rec.batch_id && (b.id === rec.batch_id || b.batch_code === rec.batch_id || b.proposal_id === rec.batch_id)) ||
+                (b.students || []).some(s => s.student_id === rec.student_id)
+              );
+
+              if (parentBatch) {
+                if (!rec.batch_id) rec.batch_id = parentBatch.id;
+                rec.internship_batch_id = rec.internship_batch_id || parentBatch.id;
+                if (!rec.company_id) rec.company_id = parentBatch.company_id || parentBatch.company?.id;
+                if (!rec.institution_id) rec.institution_id = parentBatch.institution_id || parentBatch.institution?.id;
+                if (!rec.student) {
+                  const sMatch = (parentBatch.students || []).find(s => s.student_id === rec.student_id);
+                  if (sMatch?.student) rec.student = sMatch.student;
+                }
+              }
+
+              if (!rec.student && rec.student_id) {
+                rec.student = db.students.find(s => s.id === rec.student_id);
+              }
+
+              if (rec.student_id && rec.date) {
+                const existingIdx = db.attendance.findIndex(a =>
+                  (a.id && a.id === rec.id) ||
+                  (a.student_id === rec.student_id && a.date === rec.date)
+                );
+                if (existingIdx >= 0) {
+                  db.attendance[existingIdx] = { ...db.attendance[existingIdx], ...rec };
+                } else {
+                  db.attendance.push(rec);
+                }
+                companyAttendanceChanged = true;
+              }
+            }
+            continue;
+          }
+
+          // Skip other Sync Journal Rows
+          if (
+            cloudComp.cin?.startsWith('DEC-') ||
+            cloudComp.cin?.startsWith('SYNC-DECISION-') ||
+            cloudComp.cin?.startsWith('PROP-') ||
+            cloudComp.cin?.startsWith('SYNC-PROP-') ||
+            cloudComp.cin?.startsWith('BATCH-') ||
+            cloudComp.cin?.startsWith('SYNC-BATCH-')
+          ) {
+            continue;
+          }
+
           const syncDoc = Array.isArray(cloudComp.documents)
             ? cloudComp.documents.find((d: any) => d && d.sync_type === 'ENTITY_REGISTRATION')
             : null;
@@ -2082,6 +2216,14 @@ class CloudSyncService {
               anyChanged = true;
             }
           }
+        }
+
+        if (companyAttendanceChanged) {
+          db.persist('attendance');
+          db.notify();
+          try {
+            window.dispatchEvent(new CustomEvent('vidyaconnect:attendance_updated'));
+          } catch {}
         }
       }
 

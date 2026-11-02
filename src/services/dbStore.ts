@@ -2150,7 +2150,11 @@ class DatabaseStore {
     const activeStudent: Student = student;
 
     // 2. Verify / Auto-resolve Batch & Enrollment
-    let batch = this.batches.find(b => b.id === req.batch_id) || this.batches[0];
+    let batch = this.batches.find(b => b.id === req.batch_id || b.batch_code === req.batch_id || b.proposal_id === req.batch_id)
+      || this.batches.find(b => (b.students || []).some(s => s.student_id === activeStudent.id || s.student?.id === activeStudent.id || s.student?.email?.toLowerCase() === studentUser.email?.toLowerCase()))
+      || this.batches.find(b => b.id === 'batch-001')
+      || this.batches[0];
+
     if (batch) {
       if (batch.status !== 'active') {
         batch.status = 'active';
@@ -2209,16 +2213,17 @@ class DatabaseStore {
 
     // 10. Record Verified Attendance with Private Storage Path
     const recordId = `att-${todayStr}-${activeStudent.id}`;
-    const selfieStoragePath = `attendance-selfies/${req.batch_id}/${activeStudent.id}/${todayStr}/${recordId}.jpg`;
+    const selfieStoragePath = `attendance-selfies/${batch.id}/${activeStudent.id}/${todayStr}/${recordId}.jpg`;
+    const effectiveCompanyId = batch.company_id || batch.company?.id || (batch.company as any)?.cin || 'comp-001';
 
     const newRecord: AttendanceRecord = {
       id: recordId,
-      batch_id: req.batch_id,
-      internship_batch_id: req.batch_id,
+      batch_id: batch.id,
+      internship_batch_id: batch.id,
       student_id: activeStudent.id,
       student: activeStudent,
-      company_id: batch.company_id,
-      institution_id: activeStudent.institution_id || batch.institution_id,
+      company_id: effectiveCompanyId,
+      institution_id: activeStudent.institution_id || batch.institution_id || 'inst-001',
       date: todayStr,
       attendance_date: todayStr,
       status: isLate ? 'late' : 'present',
@@ -2281,38 +2286,48 @@ class DatabaseStore {
     };
     this.notifications.unshift(collegeAdminNotif);
 
-    // 12. Create NOTIFICATION 2: Company Coordinator
-    const companyCoordProfile = this.profiles.find(p => p.company_id === batch.company_id && p.role === 'company_admin')
-      || this.profiles.find(p => p.role === 'company_admin');
+    // 12. Create NOTIFICATION 2: Company Coordinator(s)
+    const companyCoordProfiles = this.profiles.filter(p =>
+      (p.role === 'company_admin' || p.role === 'mentor') &&
+      (!effectiveCompanyId || !p.company_id || p.company_id === effectiveCompanyId)
+    );
+    if (companyCoordProfiles.length === 0) {
+      const defaultCompProfile = this.profiles.find(p => p.role === 'company_admin');
+      if (defaultCompProfile) companyCoordProfiles.push(defaultCompProfile);
+    }
 
-    const companyCoordNotif: AppNotification = {
-      id: `notif-${Date.now()}-comp`,
-      user_id: companyCoordProfile?.id || 'user-comp-admin',
-      recipient_user_id: companyCoordProfile?.id || 'user-comp-admin',
-      recipient_role: 'company_admin',
-      notification_type: 'ATTENDANCE_MARKED',
-      type: 'attendance_alert',
-      title: '📅 Student Attendance Received',
-      message: `${activeStudent.full_name} (Roll No: ${activeStudent.roll_number}) marked ${isLate ? 'LATE' : 'PRESENT'} check-in for ${batch.title} (${timeFormatted}).`,
-      attendance_id: newRecord.id,
-      link_url: `/attendance?batch=${batch.id}&date=${todayStr}&student=${activeStudent.id}`,
-      is_read: false,
-      metadata: {
-        student_id: activeStudent.id,
-        student_name: activeStudent.full_name,
-        roll_number: activeStudent.roll_number,
-        batch_title: batch.title,
-        attendance_date: todayStr,
-        check_in_time: timeFormatted,
-        status: isLate ? 'LATE' : 'PRESENT',
-        location_status: 'Verified',
-        selfie_status: 'Verified',
-        distance_meters: distanceMeters,
-        selfie_storage_path: selfieStoragePath
-      },
-      created_at: now.toISOString()
-    };
-    this.notifications.unshift(companyCoordNotif);
+    const createdCompNotifIds: string[] = [];
+    for (const compProfile of companyCoordProfiles) {
+      const companyCoordNotif: AppNotification = {
+        id: `notif-${Date.now()}-${compProfile.id.slice(-6)}`,
+        user_id: compProfile.id,
+        recipient_user_id: compProfile.id,
+        recipient_role: 'company_admin',
+        notification_type: 'ATTENDANCE_MARKED',
+        type: 'attendance_alert',
+        title: '📅 Student Attendance Received',
+        message: `${activeStudent.full_name} (Roll No: ${activeStudent.roll_number}) marked ${isLate ? 'LATE' : 'PRESENT'} check-in for ${batch.title} (${timeFormatted}).`,
+        attendance_id: newRecord.id,
+        link_url: `/attendance?batch=${batch.id}&date=${todayStr}&student=${activeStudent.id}`,
+        is_read: false,
+        metadata: {
+          student_id: activeStudent.id,
+          student_name: activeStudent.full_name,
+          roll_number: activeStudent.roll_number,
+          batch_title: batch.title,
+          attendance_date: todayStr,
+          check_in_time: timeFormatted,
+          status: isLate ? 'LATE' : 'PRESENT',
+          location_status: 'Verified',
+          selfie_status: 'Verified',
+          distance_meters: distanceMeters,
+          selfie_storage_path: selfieStoragePath
+        },
+        created_at: now.toISOString()
+      };
+      this.notifications.unshift(companyCoordNotif);
+      createdCompNotifIds.push(companyCoordNotif.id);
+    }
     this.persist('notifications');
 
     // 13. Optional Email Logs for College Admin & Company Coordinator
@@ -2331,11 +2346,12 @@ class DatabaseStore {
       });
     }
 
-    if (companyCoordProfile?.email) {
+    const primaryCompProfile = companyCoordProfiles[0];
+    if (primaryCompProfile?.email) {
       this.emailLogs.unshift({
         id: `email-${Date.now()}-comp`,
         campaign_type: 'attendance_notification',
-        recipient_email: companyCoordProfile.email,
+        recipient_email: primaryCompProfile.email,
         student_name: activeStudent.full_name,
         student_id: activeStudent.id,
         batch_id: batch.id,
@@ -2355,7 +2371,7 @@ class DatabaseStore {
       null,
       {
         student_id: activeStudent.id,
-        batch_id: req.batch_id,
+        batch_id: batch.id,
         check_in_time: timeFormatted,
         is_late: isLate,
         distance_meters: distanceMeters,
@@ -2374,7 +2390,7 @@ class DatabaseStore {
         bucket: 'attendance-selfies',
         path: selfieStoragePath,
         student_id: activeStudent.id,
-        batch_id: req.batch_id
+        batch_id: batch.id
       },
       { id: studentUser.id, name: studentUser.full_name || activeStudent.full_name, role: 'student' }
     );
@@ -2382,11 +2398,11 @@ class DatabaseStore {
     this.logAudit(
       'attendance_notification_dispatched',
       'notification',
-      `${collegeAdminNotif.id},${companyCoordNotif.id}`,
+      `${collegeAdminNotif.id},${createdCompNotifIds.join(',')}`,
       null,
       {
         college_admin_id: collegeAdminProfile?.id,
-        company_coord_id: companyCoordProfile?.id,
+        company_coord_id: primaryCompProfile?.id,
         attendance_id: newRecord.id
       },
       { id: studentUser.id, name: studentUser.full_name || student.full_name, role: 'student' }
@@ -2397,6 +2413,7 @@ class DatabaseStore {
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('vidyaconnect:attendance_updated', { detail: { record: newRecord } }));
       window.dispatchEvent(new CustomEvent('vidyaconnect:attendance_marked', { detail: { record: newRecord } }));
+      window.dispatchEvent(new CustomEvent('vidyaconnect:notification_created'));
     }
     this.syncAttendance(newRecord).catch(err => console.warn('[dbStore] Attendance cloud sync warning:', err));
 
