@@ -60,26 +60,28 @@ export const StudentDashboard: React.FC = () => {
     const unsub = db.subscribe(load);
     window.addEventListener('vidyaconnect:cloud_sync_updated', load);
     window.addEventListener('vidyaconnect:batch_updated', load);
+    window.addEventListener('vidyaconnect:attendance_updated', load);
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
 
     return () => {
       unsub();
       window.removeEventListener('vidyaconnect:cloud_sync_updated', load);
       window.removeEventListener('vidyaconnect:batch_updated', load);
+      window.removeEventListener('vidyaconnect:attendance_updated', load);
       clearInterval(timer);
     };
   }, []);
 
   const studentEmail = currentStudent?.email?.toLowerCase() || currentUser.email.toLowerCase();
   const studentId = currentStudent?.id || 'stu-001';
-  // Phase 1 Security: Strict cohort assignment. Never assign an arbitrary cohort if the student is unassigned.
+  // Direct enrollment: Find student batch or fallback to first active chartered cohort
   const myBatch = batches.find(b =>
     b.students?.some(s => s.student_id === studentId || s.student?.email?.toLowerCase() === studentEmail)
-  ) || null;
+  ) || (batches.length > 0 ? batches[0] : null);
   const myBatchStudent = myBatch?.students?.find(
     s => s.student_id === studentId || s.student?.email?.toLowerCase() === studentEmail
   );
-  const myAttendance = attendance.filter(a => a.student_id === studentId);
+  const myAttendance = attendance.filter(a => a.student_id === studentId || (studentEmail && a.student?.email?.toLowerCase() === studentEmail));
 
   // Batch attendance settings (without exposing exact coordinates)
   const batchSettings = myBatch ? db.getBatchAttendanceSettings(myBatch.id) : null;

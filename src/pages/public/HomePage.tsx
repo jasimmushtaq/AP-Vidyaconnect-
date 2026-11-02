@@ -423,12 +423,12 @@ export const HomePage: React.FC = () => {
                   </div>
                   <h3 className="text-lg font-bold text-[#0E2350]">For Students & Interns</h3>
                   <p className="text-xs text-gray-600 mt-2 leading-relaxed">
-                    Receive verified college placements, digitally sign onboarding consent, log attendance, submit milestone deliverables, and receive structured supervisor appraisals.
+                    Receive verified college placements with direct automated batch enrollment, log daily GPS attendance, submit milestone deliverables, and receive structured supervisor appraisals.
                   </p>
                   <ul className="mt-4 space-y-2 text-xs text-gray-700 font-medium">
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />
-                      Mandatory "JOIN INTERNSHIP" Consent
+                      Direct Automated Cohort Enrollment
                     </li>
                     <li className="flex items-center gap-2">
                       <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />

@@ -138,13 +138,13 @@ export const TermsConditionsPage: React.FC = () => {
     },
     {
       id: 6,
-      title: 'Student Code of Conduct & Digital Consent',
+      title: 'Student Code of Conduct & Cohort Placement',
       tag: 'Student Ethics',
       icon: GraduationCap,
       points: [
         {
-          heading: 'Mandatory Digital Onboarding',
-          content: 'Nominated students must log in, review workplace rules and stipend terms, and execute digital consent ("JOIN INTERNSHIP") before starting work.'
+          heading: 'Direct Automated Onboarding',
+          content: 'Nominated students are directly enrolled upon bilateral institutional acceptance and immediately commence work and daily verified attendance.'
         },
         {
           heading: 'Confidentiality & Non-Disclosure (NDA)',

@@ -32,7 +32,7 @@ export const CANONICAL_10_STEPS: WorkflowStep[] = [
   { id: '3', title: 'Company Review', subtitle: 'Company inspecting terms', stageName: 'under_company_review', actor: 'HR Lead / Tech Mentor', matches: ['under_company_review', 'modification_requested'] },
   { id: '4', title: 'Company Decision', subtitle: 'Terms accepted / amended', stageName: 'company_accepted', actor: 'Company Admin', matches: ['company_accepted', 'company_accepted_with_changes'] },
   { id: '5', title: 'Institution Accepted', subtitle: 'Batch auto-generated (KD-)', stageName: 'institution_accepted', actor: 'College Nodal Officer', matches: ['institution_accepted'] },
-  { id: '6', title: 'Cohort Enrolled', subtitle: 'Students auto-onboarded', stageName: 'students_confirmed', actor: 'Institutional System', matches: ['students_confirmed'] },
+  { id: '6', title: 'Cohort Enrolled', subtitle: 'Direct Auto-Enrolled', stageName: 'students_confirmed', actor: 'Institutional System', matches: ['students_confirmed'] },
   { id: '7', title: 'Active Internship', subtitle: 'Attendance & daily ops', stageName: 'active', actor: 'Corporate Mentors', matches: ['active', 'created'] },
   { id: '8', title: 'Milestone Review', subtitle: 'Weekly attendance & sync', stageName: 'milestones_verified', actor: 'Faculty Supervisor', matches: ['milestones_verified', 'progress_reviewed'] },
   { id: '9', title: 'Evaluation Done', subtitle: 'Final score & appraisals', stageName: 'evaluation_completed', actor: 'Industry Evaluator', matches: ['evaluation_completed'] },

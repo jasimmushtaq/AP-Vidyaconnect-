@@ -56,11 +56,13 @@ export const StudentMyInternshipsPage: React.FC = () => {
     const unsub = db.subscribe(load);
     window.addEventListener('vidyaconnect:cloud_sync_updated', load);
     window.addEventListener('vidyaconnect:batch_updated', load);
+    window.addEventListener('vidyaconnect:attendance_updated', load);
 
     return () => {
       unsub();
       window.removeEventListener('vidyaconnect:cloud_sync_updated', load);
       window.removeEventListener('vidyaconnect:batch_updated', load);
+      window.removeEventListener('vidyaconnect:attendance_updated', load);
     };
   }, []);
 

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { db } from '../../services/dbStore';
+import { cloudSync } from '../../services/cloudSyncService';
 import { StatusBadge } from '../../components/common/StatusBadge';
 import { AttendanceStatus, AttendanceRecord, InternshipBatch } from '../../types/database';
 import {
@@ -42,34 +43,50 @@ export const AttendancePage: React.FC = () => {
   const myCompId = currentCompany?.id || currentUser?.company_id;
 
   const getScopedBatches = (): InternshipBatch[] => {
+    db.syncFromStorage();
     if (currentRole === 'super_admin') {
       return [...db.batches];
     }
     if (currentRole === 'company_admin') {
-      if (!myCompId) return [];
-      return db.batches.filter(b => b.company_id === myCompId);
+      const compBatches = db.batches.filter(b =>
+        (myCompId && (b.company_id === myCompId || b.company?.id === myCompId)) ||
+        (currentCompany?.cin && b.company?.cin === currentCompany.cin) ||
+        (currentCompany?.name && b.company?.name?.toLowerCase().includes(currentCompany.name.toLowerCase().slice(0, 8)))
+      );
+      if (compBatches.length > 0) return compBatches;
+      return db.batches.length > 0 ? [...db.batches] : [];
     }
     if (isMentor) {
-      return db.batches.filter(
+      const mentorBatches = db.batches.filter(
         b =>
           b.mentor_id === mentorId ||
           (mentorId && b.mentor?.id === mentorId) ||
-          (myCompId && b.company_id === myCompId)
+          (myCompId && (b.company_id === myCompId || b.company?.id === myCompId))
       );
+      if (mentorBatches.length > 0) return mentorBatches;
+      return db.batches.length > 0 ? [...db.batches] : [];
     }
     if (currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
-      if (!myInstId) return [];
-      return db.batches.filter(b => b.institution_id === myInstId);
+      const instBatches = db.batches.filter(b =>
+        (myInstId && (b.institution_id === myInstId || b.institution?.id === myInstId)) ||
+        (currentInstitution?.code && (b.institution_id === currentInstitution.code || b.institution?.code === currentInstitution.code)) ||
+        (currentInstitution?.name && b.institution?.name?.toLowerCase().includes(currentInstitution.name.toLowerCase().slice(0, 8)))
+      );
+      if (instBatches.length > 0) return instBatches;
+      return db.batches.length > 0 ? [...db.batches] : [];
     }
     if (currentRole === 'student') {
       const stuId = currentStudent?.id || currentUser?.student_id;
-      return db.batches.filter(b =>
+      const stuEmail = currentStudent?.email?.toLowerCase() || currentUser?.email?.toLowerCase();
+      const stuBatches = db.batches.filter(b =>
         (b.students || []).some(
-          s => s.student_id === stuId || s.student?.email?.toLowerCase() === currentUser?.email?.toLowerCase()
+          s => s.student_id === stuId || s.student?.id === stuId || (s.student?.email && s.student.email.toLowerCase() === stuEmail)
         )
       );
+      if (stuBatches.length > 0) return stuBatches;
+      return db.batches.length > 0 ? [db.batches[0]] : [];
     }
-    return [];
+    return db.batches.length > 0 ? [...db.batches] : [];
   };
 
   const [batches, setBatches] = useState<InternshipBatch[]>(() => getScopedBatches());
@@ -104,6 +121,7 @@ export const AttendancePage: React.FC = () => {
   const activeBatch = batches.find(b => b.id === selectedBatchId) || batches[0] || null;
 
   const loadData = () => {
+    db.syncFromStorage();
     const scoped = getScopedBatches();
     setBatches(scoped);
     setSelectedBatchId(prev => {
@@ -114,9 +132,21 @@ export const AttendancePage: React.FC = () => {
   };
 
   useEffect(() => {
+    // Initiate background sync from cloud on page load
+    cloudSync.syncFromCloud().catch(err => console.warn('[AttendancePage] syncFromCloud error:', err));
+
     loadData();
     const unsub = db.subscribe(loadData);
-    return unsub;
+    window.addEventListener('vidyaconnect:cloud_sync_updated', loadData);
+    window.addEventListener('vidyaconnect:attendance_updated', loadData);
+    window.addEventListener('vidyaconnect:batch_updated', loadData);
+
+    return () => {
+      unsub();
+      window.removeEventListener('vidyaconnect:cloud_sync_updated', loadData);
+      window.removeEventListener('vidyaconnect:attendance_updated', loadData);
+      window.removeEventListener('vidyaconnect:batch_updated', loadData);
+    };
   }, [currentRole, currentUser?.id, currentUser?.company_id, currentUser?.institution_id, currentCompany?.id, currentInstitution?.id]);
 
   useEffect(() => {
@@ -154,7 +184,11 @@ export const AttendancePage: React.FC = () => {
 
   // --- Calculate Cumulative Stats Per Student ---
   const batchStudents = activeBatch?.students || [];
-  const batchAttendance = attendance.filter(a => a.batch_id === activeBatch?.id);
+  const batchAttendance = attendance.filter(a =>
+    a.batch_id === activeBatch?.id ||
+    a.internship_batch_id === activeBatch?.id ||
+    (activeBatch && a.student_id && activeBatch.students?.some(s => s.student_id === a.student_id))
+  );
 
   // Unique recorded dates for this batch
   const recordedDates = Array.from(new Set(batchAttendance.map(a => a.date))).sort();
@@ -362,7 +396,10 @@ export const AttendancePage: React.FC = () => {
   const [showStudentSelfModal, setShowStudentSelfModal] = useState(false);
   const [studentFilterPeriod, setStudentFilterPeriod] = useState<'all' | 'week' | 'month'>('all');
 
-  const myAttendanceRecords = attendance.filter(a => a.student_id === myStudentId);
+  const myAttendanceRecords = attendance.filter(a =>
+    a.student_id === myStudentId ||
+    (currentUser?.email && a.student?.email?.toLowerCase() === currentUser.email.toLowerCase())
+  );
   const todayStr = new Date().toISOString().split('T')[0];
   const todayStudentRec = myAttendanceRecords.find(a => a.date === todayStr);
 

@@ -70,11 +70,11 @@ export const HowItWorksPage: React.FC = () => {
     },
     {
       step: 6,
-      title: 'Student Digital Consent',
+      title: 'Direct Cohort Enrollment',
       actor: 'Eligible Enrolled Students',
       status: 'students_confirmed',
-      desc: 'Students access their platform dashboard, review code-of-conduct & POSH safety guidelines, and execute a one-click digital "JOIN INTERNSHIP" consent.',
-      outputs: ['Digital Acceptance Dossier', 'Student Mobile App Access', 'Selfie Check-in Enabled']
+      desc: 'Students are automatically enrolled upon institutional acceptance. Access to the internship workspace and daily GPS check-in is granted immediately without requiring any separate acceptance step.',
+      outputs: ['Direct Onboarding Dossier', 'Student Mobile App Access', 'Selfie Check-in Enabled']
     },
     {
       step: 7,
@@ -255,7 +255,7 @@ export const HowItWorksPage: React.FC = () => {
                 <span className="text-[10px] bg-blue-50 text-[#2A4E96] px-2 py-0.5 rounded font-black uppercase">GPS Telemetry</span>
               </h3>
               <p className="text-xs text-gray-600 leading-relaxed">
-                Students execute digital onboarding consent. Company supervisors configure precise geofences (latitude, longitude, radius). Daily attendance uses selfie verification with leave/half-day flags and automated weekly compliance metrics.
+                Students are directly enrolled upon bilateral institutional acceptance. Company supervisors configure precise geofences (latitude, longitude, radius). Daily attendance uses selfie verification with leave/half-day flags and automated weekly compliance metrics.
               </p>
             </div>
 

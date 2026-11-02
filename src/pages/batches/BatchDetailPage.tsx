@@ -145,7 +145,7 @@ export const BatchDetailPage: React.FC = () => {
                 onClick={handleManualRefresh}
                 disabled={isRefreshing}
                 className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold transition-all cursor-pointer active:scale-95"
-                title="Sync latest student consents from central cloud"
+                title="Sync latest batch telemetry from central cloud"
               >
                 <RefreshCw className={`w-3.5 h-3.5 text-blue-300 ${isRefreshing ? 'animate-spin' : ''}`} />
                 <span>{isRefreshing ? 'Syncing...' : 'Live Sync'}</span>

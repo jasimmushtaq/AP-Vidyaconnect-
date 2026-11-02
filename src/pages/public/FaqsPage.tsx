@@ -102,8 +102,8 @@ export const FaqsPage: React.FC = () => {
       icon: <GraduationCap className="w-5 h-5 text-[#1C8A3C]" />,
       items: [
         {
-          q: 'How do students join their assigned internship cohort?',
-          a: 'Once your college maps you to an approved proposal and the cohort batch is formed, you receive a portal notification. Log in, go to "My Internship", and click "JOIN INTERNSHIP" to complete your digital onboarding consent.'
+          q: 'How do students get enrolled in their assigned internship cohort?',
+          a: 'Students are directly and automatically enrolled the moment their college accepts the internship proposal terms from the company partner. No manual student join or acceptance action is required; your official batch access and attendance tracking are immediately active upon institutional acceptance.'
         },
         {
           q: 'What is the minimum attendance required for internship completion?',

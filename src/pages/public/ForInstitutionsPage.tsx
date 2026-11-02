@@ -147,8 +147,8 @@ export const ForInstitutionsPage: React.FC = () => {
             },
             {
               step: '05',
-              title: 'Automated Batch Generation & Digital Consent',
-              desc: 'Upon acceptance, an immutable Internship Batch is provisioned. Students receive automated notifications to execute digital consent and initiate training.'
+              title: 'Automated Batch Chartering & Direct Student Enrollment',
+              desc: 'Upon bilateral acceptance, an official Internship Batch is provisioned. Nominated students are directly enrolled with instant access to GPS attendance tracking and project workspaces.'
             },
             {
               step: '06',

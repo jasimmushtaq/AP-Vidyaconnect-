@@ -112,7 +112,7 @@ export const AboutUsPage: React.FC = () => {
             </div>
             <h3 className="text-base font-bold text-[#0E2350]">Students & Interns</h3>
             <p className="text-xs text-gray-600 leading-relaxed">
-              Enrolled students join verified internship cohorts with digital consent, mark daily attendance, submit project deliverables, and receive structured company feedback.
+              Enrolled students participate in verified internship cohorts with direct automated onboarding, mark daily attendance, submit project deliverables, and receive structured company feedback.
             </p>
           </div>
 

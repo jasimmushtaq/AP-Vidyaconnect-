@@ -95,9 +95,9 @@ export const ForStudentsPage: React.FC = () => {
               <span className="w-8 h-8 rounded-lg bg-[#F07421] text-white font-bold text-xs flex items-center justify-center">2</span>
               <span className="text-[11px] font-bold text-[#F07421] uppercase">Mandatory</span>
             </div>
-            <h3 className="text-sm font-bold text-[#0E2350]">Digital "JOIN" Consent</h3>
+            <h3 className="text-sm font-bold text-[#0E2350]">Direct Automated Enrollment</h3>
             <p className="text-xs text-gray-600 leading-relaxed">
-              Upon batch creation, log in to your portal and execute the mandatory digital onboarding consent to activate your attendance tracking and task workspace.
+              Once your college finalizes the internship terms with the host company, you are directly enrolled into the active cohort. Your GPS geofenced check-in and internship workspace start immediately without requiring any separate acceptance step.
             </p>
           </div>
 

@@ -147,11 +147,13 @@ class DatabaseStore {
   private cloudSyncProvider: {
     syncProposalToCloud: (proposal: InternshipProposal) => Promise<{ success: boolean; error?: string }>;
     syncBatchToCloud?: (batch: InternshipBatch) => Promise<{ success: boolean; error?: string }>;
+    syncAttendanceToCloud?: (record: AttendanceRecord) => Promise<{ success: boolean; error?: string }>;
   } | null = null;
 
   public registerCloudSyncProvider(provider: {
     syncProposalToCloud: (proposal: InternshipProposal) => Promise<{ success: boolean; error?: string }>;
     syncBatchToCloud?: (batch: InternshipBatch) => Promise<{ success: boolean; error?: string }>;
+    syncAttendanceToCloud?: (record: AttendanceRecord) => Promise<{ success: boolean; error?: string }>;
   }) {
     this.cloudSyncProvider = provider;
   }
@@ -166,6 +168,13 @@ class DatabaseStore {
   public async syncBatch(batch: InternshipBatch): Promise<{ success: boolean; error?: string }> {
     if (this.cloudSyncProvider?.syncBatchToCloud) {
       return await this.cloudSyncProvider.syncBatchToCloud(batch);
+    }
+    return { success: true };
+  }
+
+  public async syncAttendance(record: AttendanceRecord): Promise<{ success: boolean; error?: string }> {
+    if (this.cloudSyncProvider?.syncAttendanceToCloud) {
+      return await this.cloudSyncProvider.syncAttendanceToCloud(record);
     }
     return { success: true };
   }
@@ -465,6 +474,17 @@ class DatabaseStore {
         if (Array.isArray(loadedNotifs)) {
           loadedNotifs.forEach((ln: any) => {
             if (!this.notifications.some(n => n.id === ln.id)) this.notifications.unshift(ln);
+          });
+        }
+      }
+      const attRaw = localStorage.getItem(STORAGE_PREFIX + 'attendance');
+      if (attRaw) {
+        const loadedAtt = JSON.parse(attRaw);
+        if (Array.isArray(loadedAtt)) {
+          loadedAtt.forEach((la: AttendanceRecord) => {
+            const idx = this.attendance.findIndex(a => a.id === la.id || (a.student_id === la.student_id && a.date === la.date));
+            if (idx >= 0) this.attendance[idx] = { ...this.attendance[idx], ...la };
+            else this.attendance.unshift(la);
           });
         }
       }
@@ -2010,6 +2030,16 @@ class DatabaseStore {
     });
 
     this.persist('attendance');
+    this.notify();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vidyaconnect:attendance_updated', { detail: { records } }));
+    }
+    records.forEach(rec => {
+      const fullRecord = this.attendance.find(a => a.student_id === rec.student_id && a.date === rec.date);
+      if (fullRecord) {
+        this.syncAttendance(fullRecord).catch(err => console.warn('[dbStore] Cloud attendance sync warning:', err));
+      }
+    });
     this.logAudit('mark_attendance', 'attendance', batchId, null, { count: records.length, date: records[0]?.date }, { id: actor.id, name: actor.full_name, role: actor.role });
   }
 
@@ -2361,6 +2391,14 @@ class DatabaseStore {
       },
       { id: studentUser.id, name: studentUser.full_name || student.full_name, role: 'student' }
     );
+
+    // Notify all active in-memory listeners and dispatch window sync events
+    this.notify();
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('vidyaconnect:attendance_updated', { detail: { record: newRecord } }));
+      window.dispatchEvent(new CustomEvent('vidyaconnect:attendance_marked', { detail: { record: newRecord } }));
+    }
+    this.syncAttendance(newRecord).catch(err => console.warn('[dbStore] Attendance cloud sync warning:', err));
 
     return {
       success: true,

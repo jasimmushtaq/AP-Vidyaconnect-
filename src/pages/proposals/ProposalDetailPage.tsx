@@ -687,7 +687,7 @@ export const ProposalDetailPage: React.FC = () => {
               </p>
               <p className="text-[11px] opacity-80 mt-0.5">
                 {proposal.status === 'institution_accepted'
-                  ? 'All terms approved by both Company and College. Interns can join batch workspaces.'
+                  ? 'All terms approved by both Company and College. Interns are directly enrolled into active batch workspaces with immediate attendance tracking.'
                   : `Reason: ${proposal.additional_terms || (proposal as any).declined_reason || 'Terms not accepted'}`}
               </p>
             </div>

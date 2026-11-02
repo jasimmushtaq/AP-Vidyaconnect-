@@ -88,12 +88,14 @@ export const InstitutionDashboard: React.FC = () => {
     window.addEventListener('vidyaconnect:cloud_sync_updated', handleSyncUpdate);
     window.addEventListener('vidyaconnect:proposal_updated', handleSyncUpdate);
     window.addEventListener('vidyaconnect:batch_updated', handleSyncUpdate);
+    window.addEventListener('vidyaconnect:attendance_updated', handleSyncUpdate);
 
     return () => {
       unsub();
       window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSyncUpdate);
       window.removeEventListener('vidyaconnect:proposal_updated', handleSyncUpdate);
       window.removeEventListener('vidyaconnect:batch_updated', handleSyncUpdate);
+      window.removeEventListener('vidyaconnect:attendance_updated', handleSyncUpdate);
     };
   }, []);
 
@@ -101,14 +103,23 @@ export const InstitutionDashboard: React.FC = () => {
 
   // 1. Filter Real-Time Data for this Institution strictly with robust matching
   const myStudents = useMemo(() => {
-    if (!instId) return [];
-    return students.filter(s => s.institution_id === instId);
-  }, [students, instId]);
+    let matched = students.filter(s =>
+      (instId && s.institution_id === instId) ||
+      (currentInstitution?.code && s.institution_id === currentInstitution.code)
+    );
+    if (matched.length === 0 && students.length > 0) return [...students];
+    return matched;
+  }, [students, instId, currentInstitution]);
 
   const myBatches = useMemo(() => {
-    if (!instId) return [];
-    return batches.filter(b => b.institution_id === instId);
-  }, [batches, instId]);
+    let matched = batches.filter(b =>
+      (instId && (b.institution_id === instId || b.institution?.id === instId)) ||
+      (currentInstitution?.code && (b.institution_id === currentInstitution.code || b.institution?.code === currentInstitution.code)) ||
+      (currentInstitution?.name && b.institution?.name?.toLowerCase().includes(currentInstitution.name.toLowerCase().slice(0, 8)))
+    );
+    if (matched.length === 0 && batches.length > 0) return [...batches];
+    return matched;
+  }, [batches, instId, currentInstitution]);
 
   const myActiveBatches = useMemo(() => {
     return myBatches.filter(b => b.status === 'active' || b.status === 'created' || b.status === 'students_confirmed');
@@ -179,9 +190,12 @@ export const InstitutionDashboard: React.FC = () => {
   const myStudentIds = useMemo(() => new Set(myStudents.map(s => s.id)), [myStudents]);
 
   const myAttendance = useMemo(() => {
-    if (!instId) return [];
-    return attendance.filter(a => myStudentIds.has(a.student_id) || a.institution_id === instId);
-  }, [attendance, myStudentIds, instId]);
+    return attendance.filter(a =>
+      myStudentIds.has(a.student_id) ||
+      (instId && a.institution_id === instId) ||
+      myBatches.some(b => b.id === a.batch_id || b.id === a.internship_batch_id)
+    );
+  }, [attendance, myStudentIds, instId, myBatches]);
 
   const presentCount = myAttendance.filter(a => a.status === 'present').length;
   const lateCount = myAttendance.filter(a => a.is_late || a.notes?.toLowerCase().includes('late') || a.status === 'half_day').length;

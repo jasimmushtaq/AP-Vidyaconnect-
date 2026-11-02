@@ -5,7 +5,7 @@
 
 import { supabase, supabaseUrl, supabaseAnonKey } from './supabaseClient';
 import { db } from './dbStore';
-import { Institution, Company, Profile, AppNotification, AuditLog, InternshipProposal, Student, InternshipBatch } from '../types/database';
+import { Institution, Company, Profile, AppNotification, AuditLog, InternshipProposal, Student, InternshipBatch, AttendanceRecord } from '../types/database';
 
 export interface EntityRegistrationPayload {
   entityType: 'institution' | 'company';
@@ -34,6 +34,7 @@ class CloudSyncService {
   private inFlightDecisions = new Set<string>();
   private inFlightProposals = new Set<string>();
   private inFlightBatches = new Set<string>();
+  private inFlightAttendance = new Set<string>();
 
   public init(): Promise<boolean> {
     db.registerCloudSyncProvider(this);
@@ -79,6 +80,11 @@ class CloudSyncService {
         .on('broadcast', { event: 'BATCH_UPDATED' }, ({ payload }: { payload: { batch: InternshipBatch } }) => {
           if (payload?.batch) {
             this.handleIncomingBatch(payload.batch);
+          }
+        })
+        .on('broadcast', { event: 'ATTENDANCE_UPDATED' }, ({ payload }: any) => {
+          if (payload?.record) {
+            this.handleIncomingAttendance(payload.record);
           }
         })
         .on('broadcast', { event: 'STUDENT_CONSENT_SIGNED' }, ({ payload }: any) => {
@@ -156,6 +162,15 @@ class CloudSyncService {
       if (e.detail?.batch) {
         this.syncBatchToCloud(e.detail.batch).catch(err => {
           console.warn('[CloudSync] Auto-sync batch error:', err);
+        });
+      }
+    }) as EventListener);
+
+    // 9. Listen to local attendance updates to persist permanently to Supabase and broadcast
+    window.addEventListener('vidyaconnect:attendance_marked', ((e: CustomEvent<{ record: AttendanceRecord }>) => {
+      if (e.detail?.record) {
+        this.syncAttendanceToCloud(e.detail.record).catch(err => {
+          console.warn('[CloudSync] Auto-sync attendance error:', err);
         });
       }
     }) as EventListener);
@@ -412,6 +427,25 @@ class CloudSyncService {
         window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
       } catch {}
     }
+  }
+
+  private handleIncomingAttendance(record: AttendanceRecord) {
+    if (!record || (!record.id && !record.student_id)) return;
+    const existingIdx = db.attendance.findIndex(a =>
+      (record.id && a.id === record.id) ||
+      (a.student_id === record.student_id && a.date === record.date)
+    );
+    if (existingIdx >= 0) {
+      db.attendance[existingIdx] = { ...db.attendance[existingIdx], ...record };
+    } else {
+      db.attendance.push(record);
+    }
+    db.persist('attendance');
+    db.notify();
+    try {
+      window.dispatchEvent(new CustomEvent('vidyaconnect:attendance_updated', { detail: { record } }));
+      window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
+    } catch {}
   }
 
   // --- Real-time Outbound Broadcast ---
@@ -1241,6 +1275,93 @@ class CloudSyncService {
     }
   }
 
+  public async syncAttendanceToCloud(record: AttendanceRecord): Promise<{ success: boolean; error?: string }> {
+    if (!record || !record.student_id || !record.date) {
+      return { success: false, error: 'Invalid attendance record' };
+    }
+
+    const flightKey = `${record.student_id}-${record.date}-${record.status}`;
+    if (this.inFlightAttendance.has(flightKey)) {
+      return { success: true };
+    }
+    this.inFlightAttendance.add(flightKey);
+
+    const sanitizedRecord: AttendanceRecord = {
+      ...record,
+      // Strip large base64 selfie data from cloud sync payload to guarantee requests remain under browser quotas (< 3 KB)
+      selfie_url: (record.selfie_url && record.selfie_url.length > 2048)
+        ? (record.student?.photo_url || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150')
+        : record.selfie_url
+    };
+
+    // 1. Broadcast immediately to all active browser windows & tabs
+    this.broadcast('ATTENDANCE_UPDATED', { record: sanitizedRecord });
+
+    try {
+      // 2. Authoritative PostgreSQL persistence using institutions table journal
+      const ts = Date.now();
+      const idPart = (record.student_id || 'att').replace(/[^a-zA-Z0-9]/g, '').slice(-10);
+      const syncCode = `ATT-${idPart}-${ts}`.slice(0, 48);
+      const syncEmail = `att.${idPart}.${ts}.${Math.floor(Math.random() * 1000)}@sync.apvidya.gov.in`.slice(0, 50);
+
+      const syncRow = {
+        code: syncCode,
+        name: `Attendance: ${sanitizedRecord.student?.full_name || sanitizedRecord.student_id} (${sanitizedRecord.date})`.slice(0, 50),
+        type: 'govt_degree_college',
+        affiliated_university: 'AP VidyaConnect Portal',
+        address: 'State Wide Attendance Registry',
+        district: 'Visakhapatnam',
+        state: 'Andhra Pradesh',
+        pin_code: '530001',
+        principal_name: sanitizedRecord.student_id,
+        official_email: syncEmail,
+        official_phone: '+91 891 0000000',
+        establishment_year: 2026,
+        verification_status: 'verified',
+        verification_notes: JSON.stringify({
+          sync_type: 'ATTENDANCE_RECORD',
+          attendance_id: sanitizedRecord.id,
+          student_id: sanitizedRecord.student_id,
+          batch_id: sanitizedRecord.batch_id,
+          date: sanitizedRecord.date,
+          status: sanitizedRecord.status,
+          check_in_time: sanitizedRecord.check_in_time,
+          is_late: sanitizedRecord.is_late
+        }),
+        documents: [{
+          sync_type: 'ATTENDANCE_RECORD',
+          record: sanitizedRecord,
+          timestamp: new Date().toISOString()
+        }]
+      };
+
+      const res = await fetch(`${supabaseUrl}/rest/v1/institutions`, {
+        method: 'POST',
+        headers: {
+          'apikey': supabaseAnonKey,
+          'Authorization': `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(syncRow)
+      });
+
+      if (!res.ok) {
+        const errText = await res.text();
+        console.warn('[CloudSync] Failed to persist attendance to Supabase:', res.status, errText);
+        return { success: false, error: errText };
+      }
+
+      console.log('[CloudSync] Authoritative attendance saved to Supabase:', sanitizedRecord.id, sanitizedRecord.status);
+      return { success: true };
+    } catch (e: any) {
+      console.warn('[CloudSync] Error syncing attendance to Supabase:', e);
+      return { success: false, error: e?.message || 'Network communication failed' };
+    } finally {
+      this.inFlightAttendance.delete(flightKey);
+    }
+  }
+
   // --- Cloud Inbound Synchronization (Catch up from Supabase) ---
 
   public async syncFromCloud(): Promise<boolean> {
@@ -1612,9 +1733,57 @@ class CloudSyncService {
           }
         }
 
+        // Pass 2.6: Extract and consolidate all attendance records across sync journal rows
+        let attendanceChanged = false;
+        for (const cloudInst of cloudInstitutions) {
+          if (cloudInst.code?.startsWith('ATT-') || cloudInst.code?.startsWith('SYNC-ATT-')) {
+            let syncDoc = Array.isArray(cloudInst.documents)
+              ? cloudInst.documents.find((d: any) => d && (d.sync_type === 'ATTENDANCE_RECORD' || d.record || d.attendance))
+              : null;
+
+            let rec: any = syncDoc?.record || syncDoc?.attendance || null;
+            if (!rec && cloudInst.verification_notes) {
+              try {
+                const parsed = JSON.parse(cloudInst.verification_notes);
+                rec = parsed.record || parsed.attendance || (parsed.sync_type === 'ATTENDANCE_RECORD' ? parsed : null);
+              } catch {}
+            }
+
+            if (rec && (rec.student_id || rec.id) && rec.date) {
+              const existingIdx = db.attendance.findIndex(a =>
+                (rec.id && a.id === rec.id) ||
+                (a.student_id === rec.student_id && a.date === rec.date)
+              );
+              if (existingIdx >= 0) {
+                db.attendance[existingIdx] = { ...db.attendance[existingIdx], ...rec };
+              } else {
+                db.attendance.push(rec);
+              }
+              attendanceChanged = true;
+            }
+          }
+        }
+
+        if (attendanceChanged) {
+          db.persist('attendance');
+          db.notify();
+          try {
+            window.dispatchEvent(new CustomEvent('vidyaconnect:attendance_updated'));
+          } catch {}
+        }
+
         for (const cloudInst of cloudInstitutions) {
           // Skip Sync Journal Rows
-          if (cloudInst.code?.startsWith('DEC-') || cloudInst.code?.startsWith('SYNC-DECISION-') || cloudInst.code?.startsWith('PROP-') || cloudInst.code?.startsWith('SYNC-PROP-') || cloudInst.code?.startsWith('BATCH-') || cloudInst.code?.startsWith('SYNC-BATCH-')) {
+          if (
+            cloudInst.code?.startsWith('DEC-') ||
+            cloudInst.code?.startsWith('SYNC-DECISION-') ||
+            cloudInst.code?.startsWith('PROP-') ||
+            cloudInst.code?.startsWith('SYNC-PROP-') ||
+            cloudInst.code?.startsWith('BATCH-') ||
+            cloudInst.code?.startsWith('SYNC-BATCH-') ||
+            cloudInst.code?.startsWith('ATT-') ||
+            cloudInst.code?.startsWith('SYNC-ATT-')
+          ) {
             continue;
           }
 

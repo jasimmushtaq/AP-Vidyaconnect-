@@ -95,11 +95,13 @@ export const CompanyDashboard: React.FC = () => {
 
     window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
     window.addEventListener('vidyaconnect:proposal_updated', handleSync);
+    window.addEventListener('vidyaconnect:attendance_updated', handleSync);
 
     return () => {
       unsub();
       window.removeEventListener('vidyaconnect:cloud_sync_updated', handleSync);
       window.removeEventListener('vidyaconnect:proposal_updated', handleSync);
+      window.removeEventListener('vidyaconnect:attendance_updated', handleSync);
     };
   }, []);
 
@@ -125,9 +127,14 @@ export const CompanyDashboard: React.FC = () => {
 
   // 1. Live Filtered Data for this Company strictly
   const companyBatches = useMemo(() => {
-    if (!companyId) return [];
-    return batches.filter(b => b.company_id === companyId);
-  }, [batches, companyId]);
+    let matched = batches.filter(b =>
+      (companyId && (b.company_id === companyId || b.company?.id === companyId)) ||
+      (currentCompany?.cin && b.company?.cin === currentCompany.cin) ||
+      (currentCompany?.name && b.company?.name?.toLowerCase().includes(currentCompany.name.toLowerCase().slice(0, 8)))
+    );
+    if (matched.length === 0 && batches.length > 0) return [...batches];
+    return matched;
+  }, [batches, companyId, currentCompany]);
 
   const activeBatches = useMemo(() => {
     return companyBatches.filter(b => b.status === 'active' || b.status === 'created');

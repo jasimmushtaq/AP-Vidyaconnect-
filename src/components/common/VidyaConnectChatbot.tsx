@@ -278,7 +278,7 @@ Every cohort follows a strict 10-phase auditable protocol with dual-key validati
 3. **Stage 3: Company Review (\`under_company_review\`)** — Corporate mentor inspects prerequisites, curriculum, and seat allocation.
 4. **Stage 4: Company Decision (\`company_accepted\` / \`company_accepted_with_changes\`)** — Terms accepted or counter-amendments provided.
 5. **Stage 5: Institution Accepted (\`institution_accepted\`)** — Dual-key handshake: College confirms final terms to auto-provision Batch Code (\`KD-YYYY-XXX\`).
-6. **Stage 6: Student Consent (\`students_confirmed\`)** — Enrolled students execute digital "JOIN INTERNSHIP" onboarding consent.
+6. **Stage 6: Cohort Enrollment (\`students_confirmed\`)** — Enrolled students are directly auto-onboarded without needing separate joining action.
 7. **Stage 7: Active Internship (\`active\`)** — Daily geofenced attendance inside employer perimeter with live webcam selfies.
 8. **Stage 8: Milestone Review (\`milestones_verified\`)** — Weekly code repositories, diary logs, and faculty-industry progress sync.
 9. **Stage 9: Corporate Evaluation (\`evaluation_completed\`)** — Mentors grade candidates across technical quality, problem solving, and soft skills (1–100).
@@ -463,7 +463,7 @@ Promulgated under **APSCHE & AP Higher Education Directives**:
 4. **Industry Mentor (\`mentor\`)**:
    - Assign technical sprints, verify daily shift check-ins, and submit rubric evaluations (1–100).
 5. **Student Intern (\`student\`)**:
-   - Execute digital joining consent, check in daily with GPS selfie, log diaries, and track academic credits.
+   - Directly enrolled into active cohorts, check in daily with GPS selfie, submit milestone deliverables, and track academic credits.
 6. **State Super Admin (\`super_admin\`)**:
    - Statewide telemetry oversight, verify company CIN & college accreditations, manage promotional announcements.`,
     badges: ['6 System Roles', 'Strict RBAC', 'State Oversight'],
@@ -502,20 +502,20 @@ Promulgated under **APSCHE & AP Higher Education Directives**:
   {
     category: 'roles',
     keywords: ['student onboarding', 'student login', 'how student join', 'join internship', 'student guide', 'how to login as student'],
-    title: 'Step-by-Step Student Onboarding & Joining Guide',
-    response: `### 👨‍🎓 Student Onboarding & Joining Workflow:
+    title: 'Step-by-Step Student Onboarding & Direct Enrollment Guide',
+    response: `### 👨‍🎓 Student Onboarding & Direct Enrollment Workflow:
 
 1. **Receive Official Credentials**:
-   - Your College Administrator generates official portal login credentials and enrolls you in an internship cohort.
-2. **Sign In to Student Portal**:
+   - Your College Administrator generates official portal login credentials and maps you to an approved internship cohort.
+2. **Direct Automated Cohort Enrollment**:
+   - The moment your college confirms the internship terms with the host company, you are directly enrolled into the active batch without requiring any separate acceptance step.
+3. **Sign In to Student Portal**:
    - Go to \`/login\`, select **Student Intern**, and enter your credentials.
-3. **Execute Digital "JOIN INTERNSHIP" Consent**:
-   - Navigate to **My Internships** (\`/students/my-internships\`), review the code-of-conduct & POSH safety rules, and click **Sign "JOIN INTERNSHIP"**.
 4. **Daily GPS Selfie Attendance**:
-   - When on-site at the company facility, open the attendance tool and click **Check-In Selfie** within the verified GPS geofence perimeter.
+   - Open your dashboard or **My Internships** (\`/students/my-internships\`) and click **Mark Today's Attendance** within the verified GPS geofence perimeter.
 5. **Milestones & Credits**:
    - Complete tasks assigned by your industry mentor to earn your university academic credits.`,
-    badges: ['Student Guide', '1-Click Consent', 'Selfie Check-in'],
+    badges: ['Student Guide', 'Direct Enrollment', 'Selfie Check-in'],
     links: [
       { label: 'My Internships Portal', url: '/students/my-internships' },
       { label: 'Student Opportunities', url: '/opportunities' }
