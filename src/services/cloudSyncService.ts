@@ -907,8 +907,44 @@ class CloudSyncService {
     // 2. Broadcast immediately to all active browser windows & tabs
     this.broadcast('PROPOSAL_UPDATED', { proposal: sanitizedProposal });
 
+    let canonicalSuccess = false;
+
     try {
-      // 3. Attempt canonical proposal synchronization via RPC or internship_proposals table
+      // 3. Proactively resolve canonical UUID to ensure RPC ON CONFLICT (id) updates cleanly
+      let canonicalId = sanitizedProposal.canonical_id || proposal.canonical_id;
+      const isUuid = (val?: string) => !!val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+      if (!canonicalId && isUuid(sanitizedProposal.id)) {
+        canonicalId = sanitizedProposal.id;
+      }
+
+      if (!canonicalId && sanitizedProposal.proposal_code) {
+        try {
+          const qRes = await fetch(
+            `${supabaseUrl}/rest/v1/internship_proposals?proposal_code=eq.${sanitizedProposal.proposal_code}&select=id`,
+            {
+              headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` }
+            }
+          );
+          if (qRes.ok) {
+            const qRows = await qRes.json();
+            if (qRows.length > 0 && qRows[0].id) {
+              canonicalId = qRows[0].id;
+              proposal.canonical_id = canonicalId;
+              sanitizedProposal.canonical_id = canonicalId;
+            }
+          }
+        } catch (qErr) {
+          console.warn('[CloudSync] Canonical ID lookup warning:', qErr);
+        }
+      }
+
+      const rpcPayload = {
+        ...sanitizedProposal,
+        id: canonicalId || sanitizedProposal.id
+      };
+
+      // 4. Attempt canonical proposal synchronization via RPC
       try {
         const rpcRes = await fetch(`${supabaseUrl}/rest/v1/rpc/sync_canonical_proposal`, {
           method: 'POST',
@@ -917,23 +953,28 @@ class CloudSyncService {
             'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ p_proposal: sanitizedProposal }),
+          body: JSON.stringify({ p_proposal: rpcPayload }),
           keepalive: true
         });
 
         if (rpcRes.ok) {
           const rpcData = await rpcRes.json();
-          if (rpcData?.id) {
-            proposal.canonical_id = rpcData.id;
-            sanitizedProposal.canonical_id = rpcData.id;
+          if (rpcData?.success !== false) {
+            if (rpcData?.id) {
+              proposal.canonical_id = rpcData.id;
+              sanitizedProposal.canonical_id = rpcData.id;
+            }
+            canonicalSuccess = true;
+            console.log('[CloudSync] Successfully synced proposal via canonical RPC:', proposal.proposal_code || proposal.id);
+          } else {
+            console.warn('[CloudSync] Canonical RPC returned error:', rpcData?.error);
           }
-          console.log('[CloudSync] Successfully synced proposal via canonical RPC:', proposal.proposal_code || proposal.id);
         }
       } catch (rpcErr) {
-        // Canonical RPC fallback to shared journal
+        console.warn('[CloudSync] Canonical RPC network error:', rpcErr);
       }
 
-      // 4. Authoritative shared PostgreSQL persistence
+      // 5. Authoritative shared PostgreSQL persistence journal (using return=minimal to avoid RLS SELECT timeouts)
       const ts = Date.now();
       const idPart = (proposal.id || 'prop').replace(/[^a-zA-Z0-9]/g, '').slice(-10);
       const syncCode = `PROP-${idPart}-${ts}`.slice(0, 48);
@@ -976,13 +1017,13 @@ class CloudSyncService {
           'apikey': supabaseAnonKey,
           'Authorization': `Bearer ${supabaseAnonKey}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=representation'
+          'Prefer': 'return=minimal'
         },
         body: JSON.stringify(syncRow),
         keepalive: true
       });
 
-      if (!res.ok) {
+      if (!res.ok && !canonicalSuccess) {
         const errText = await res.text();
         console.error('[CloudSync] Failed to persist proposal to Supabase:', res.status, errText);
         return { success: false, error: `Database persistence failed (${res.status}): ${errText}` };

@@ -31,7 +31,8 @@ import {
   Award,
   Copy,
   ExternalLink,
-  Layers
+  Layers,
+  Loader2
 } from 'lucide-react';
 
 export const ProposalDetailPage: React.FC = () => {
@@ -327,10 +328,12 @@ export const ProposalDetailPage: React.FC = () => {
   const handleCompanySubmitResponse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
-    const decisionsArray = Object.entries(studentDecisions).map(([studentId, accepted]) => ({
-      studentId,
-      accepted,
-      reason: accepted ? undefined : 'Seat capacity allocation'
+    
+    // Ensure all students in proposal have decisions recorded
+    const decisionsArray = (proposal.students || []).map(s => ({
+      studentId: s.student_id,
+      accepted: studentDecisions[s.student_id] !== false,
+      reason: studentDecisions[s.student_id] === false ? 'Seat capacity allocation' : undefined
     }));
 
     const finalMentorName = mentorName.trim() || 'Assigned Technical Lead';
@@ -348,6 +351,13 @@ export const ProposalDetailPage: React.FC = () => {
         },
         currentUser
       );
+
+      // Instantly update component state so UI shows the new status without delay
+      const updated = db.findProposal(proposal.id) || db.proposals.find(p => p.id === proposal.id || p.proposal_code === proposal.proposal_code);
+      if (updated) {
+        setProposal({ ...updated });
+      }
+
       alert(`Decision submitted and successfully synchronized to the central cloud database! The college has been notified.`);
     } catch (err: any) {
       alert(`Error submitting decision: ${err?.message || 'Database sync error'}`);
@@ -766,10 +776,20 @@ export const ProposalDetailPage: React.FC = () => {
             <div className="flex justify-end pt-2">
               <button
                 type="submit"
-                className="px-6 py-2.5 bg-[#F07421] hover:bg-[#D96214] text-white rounded-lg font-bold text-xs shadow transition-all flex items-center gap-2"
+                disabled={isSubmitting}
+                className="px-6 py-2.5 bg-[#F07421] hover:bg-[#D96214] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-lg font-bold text-xs shadow transition-all flex items-center gap-2"
               >
-                <Check className="w-4 h-4" />
-                Submit Company Decision
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Submitting Decision...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Submit Company Decision</span>
+                  </>
+                )}
               </button>
             </div>
           </form>
