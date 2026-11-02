@@ -423,6 +423,51 @@ class DatabaseStore {
           }
         });
       }
+      const propRaw = localStorage.getItem(STORAGE_PREFIX + 'proposals');
+      if (propRaw) {
+        const loadedProps = JSON.parse(propRaw);
+        if (Array.isArray(loadedProps)) {
+          loadedProps.forEach((lp: InternshipProposal) => {
+            const idx = this.proposals.findIndex(p => p.id === lp.id || p.proposal_code === lp.proposal_code);
+            if (idx >= 0) {
+              this.proposals[idx] = { ...this.proposals[idx], ...lp };
+            } else {
+              this.proposals.unshift(lp);
+            }
+          });
+        }
+      }
+      const instRaw = localStorage.getItem(STORAGE_PREFIX + 'institutions');
+      if (instRaw) {
+        const loadedInsts = JSON.parse(instRaw);
+        if (Array.isArray(loadedInsts)) {
+          loadedInsts.forEach((li: any) => {
+            const idx = this.institutions.findIndex(i => i.id === li.id || i.code === li.code);
+            if (idx >= 0) this.institutions[idx] = { ...this.institutions[idx], ...li };
+            else this.institutions.unshift(li);
+          });
+        }
+      }
+      const compRaw = localStorage.getItem(STORAGE_PREFIX + 'companies');
+      if (compRaw) {
+        const loadedComps = JSON.parse(compRaw);
+        if (Array.isArray(loadedComps)) {
+          loadedComps.forEach((lc: any) => {
+            const idx = this.companies.findIndex(c => c.id === lc.id || c.cin === lc.cin);
+            if (idx >= 0) this.companies[idx] = { ...this.companies[idx], ...lc };
+            else this.companies.unshift(lc);
+          });
+        }
+      }
+      const notifRaw = localStorage.getItem(STORAGE_PREFIX + 'notifications');
+      if (notifRaw) {
+        const loadedNotifs = JSON.parse(notifRaw);
+        if (Array.isArray(loadedNotifs)) {
+          loadedNotifs.forEach((ln: any) => {
+            if (!this.notifications.some(n => n.id === ln.id)) this.notifications.unshift(ln);
+          });
+        }
+      }
     } catch (e) {
       console.warn('Storage re-sync warning:', e);
     }

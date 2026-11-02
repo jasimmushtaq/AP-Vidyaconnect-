@@ -835,7 +835,8 @@ class CloudSyncService {
           'Content-Type': 'application/json',
           'Prefer': 'return=representation'
         },
-        body: JSON.stringify(syncRow)
+        body: JSON.stringify(syncRow),
+        keepalive: true
       });
 
       if (!res.ok) {
@@ -916,10 +917,16 @@ class CloudSyncService {
             'Authorization': `Bearer ${supabaseAnonKey}`,
             'Content-Type': 'application/json'
           },
-          body: JSON.stringify({ p_proposal: sanitizedProposal })
+          body: JSON.stringify({ p_proposal: sanitizedProposal }),
+          keepalive: true
         });
 
         if (rpcRes.ok) {
+          const rpcData = await rpcRes.json();
+          if (rpcData?.id) {
+            proposal.canonical_id = rpcData.id;
+            sanitizedProposal.canonical_id = rpcData.id;
+          }
           console.log('[CloudSync] Successfully synced proposal via canonical RPC:', proposal.proposal_code || proposal.id);
         }
       } catch (rpcErr) {
@@ -971,7 +978,8 @@ class CloudSyncService {
           'Content-Type': 'application/json',
           'Prefer': 'return=representation'
         },
-        body: JSON.stringify(syncRow)
+        body: JSON.stringify(syncRow),
+        keepalive: true
       });
 
       if (!res.ok) {
@@ -1035,7 +1043,8 @@ class CloudSyncService {
           'Content-Type': 'application/json',
           'Prefer': 'return=minimal'
         },
-        body: JSON.stringify(syncRow)
+        body: JSON.stringify(syncRow),
+        keepalive: true
       });
 
       if (!res.ok) {
@@ -1124,7 +1133,8 @@ class CloudSyncService {
           'Content-Type': 'application/json',
           'Prefer': 'return=representation'
         },
-        body: JSON.stringify(syncRow)
+        body: JSON.stringify(syncRow),
+        keepalive: true
       });
 
       if (!res.ok) {

@@ -100,6 +100,7 @@ export const ProposalDetailPage: React.FC = () => {
     };
 
     const tryLoad = () => {
+      db.syncFromStorage();
       const match = findMatchingProposal(id);
       if (match) {
         applyMatch(match);
@@ -134,40 +135,64 @@ export const ProposalDetailPage: React.FC = () => {
       const clean = decodeURIComponent(id).trim();
 
       try {
-        // Query canonical table by id or code
-        const canUrl = `${supabaseUrl}/rest/v1/internship_proposals?or=(id.eq.${clean},proposal_code.eq.${clean})&select=*`;
-        const canRes = await fetch(canUrl, {
-          headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` }
-        });
+        const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(clean);
         let canonicalRow: any = null;
-        if (canRes.ok) {
-          const rows = await canRes.json();
-          if (rows.length > 0) canonicalRow = rows[0];
+
+        // 1. Query canonical table by UUID or proposal_code (avoid invalid uuid cast)
+        try {
+          const canUrl = isUuid
+            ? `${supabaseUrl}/rest/v1/internship_proposals?or=(id.eq.${clean},proposal_code.eq.${clean})&select=*`
+            : `${supabaseUrl}/rest/v1/internship_proposals?proposal_code=eq.${clean}&select=*`;
+          const canRes = await fetch(canUrl, {
+            headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` }
+          });
+          if (canRes.ok) {
+            const rows = await canRes.json();
+            if (rows.length > 0) canonicalRow = rows[0];
+          }
+        } catch (canErr) {
+          console.warn('[ProposalDetail] Canonical table fetch error:', canErr);
         }
 
-        // Query institutions registry for PROP-* document rows
-        const instUrl = `${supabaseUrl}/rest/v1/institutions?code=like.PROP-*&select=*&order=created_at.desc&limit=50`;
-        const instRes = await fetch(instUrl, {
-          headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` }
-        });
+        // 2. Query institutions registry for PROP-* document rows
         let richProposal: any = null;
-        if (instRes.ok) {
-          const instRows = await instRes.json();
-          for (const row of instRows) {
-            const docP = row.documents?.[0]?.proposal;
-            const docId = docP?.id || row.documents?.[0]?.proposal_id;
-            const docCode = docP?.proposal_code || row.documents?.[0]?.proposal_code;
+        try {
+          const idPart = clean.replace(/[^a-zA-Z0-9]/g, '').slice(-10);
+          
+          // Targeted queries to find the exact proposal document
+          const urlsToTry = [
+            `${supabaseUrl}/rest/v1/institutions?verification_notes=like.*${clean}*&select=code,verification_notes,documents`,
+            idPart ? `${supabaseUrl}/rest/v1/institutions?code=like.PROP-${idPart}*&select=code,verification_notes,documents` : null,
+            canonicalRow?.proposal_code ? `${supabaseUrl}/rest/v1/institutions?verification_notes=like.*${canonicalRow.proposal_code}*&select=code,verification_notes,documents` : null,
+            `${supabaseUrl}/rest/v1/institutions?code=like.PROP-*&select=code,verification_notes,documents&order=created_at.desc&limit=30`
+          ].filter(Boolean) as string[];
 
-            if (
-              (docId && (docId === clean || docId.toLowerCase() === clean.toLowerCase())) ||
-              (docCode && (docCode === clean || docCode.toLowerCase() === clean.toLowerCase())) ||
-              (canonicalRow?.proposal_code && docCode === canonicalRow.proposal_code) ||
-              (row.code && row.code.includes(clean.replace('prop-', '')))
-            ) {
-              richProposal = docP;
-              break;
+          for (const instUrl of urlsToTry) {
+            if (richProposal) break;
+            const instRes = await fetch(instUrl, {
+              headers: { apikey: supabaseAnonKey, Authorization: `Bearer ${supabaseAnonKey}` }
+            });
+            if (instRes.ok) {
+              const instRows = await instRes.json();
+              for (const row of instRows) {
+                const docP = row.documents?.[0]?.proposal;
+                const docId = docP?.id || row.documents?.[0]?.proposal_id;
+                const docCode = docP?.proposal_code || row.documents?.[0]?.proposal_code;
+
+                if (
+                  (docId && (docId === clean || docId.toLowerCase() === clean.toLowerCase())) ||
+                  (docCode && (docCode === clean || docCode.toLowerCase() === clean.toLowerCase())) ||
+                  (canonicalRow?.proposal_code && docCode === canonicalRow.proposal_code) ||
+                  (idPart && row.code && row.code.includes(idPart))
+                ) {
+                  richProposal = docP;
+                  break;
+                }
+              }
             }
           }
+        } catch (instErr) {
+          console.warn('[ProposalDetail] Institutions registry fetch error:', instErr);
         }
 
         if (richProposal || canonicalRow) {

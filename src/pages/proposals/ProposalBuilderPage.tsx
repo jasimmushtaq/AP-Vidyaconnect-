@@ -20,7 +20,8 @@ import {
   ArrowLeft,
   Search,
   Sparkles,
-  ShieldCheck
+  ShieldCheck,
+  Loader2
 } from 'lucide-react';
 
 export const ProposalBuilderPage: React.FC = () => {
@@ -48,6 +49,7 @@ export const ProposalBuilderPage: React.FC = () => {
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
 
   const [studentSearch, setStudentSearch] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Verified institution resolution
   const effectiveInstitution =
@@ -73,7 +75,7 @@ export const ProposalBuilderPage: React.FC = () => {
     }
   };
 
-  const handleSubmitProposal = (asDraft: boolean) => {
+  const handleSubmitProposal = async (asDraft: boolean) => {
     if (!verifiedInstId) {
       showAlert({
         title: 'Institution Required',
@@ -143,41 +145,58 @@ export const ProposalBuilderPage: React.FC = () => {
       updated_at: new Date().toISOString()
     };
 
-    db.proposals.unshift(newProposal);
-    db.persist('proposals');
+    setIsSubmitting(true);
 
-    // Sync proposal to Supabase PostgreSQL database for cross-browser synchronization
-    cloudSync.syncProposalToCloud(newProposal);
+    try {
+      db.proposals.unshift(newProposal);
+      db.persist('proposals');
 
-    db.logAudit(
-      asDraft ? 'save_draft_proposal' : 'submit_proposal',
-      'internship_proposal',
-      newProposal.id,
-      null,
-      { code: newProposal.proposal_code, status: newProposal.status },
-      { id: currentUser?.id || 'system', name: currentUser?.full_name || 'System', role: currentUser?.role || 'institution_admin' }
-    );
+      // Authoritatively persist proposal to Supabase central PostgreSQL database before navigating
+      const syncResult = await cloudSync.syncProposalToCloud(newProposal);
+      if (syncResult && !syncResult.success) {
+        console.warn('[ProposalBuilder] Central sync warning:', syncResult.error);
+      }
 
-    if (!asDraft) {
-      // Multi-admin dispatch to all matching company admins
-      const compAdmins = db.profiles.filter(p => p.company_id === selectedCompanyId || (p.role === 'company_admin' && !p.company_id));
-      const targetRecipients = new Set<string>();
-      compAdmins.forEach(p => targetRecipients.add(p.id));
-      if (targetRecipients.size === 0) targetRecipients.add('user-comp-admin');
+      db.logAudit(
+        asDraft ? 'save_draft_proposal' : 'submit_proposal',
+        'internship_proposal',
+        newProposal.id,
+        null,
+        { code: newProposal.proposal_code, status: newProposal.status },
+        { id: currentUser?.id || 'system', name: currentUser?.full_name || 'System', role: currentUser?.role || 'institution_admin' }
+      );
 
-      targetRecipients.forEach(recId => {
-        db.sendNotification(
-          recId,
-          'proposal_submitted',
-          `New Proposal from ${effectiveInstitution?.name || 'Institution'}`,
-          `Proposal ${proposalCode} for ${domain} is ready for review.`,
-          `/proposals/${newProposal.id}`,
-          { recipient_role: 'company_admin', recipient_user_id: recId, metadata: { proposal_id: newProposal.id } }
-        );
+      if (!asDraft) {
+        // Multi-admin dispatch to all matching company admins
+        const compAdmins = db.profiles.filter(p => p.company_id === selectedCompanyId || (p.role === 'company_admin' && !p.company_id));
+        const targetRecipients = new Set<string>();
+        compAdmins.forEach(p => targetRecipients.add(p.id));
+        if (targetRecipients.size === 0) targetRecipients.add('user-comp-admin');
+
+        targetRecipients.forEach(recId => {
+          db.sendNotification(
+            recId,
+            'proposal_submitted',
+            `New Proposal from ${effectiveInstitution?.name || 'Institution'}`,
+            `Proposal ${proposalCode} for ${domain} is ready for review.`,
+            `/proposals/${newProposal.id}`,
+            { recipient_role: 'company_admin', recipient_user_id: recId, metadata: { proposal_id: newProposal.id } }
+          );
+        });
+      }
+
+      navigate(`/proposals/${newProposal.id}`);
+    } catch (err: any) {
+      console.error('[ProposalBuilder] Proposal submission failed:', err);
+      showAlert({
+        title: 'Submission Error',
+        subtitle: 'Network / Central Registry',
+        type: 'danger',
+        message: err?.message || 'Failed to submit proposal to the central state registry. Please verify connection and retry.'
       });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    navigate(`/proposals/${newProposal.id}`);
   };
 
   return (
@@ -559,18 +578,31 @@ export const ProposalBuilderPage: React.FC = () => {
 
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
+                  disabled={isSubmitting}
                   onClick={() => handleSubmitProposal(true)}
-                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-lg text-xs font-bold transition-all"
+                  className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 text-gray-800 rounded-lg text-xs font-bold transition-all"
                 >
                   Save as Draft
                 </button>
 
                 <button
+                  type="button"
+                  disabled={isSubmitting}
                   onClick={() => handleSubmitProposal(false)}
-                  className="px-6 py-2 bg-[#0E2350] hover:bg-[#14336F] text-white rounded-lg text-xs font-bold shadow transition-all flex items-center gap-2"
+                  className="px-6 py-2 bg-[#0E2350] hover:bg-[#14336F] disabled:opacity-50 text-white rounded-lg text-xs font-bold shadow transition-all flex items-center gap-2"
                 >
-                  <ShieldCheck className="w-4 h-4 text-[#F07421]" />
-                  Submit Formal Proposal
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-[#F07421]" />
+                      <span>Submitting to State Registry...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ShieldCheck className="w-4 h-4 text-[#F07421]" />
+                      <span>Submit Formal Proposal</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>
