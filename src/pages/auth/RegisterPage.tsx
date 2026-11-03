@@ -1,6 +1,6 @@
 // ============================================================================
 // AP VIDYACONNECT — ONBOARDING & REGISTRATION PAGE
-// Multi-actor registration with strict mandatory validation & document checks
+// Multi-actor registration with strict mandatory validation, input sanitization & document checks
 // ============================================================================
 
 import React, { useState, useMemo, useRef } from 'react';
@@ -27,6 +27,7 @@ import {
   Trash2,
   Paperclip,
   Eye,
+  EyeOff,
   FileCheck,
   ShieldAlert,
   Loader2,
@@ -35,6 +36,54 @@ import {
   Sparkles,
   AlertTriangle
 } from 'lucide-react';
+
+// ============================================================================
+// Robust Validation & Sanitization Helpers
+// ============================================================================
+
+export const isValidEmail = (val: string): boolean => {
+  if (!val) return false;
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val.trim());
+};
+
+export const sanitizePhone = (val: string): string => {
+  return val.replace(/[^0-9+\s\-()]/g, '');
+};
+
+export const isValidPhone = (val: string): boolean => {
+  if (!val) return false;
+  const digits = val.replace(/\D/g, '');
+  return digits.length >= 10 && digits.length <= 13;
+};
+
+export const isValidName = (val: string): boolean => {
+  if (!val || val.trim().length < 2) return false;
+  return /^[a-zA-Z\s.,'-]{2,}$/.test(val.trim()) && !/^\d+$/.test(val.trim());
+};
+
+export const sanitizeCin = (val: string): string => {
+  return val.toUpperCase().replace(/[^A-Z0-9]/g, '');
+};
+
+export const isValidCin = (val: string): boolean => {
+  if (!val) return false;
+  const cleaned = sanitizeCin(val);
+  return cleaned.length >= 8 && cleaned.length <= 25;
+};
+
+export const sanitizeGst = (val: string): string => {
+  return val.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 15);
+};
+
+export const isValidGst = (val: string): boolean => {
+  if (!val) return false;
+  const cleaned = sanitizeGst(val);
+  return cleaned.length === 15;
+};
+
+export const sanitizeCode = (val: string): string => {
+  return val.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+};
 
 export const RegisterPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -54,10 +103,24 @@ export const RegisterPage: React.FC = () => {
   const [missingFieldsList, setMissingFieldsList] = useState<string[]>([]);
   const [previewDoc, setPreviewDoc] = useState<AttachedDocument | null>(null);
 
+  // Field touch & validation tracking
+  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
+  const [showAllErrors, setShowAllErrors] = useState(false);
+
+  // Password visibility states
+  const [showInstPass, setShowInstPass] = useState(false);
+  const [showInstConfirm, setShowInstConfirm] = useState(false);
+  const [showCompPass, setShowCompPass] = useState(false);
+  const [showCompConfirm, setShowCompConfirm] = useState(false);
+
   // References for smooth scrolling
   const errorBannerRef = useRef<HTMLDivElement>(null);
   const instDocSectionRef = useRef<HTMLDivElement>(null);
   const compDocSectionRef = useRef<HTMLDivElement>(null);
+
+  const markTouched = (field: string) => {
+    setTouchedFields(prev => ({ ...prev, [field]: true }));
+  };
 
   // ---------------------------------------------------------------------------
   // 1. Institution Form State
@@ -188,21 +251,128 @@ export const RegisterPage: React.FC = () => {
   };
 
   // ---------------------------------------------------------------------------
+  // Field-Level Error Resolution
+  // ---------------------------------------------------------------------------
+  const getFieldError = (fieldName: string): string | null => {
+    const isVisible = showAllErrors || touchedFields[fieldName];
+    if (!isVisible) return null;
+
+    switch (fieldName) {
+      // Institution Fields
+      case 'inst_name':
+        if (!instForm.name.trim()) return 'Institution Legal Name is required';
+        if (instForm.name.trim().length < 3) return 'Institution name must be at least 3 characters';
+        return null;
+      case 'inst_code':
+        if (!instForm.code.trim()) return 'AISHE / Portal code is required';
+        if (instForm.code.trim().length < 3) return 'Code must be at least 3 characters';
+        return null;
+      case 'inst_university':
+        if (!instForm.affiliated_university.trim()) return 'Affiliated University / Board is required';
+        return null;
+      case 'inst_accreditation':
+        if (!instForm.accreditation.trim()) return 'Accreditation status is required (e.g. NAAC / NBA)';
+        return null;
+      case 'inst_principal':
+        if (!instForm.principal_name.trim()) return 'Principal / Head Name is required';
+        if (!isValidName(instForm.principal_name)) return 'Principal name must contain letters only (min 2 characters)';
+        return null;
+      case 'inst_official_phone':
+        if (!instForm.official_phone.trim()) return 'Official College Telephone is required';
+        if (!isValidPhone(instForm.official_phone)) return 'Please enter a valid telephone number (at least 10 digits)';
+        return null;
+      case 'inst_admin_name':
+        if (!instAdmin.fullName.trim()) return 'Administrator full name is required';
+        if (!isValidName(instAdmin.fullName)) return 'Name must contain letters only (min 2 characters)';
+        return null;
+      case 'inst_admin_email':
+        if (!instAdmin.email.trim()) return 'Official Admin Email is required (Login ID)';
+        if (!isValidEmail(instAdmin.email)) return 'Please enter a valid email address (e.g. principal@college.edu.in)';
+        return null;
+      case 'inst_admin_phone':
+        if (!instAdmin.phone.trim()) return 'Admin Mobile / WhatsApp number is required';
+        if (!isValidPhone(instAdmin.phone)) return 'Please enter a valid 10-digit mobile number';
+        return null;
+      case 'inst_admin_pass':
+        if (!instAdmin.password) return 'Password is required to secure your admin account';
+        if (instAdmin.password.length < 6) return 'Password must be at least 6 characters';
+        return null;
+      case 'inst_admin_confirm':
+        if (!instAdmin.confirmPassword) return 'Please confirm your password';
+        if (instAdmin.password !== instAdmin.confirmPassword) return 'Passwords do not match';
+        return null;
+
+      // Corporate Fields
+      case 'comp_name':
+        if (!compForm.name.trim()) return 'Company Legal Name is required';
+        if (compForm.name.trim().length < 3) return 'Company name must be at least 3 characters';
+        return null;
+      case 'comp_cin':
+        if (!compForm.cin.trim()) return 'Corporate CIN number is required';
+        if (!isValidCin(compForm.cin)) return 'CIN must be at least 8 alphanumeric characters (e.g. U72200AP2026PTC560426)';
+        return null;
+      case 'comp_industry':
+        if (!compForm.industry.trim()) return 'Industry Domain is required';
+        return null;
+      case 'comp_gst':
+        if (!compForm.gst.trim()) return 'GST Registration No. is required';
+        if (!isValidGst(compForm.gst)) return 'GST number must be 15 alphanumeric characters (e.g. 37AADCP5604F1Z5)';
+        return null;
+      case 'comp_hq':
+        if (!compForm.headquarters.trim()) return 'HQ Address is required';
+        return null;
+      case 'comp_official_phone':
+        if (!compForm.official_phone.trim()) return 'Official Company Phone is required';
+        if (!isValidPhone(compForm.official_phone)) return 'Please enter a valid phone number (at least 10 digits)';
+        return null;
+      case 'comp_admin_name':
+        if (!compAdmin.fullName.trim()) return 'HR / Authorized Person Name is required';
+        if (!isValidName(compAdmin.fullName)) return 'Name must contain letters only (min 2 characters)';
+        return null;
+      case 'comp_admin_email':
+        if (!compAdmin.email.trim()) return 'Official Work Email is required (Login ID)';
+        if (!isValidEmail(compAdmin.email)) return 'Please enter a valid work email (e.g. hr@company.com)';
+        return null;
+      case 'comp_admin_phone':
+        if (!compAdmin.phone.trim()) return 'Contact Phone is required';
+        if (!isValidPhone(compAdmin.phone)) return 'Please enter a valid 10-digit phone number';
+        return null;
+      case 'comp_admin_pass':
+        if (!compAdmin.password) return 'Password is required to secure your company account';
+        if (compAdmin.password.length < 6) return 'Password must be at least 6 characters';
+        return null;
+      case 'comp_admin_confirm':
+        if (!compAdmin.confirmPassword) return 'Please confirm your password';
+        if (compAdmin.password !== compAdmin.confirmPassword) return 'Passwords do not match';
+        return null;
+
+      default:
+        return null;
+    }
+  };
+
+  // ---------------------------------------------------------------------------
   // Validation Logic: "THEN ONLY WE CAN CREATE ACCOUNT"
   // ---------------------------------------------------------------------------
   const getInstMissingFields = (): string[] => {
     const missing: string[] = [];
     if (!instForm.name.trim()) missing.push('1. Institution Legal Name');
+    else if (instForm.name.trim().length < 3) missing.push('1. Institution Legal Name (must be at least 3 characters)');
     if (!instForm.code.trim()) missing.push('1. College AISHE / Portal Code');
     if (!instForm.affiliated_university.trim()) missing.push('1. Affiliated University / Board');
     if (!instForm.accreditation.trim()) missing.push('1. Accreditation (NAAC / NBA)');
     if (!instForm.principal_name.trim()) missing.push('1. Principal / Head Name');
+    else if (!isValidName(instForm.principal_name)) missing.push('1. Principal / Head Name (letters only, min 2 characters)');
     if (!instForm.official_phone.trim()) missing.push('1. Official College Telephone');
+    else if (!isValidPhone(instForm.official_phone)) missing.push('1. Official College Telephone (valid telephone with at least 10 digits)');
     if (instDocs.length === 0) missing.push('1. Mandatory Accreditation & Compliance Documents (At least 1 PDF/Image required)');
+
     if (!instAdmin.fullName.trim()) missing.push('2. Administrator Full Name');
+    else if (!isValidName(instAdmin.fullName)) missing.push('2. Administrator Full Name (letters only, min 2 characters)');
     if (!instAdmin.email.trim()) missing.push('2. Admin Official Email (Login ID)');
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(instAdmin.email.trim())) missing.push('2. Valid Admin Official Email format');
+    else if (!isValidEmail(instAdmin.email)) missing.push('2. Valid Admin Official Email format (e.g. principal@college.edu.in)');
     if (!instAdmin.phone.trim()) missing.push('2. Admin Mobile / WhatsApp');
+    else if (!isValidPhone(instAdmin.phone)) missing.push('2. Admin Mobile / WhatsApp (valid mobile with at least 10 digits)');
     if (!instAdmin.password) missing.push('2. Create Secure Password');
     else if (instAdmin.password.length < 6) missing.push('2. Password must be at least 6 characters');
     if (!instAdmin.confirmPassword) missing.push('2. Confirm Password');
@@ -213,16 +383,23 @@ export const RegisterPage: React.FC = () => {
   const getCompMissingFields = (): string[] => {
     const missing: string[] = [];
     if (!compForm.name.trim()) missing.push('1. Company Legal Name');
+    else if (compForm.name.trim().length < 3) missing.push('1. Company Legal Name (min 3 characters)');
     if (!compForm.cin.trim()) missing.push('1. Corporate CIN Number');
+    else if (!isValidCin(compForm.cin)) missing.push('1. Corporate CIN Number (valid alphanumeric CIN, min 8 chars)');
     if (!compForm.industry.trim()) missing.push('1. Industry Domain');
     if (!compForm.gst.trim()) missing.push('1. GST Registration No.');
+    else if (!isValidGst(compForm.gst)) missing.push('1. GST Registration No. (must be 15 alphanumeric characters)');
     if (!compForm.headquarters.trim()) missing.push('1. HQ Address');
     if (!compForm.official_phone.trim()) missing.push('1. Official Company Phone');
+    else if (!isValidPhone(compForm.official_phone)) missing.push('1. Official Company Phone (valid phone with at least 10 digits)');
     if (compDocs.length === 0) missing.push('1. Mandatory Corporate Documents & MCA/GST Proof (At least 1 PDF/Image required)');
+
     if (!compAdmin.fullName.trim()) missing.push('2. HR / Authorized Person Name');
+    else if (!isValidName(compAdmin.fullName)) missing.push('2. HR / Authorized Person Name (letters only, min 2 characters)');
     if (!compAdmin.email.trim()) missing.push('2. Official Work Email (Login ID)');
-    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(compAdmin.email.trim())) missing.push('2. Valid Work Email format');
+    else if (!isValidEmail(compAdmin.email)) missing.push('2. Valid Work Email format (e.g. hr@company.com)');
     if (!compAdmin.phone.trim()) missing.push('2. Contact Phone');
+    else if (!isValidPhone(compAdmin.phone)) missing.push('2. Contact Phone (valid phone with at least 10 digits)');
     if (!compAdmin.password) missing.push('2. Create Password');
     else if (compAdmin.password.length < 6) missing.push('2. Password must be at least 6 characters');
     if (!compAdmin.confirmPassword) missing.push('2. Confirm Password');
@@ -233,12 +410,12 @@ export const RegisterPage: React.FC = () => {
   // Live Booleans for visual readiness indicators
   const isInstLegalComplete = useMemo(() => {
     return Boolean(
-      instForm.name.trim() &&
-      instForm.code.trim() &&
-      instForm.affiliated_university.trim() &&
-      instForm.accreditation.trim() &&
-      instForm.principal_name.trim() &&
-      instForm.official_phone.trim()
+      instForm.name.trim().length >= 3 &&
+      instForm.code.trim().length >= 3 &&
+      instForm.affiliated_university.trim().length >= 2 &&
+      instForm.accreditation.trim().length >= 2 &&
+      isValidName(instForm.principal_name) &&
+      isValidPhone(instForm.official_phone)
     );
   }, [instForm]);
 
@@ -246,10 +423,9 @@ export const RegisterPage: React.FC = () => {
 
   const isInstAdminComplete = useMemo(() => {
     return Boolean(
-      instAdmin.fullName.trim() &&
-      instAdmin.email.trim() &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(instAdmin.email.trim()) &&
-      instAdmin.phone.trim() &&
+      isValidName(instAdmin.fullName) &&
+      isValidEmail(instAdmin.email) &&
+      isValidPhone(instAdmin.phone) &&
       instAdmin.password.length >= 6 &&
       instAdmin.password === instAdmin.confirmPassword
     );
@@ -259,12 +435,12 @@ export const RegisterPage: React.FC = () => {
 
   const isCompLegalComplete = useMemo(() => {
     return Boolean(
-      compForm.name.trim() &&
-      compForm.cin.trim() &&
-      compForm.industry.trim() &&
-      compForm.gst.trim() &&
-      compForm.headquarters.trim() &&
-      compForm.official_phone.trim()
+      compForm.name.trim().length >= 3 &&
+      isValidCin(compForm.cin) &&
+      compForm.industry.trim().length >= 2 &&
+      isValidGst(compForm.gst) &&
+      compForm.headquarters.trim().length >= 3 &&
+      isValidPhone(compForm.official_phone)
     );
   }, [compForm]);
 
@@ -272,10 +448,9 @@ export const RegisterPage: React.FC = () => {
 
   const isCompAdminComplete = useMemo(() => {
     return Boolean(
-      compAdmin.fullName.trim() &&
-      compAdmin.email.trim() &&
-      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(compAdmin.email.trim()) &&
-      compAdmin.phone.trim() &&
+      isValidName(compAdmin.fullName) &&
+      isValidEmail(compAdmin.email) &&
+      isValidPhone(compAdmin.phone) &&
       compAdmin.password.length >= 6 &&
       compAdmin.password === compAdmin.confirmPassword
     );
@@ -288,6 +463,7 @@ export const RegisterPage: React.FC = () => {
   // ---------------------------------------------------------------------------
   const handleInstSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setShowAllErrors(true);
     setFormError(null);
     setMissingFieldsList([]);
 
@@ -295,7 +471,7 @@ export const RegisterPage: React.FC = () => {
     const missing = getInstMissingFields();
     if (missing.length > 0) {
       setMissingFieldsList(missing);
-      setFormError('Account creation locked: You must fill all information in Section 1 and Section 2, and upload at least one mandatory compliance document first.');
+      setFormError('Account creation locked: Please fix the highlighted errors and upload at least one mandatory compliance document.');
       errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
@@ -338,6 +514,7 @@ export const RegisterPage: React.FC = () => {
   // ---------------------------------------------------------------------------
   const handleCompSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setShowAllErrors(true);
     setFormError(null);
     setMissingFieldsList([]);
 
@@ -345,7 +522,7 @@ export const RegisterPage: React.FC = () => {
     const missing = getCompMissingFields();
     if (missing.length > 0) {
       setMissingFieldsList(missing);
-      setFormError('Account creation locked: You must fill all information in Section 1 and Section 2, and upload at least one corporate document (MCA/GST Proof) first.');
+      setFormError('Account creation locked: Please fix the highlighted errors and upload at least one corporate document (MCA/GST Proof).');
       errorBannerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
@@ -453,50 +630,50 @@ export const RegisterPage: React.FC = () => {
     );
   }
 
-  // ---------------------------------------------------------------------------
-  // Main Registration Form
-  // ---------------------------------------------------------------------------
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div className="text-center space-y-2">
-        <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300 text-amber-800 rounded-full text-xs font-bold uppercase tracking-wider">
-          <ShieldAlert className="w-3.5 h-3.5 text-amber-600" />
-          Mandatory Verification Gate Active
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFF3EA] text-[#F07421] text-xs font-extrabold uppercase tracking-wider">
+          <ShieldCheck className="w-4 h-4" />
+          <span>Statutory Accreditation & Registration</span>
         </div>
         <h1 className="text-2xl sm:text-3xl font-extrabold text-[#0E2350]">
-          Institutional & Corporate Onboarding
+          Register for AP VidyaConnect
         </h1>
-        <p className="text-xs sm:text-sm text-gray-600 max-w-xl mx-auto">
-          Complete all mandatory legal details, attach verified compliance documents, and configure administrator credentials to create your authorized account.
+        <p className="text-xs sm:text-sm text-gray-500 max-w-xl mx-auto">
+          Complete mandatory statutory accreditation information, attach verification certificates, and configure your administrative account to access the Andhra Pradesh State Internship ecosystem.
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-[#E3E6EB] max-w-md mx-auto">
+      {/* Actor Tab Switcher */}
+      <div className="flex border-b border-gray-200 text-xs font-bold justify-center">
         <button
+          type="button"
           onClick={() => {
             setActiveTab('institution');
             setFormError(null);
             setMissingFieldsList([]);
+            setShowAllErrors(false);
           }}
-          className={`flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
+          className={`pb-3 px-6 border-b-2 flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'institution'
               ? 'border-[#0E2350] text-[#0E2350]'
               : 'border-transparent text-gray-500 hover:text-gray-700'
           }`}
         >
-          <School className="w-4 h-4 text-[#0E2350]" />
-          Government College / Institute
+          <School className="w-4 h-4 text-[#2A4E96]" />
+          Higher Education Institution (College / Univ)
         </button>
-
         <button
+          type="button"
           onClick={() => {
             setActiveTab('company');
             setFormError(null);
             setMissingFieldsList([]);
+            setShowAllErrors(false);
           }}
-          className={`flex-1 py-3 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 border-b-2 transition-all ${
+          className={`pb-3 px-6 border-b-2 flex items-center gap-2 transition-colors cursor-pointer ${
             activeTab === 'company'
               ? 'border-[#F07421] text-[#F07421]'
               : 'border-transparent text-gray-500 hover:text-gray-700'
@@ -601,7 +778,7 @@ export const RegisterPage: React.FC = () => {
         {/* INSTITUTION REGISTRATION FORM */}
         {/* ------------------------------------------------------------------ */}
         {activeTab === 'institution' ? (
-          <form onSubmit={handleInstSubmit} className="space-y-6">
+          <form onSubmit={handleInstSubmit} className="space-y-6" noValidate>
             {/* 1. College & University Information */}
             <div className="space-y-4">
               <h3 className="text-base font-bold text-[#0E2350] border-b border-gray-100 pb-2 flex items-center justify-between">
@@ -613,6 +790,7 @@ export const RegisterPage: React.FC = () => {
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Institution Legal Name */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Institution Legal Name <span className="text-rose-600">*</span>
@@ -622,11 +800,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="e.g. Andhra Loyola Institute of Engineering & Technology"
                     value={instForm.name}
+                    onBlur={() => markTouched('inst_name')}
                     onChange={(e) => setInstForm({ ...instForm, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#2A4E96] rounded-lg focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('inst_name')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
+                    }`}
                   />
+                  {getFieldError('inst_name') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_name')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* College AISHE / Portal Code */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     College AISHE / Portal Code <span className="text-rose-600">*</span>
@@ -636,11 +826,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="e.g. AP-INST-7044"
                     value={instForm.code}
-                    onChange={(e) => setInstForm({ ...instForm, code: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#2A4E96] rounded-lg font-mono font-bold text-[#0E2350] focus:outline-none"
+                    onBlur={() => markTouched('inst_code')}
+                    onChange={(e) => setInstForm({ ...instForm, code: sanitizeCode(e.target.value) })}
+                    className={`w-full px-3 py-2 border rounded-lg font-mono font-bold text-[#0E2350] focus:outline-none transition-colors ${
+                      getFieldError('inst_code')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
+                    }`}
                   />
+                  {getFieldError('inst_code') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_code')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Affiliated University / Board */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Affiliated University / Board <span className="text-rose-600">*</span>
@@ -650,11 +852,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="e.g. JNTUK Kakinada / Andhra University"
                     value={instForm.affiliated_university}
+                    onBlur={() => markTouched('inst_university')}
                     onChange={(e) => setInstForm({ ...instForm, affiliated_university: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#2A4E96] rounded-lg focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('inst_university')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
+                    }`}
                   />
+                  {getFieldError('inst_university') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_university')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Accreditation */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Accreditation (NAAC / NBA) <span className="text-rose-600">*</span>
@@ -664,11 +878,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="e.g. NAAC Accredited A+ / NBA"
                     value={instForm.accreditation}
+                    onBlur={() => markTouched('inst_accreditation')}
                     onChange={(e) => setInstForm({ ...instForm, accreditation: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#2A4E96] rounded-lg focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('inst_accreditation')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
+                    }`}
                   />
+                  {getFieldError('inst_accreditation') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_accreditation')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Principal / Head Name */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Principal / Head Name <span className="text-rose-600">*</span>
@@ -678,23 +904,51 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="e.g. Dr. O. Mahesh, M.Tech, Ph.D"
                     value={instForm.principal_name}
+                    onBlur={() => markTouched('inst_principal')}
                     onChange={(e) => setInstForm({ ...instForm, principal_name: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#2A4E96] rounded-lg focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('inst_principal')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
+                    }`}
                   />
+                  {getFieldError('inst_principal') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_principal')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Official College Telephone */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Official College Telephone <span className="text-rose-600">*</span>
                   </label>
                   <input
-                    type="text"
+                    type="tel"
                     required
                     placeholder="e.g. +91 866 2476161"
                     value={instForm.official_phone}
-                    onChange={(e) => setInstForm({ ...instForm, official_phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#2A4E96] rounded-lg focus:outline-none"
+                    onBlur={() => markTouched('inst_official_phone')}
+                    onChange={(e) => {
+                      const clean = sanitizePhone(e.target.value);
+                      setInstForm({ ...instForm, official_phone: clean });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('inst_official_phone')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
+                    }`}
                   />
+                  {getFieldError('inst_official_phone') ? (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_official_phone')}</span>
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-gray-400 mt-1">Only numbers, +, space, or hyphens (min 10 digits)</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -745,7 +999,7 @@ export const RegisterPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleAddSampleInstDoc}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#0E2350] hover:bg-[#14336F] text-white text-[10px] font-bold transition shadow-xs"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#0E2350] hover:bg-[#14336F] text-white text-[10px] font-bold transition shadow-xs cursor-pointer"
                   >
                     <Sparkles className="w-3 h-3 text-[#F07421]" />
                     Attach Sample Verified NAAC/Affiliation PDF
@@ -784,7 +1038,7 @@ export const RegisterPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setPreviewDoc(doc)}
-                            className="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold flex items-center gap-1 transition-colors"
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                             title="Preview PDF"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -793,7 +1047,7 @@ export const RegisterPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setInstDocs(prev => prev.filter(d => d.id !== doc.id))}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Remove document"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -817,6 +1071,7 @@ export const RegisterPage: React.FC = () => {
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Administrator Full Name */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Administrator Full Name <span className="text-rose-600">*</span>
@@ -826,11 +1081,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="Enter full name"
                     value={instAdmin.fullName}
+                    onBlur={() => markTouched('inst_admin_name')}
                     onChange={(e) => setInstAdmin({ ...instAdmin, fullName: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#2A4E96] rounded-lg focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('inst_admin_name')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
+                    }`}
                   />
+                  {getFieldError('inst_admin_name') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_admin_name')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Admin Official Email */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Admin Official Email (Login ID) <span className="text-rose-600">*</span>
@@ -840,11 +1107,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="principal@college.edu.in"
                     value={instAdmin.email}
-                    onChange={(e) => setInstAdmin({ ...instAdmin, email: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#2A4E96] rounded-lg font-mono text-xs focus:outline-none"
+                    onBlur={() => markTouched('inst_admin_email')}
+                    onChange={(e) => setInstAdmin({ ...instAdmin, email: e.target.value.trim() })}
+                    className={`w-full px-3 py-2 border rounded-lg font-mono text-xs focus:outline-none transition-colors ${
+                      getFieldError('inst_admin_email')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
+                    }`}
                   />
+                  {getFieldError('inst_admin_email') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_admin_email')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Admin Mobile / WhatsApp */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Admin Mobile / WhatsApp <span className="text-rose-600">*</span>
@@ -854,51 +1133,105 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="+91 98480 12345"
                     value={instAdmin.phone}
-                    onChange={(e) => setInstAdmin({ ...instAdmin, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#2A4E96] rounded-lg focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">
-                    Create Secure Password * <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Enter password (min 6 characters)"
-                    value={instAdmin.password}
-                    onChange={(e) => setInstAdmin({ ...instAdmin, password: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#2A4E96] rounded-lg focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">
-                    Confirm Password * <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Re-enter password"
-                    value={instAdmin.confirmPassword}
-                    onChange={(e) => setInstAdmin({ ...instAdmin, confirmPassword: e.target.value })}
-                    className={`w-full px-3 py-2 bg-[#F6F7F9] border rounded-lg focus:outline-none ${
-                      instAdmin.confirmPassword && instAdmin.password !== instAdmin.confirmPassword
-                        ? 'border-rose-400 focus:ring-rose-500'
-                        : 'border-[#E3E6EB] focus:border-[#2A4E96]'
+                    onBlur={() => markTouched('inst_admin_phone')}
+                    onChange={(e) => {
+                      const clean = sanitizePhone(e.target.value);
+                      setInstAdmin({ ...instAdmin, phone: clean });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('inst_admin_phone')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
                     }`}
                   />
-                  {instAdmin.confirmPassword && instAdmin.password === instAdmin.confirmPassword && (
+                  {getFieldError('inst_admin_phone') ? (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_admin_phone')}</span>
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-gray-400 mt-1">Only numbers, +, space, or hyphens (min 10 digits)</p>
+                  )}
+                </div>
+
+                {/* Create Secure Password */}
+                <div>
+                  <label className="block font-bold text-gray-700 uppercase mb-1">
+                    Create Secure Password <span className="text-rose-600">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showInstPass ? 'text' : 'password'}
+                      required
+                      placeholder="Enter password (min 6 characters)"
+                      value={instAdmin.password}
+                      onBlur={() => markTouched('inst_admin_pass')}
+                      onChange={(e) => setInstAdmin({ ...instAdmin, password: e.target.value })}
+                      className={`w-full px-3 pr-10 py-2 border rounded-lg focus:outline-none transition-colors ${
+                        getFieldError('inst_admin_pass')
+                          ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                          : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowInstPass(prev => !prev)}
+                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+                      title={showInstPass ? 'Hide password' : 'Show password'}
+                    >
+                      {showInstPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {getFieldError('inst_admin_pass') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_admin_pass')}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block font-bold text-gray-700 uppercase mb-1">
+                    Confirm Password <span className="text-rose-600">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showInstConfirm ? 'text' : 'password'}
+                      required
+                      placeholder="Re-enter password"
+                      value={instAdmin.confirmPassword}
+                      onBlur={() => markTouched('inst_admin_confirm')}
+                      onChange={(e) => setInstAdmin({ ...instAdmin, confirmPassword: e.target.value })}
+                      className={`w-full px-3 pr-10 py-2 border rounded-lg focus:outline-none transition-colors ${
+                        getFieldError('inst_admin_confirm')
+                          ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                          : instAdmin.confirmPassword && instAdmin.password === instAdmin.confirmPassword
+                          ? 'border-emerald-500 bg-emerald-50/10'
+                          : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowInstConfirm(prev => !prev)}
+                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+                      title={showInstConfirm ? 'Hide password' : 'Show password'}
+                    >
+                      {showInstConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {getFieldError('inst_admin_confirm') ? (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('inst_admin_confirm')}</span>
+                    </p>
+                  ) : instAdmin.confirmPassword && instAdmin.password === instAdmin.confirmPassword ? (
                     <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
                       <Check className="w-3.5 h-3.5" /> Passwords match
                     </span>
-                  )}
-                  {instAdmin.confirmPassword && instAdmin.password !== instAdmin.confirmPassword && (
-                    <span className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> Passwords do not match
-                    </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -912,9 +1245,9 @@ export const RegisterPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`px-6 py-3 rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 ${
+                className={`px-6 py-3 rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer ${
                   isInstReadyToCreate
-                    ? 'bg-[#0E2350] hover:bg-[#14336F] text-white cursor-pointer active:scale-98'
+                    ? 'bg-[#0E2350] hover:bg-[#14336F] text-white active:scale-98'
                     : 'bg-slate-200 text-slate-500 border border-slate-300 hover:bg-slate-300'
                 }`}
                 title={isInstReadyToCreate ? 'All requirements met' : 'Complete all fields and upload document to proceed'}
@@ -943,7 +1276,7 @@ export const RegisterPage: React.FC = () => {
           /* ------------------------------------------------------------------ */
           /* CORPORATE / INDUSTRY REGISTRATION FORM                             */
           /* ------------------------------------------------------------------ */
-          <form onSubmit={handleCompSubmit} className="space-y-6">
+          <form onSubmit={handleCompSubmit} className="space-y-6" noValidate>
             {/* 1. Corporate & Industry Legal Information */}
             <div className="space-y-4">
               <h3 className="text-base font-bold text-[#0E2350] border-b border-gray-100 pb-2 flex items-center justify-between">
@@ -955,6 +1288,7 @@ export const RegisterPage: React.FC = () => {
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* Company Legal Name */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Company Legal Name <span className="text-rose-600">*</span>
@@ -964,11 +1298,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="e.g. PixelWind Technologies Private Limited"
                     value={compForm.name}
+                    onBlur={() => markTouched('comp_name')}
                     onChange={(e) => setCompForm({ ...compForm, name: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#F07421] rounded-lg focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('comp_name')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
+                    }`}
                   />
+                  {getFieldError('comp_name') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_name')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Corporate CIN Number */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Corporate CIN Number <span className="text-rose-600">*</span>
@@ -978,11 +1324,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="e.g. U72200AP2026PTC560426"
                     value={compForm.cin}
-                    onChange={(e) => setCompForm({ ...compForm, cin: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#F07421] rounded-lg font-mono font-bold text-[#0E2350] focus:outline-none"
+                    onBlur={() => markTouched('comp_cin')}
+                    onChange={(e) => setCompForm({ ...compForm, cin: sanitizeCin(e.target.value) })}
+                    className={`w-full px-3 py-2 border rounded-lg font-mono font-bold text-[#0E2350] focus:outline-none transition-colors ${
+                      getFieldError('comp_cin')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
+                    }`}
                   />
+                  {getFieldError('comp_cin') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_cin')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Industry Domain */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Industry Domain <span className="text-rose-600">*</span>
@@ -992,11 +1350,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="e.g. Information Technology & Cloud Services"
                     value={compForm.industry}
+                    onBlur={() => markTouched('comp_industry')}
                     onChange={(e) => setCompForm({ ...compForm, industry: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#F07421] rounded-lg focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('comp_industry')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
+                    }`}
                   />
+                  {getFieldError('comp_industry') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_industry')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* GST Registration No. */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     GST Registration No. <span className="text-rose-600">*</span>
@@ -1006,11 +1376,25 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="e.g. 37AADCP5604F1Z5"
                     value={compForm.gst}
-                    onChange={(e) => setCompForm({ ...compForm, gst: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#F07421] rounded-lg font-mono focus:outline-none"
+                    onBlur={() => markTouched('comp_gst')}
+                    onChange={(e) => setCompForm({ ...compForm, gst: sanitizeGst(e.target.value) })}
+                    className={`w-full px-3 py-2 border rounded-lg font-mono focus:outline-none transition-colors ${
+                      getFieldError('comp_gst')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
+                    }`}
                   />
+                  {getFieldError('comp_gst') ? (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_gst')}</span>
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-gray-400 mt-1">15 alphanumeric characters (e.g. 37AADCP5604F1Z5)</p>
+                  )}
                 </div>
 
+                {/* HQ Address */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     HQ Address <span className="text-rose-600">*</span>
@@ -1020,23 +1404,51 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="e.g. Visakhapatnam, Andhra Pradesh"
                     value={compForm.headquarters}
+                    onBlur={() => markTouched('comp_hq')}
                     onChange={(e) => setCompForm({ ...compForm, headquarters: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#F07421] rounded-lg focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('comp_hq')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
+                    }`}
                   />
+                  {getFieldError('comp_hq') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_hq')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Official Company Phone */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Official Company Phone <span className="text-rose-600">*</span>
                   </label>
                   <input
-                    type="text"
+                    type="tel"
                     required
                     placeholder="e.g. +91 891 2548900"
                     value={compForm.official_phone}
-                    onChange={(e) => setCompForm({ ...compForm, official_phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#F07421] rounded-lg focus:outline-none"
+                    onBlur={() => markTouched('comp_official_phone')}
+                    onChange={(e) => {
+                      const clean = sanitizePhone(e.target.value);
+                      setCompForm({ ...compForm, official_phone: clean });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('comp_official_phone')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
+                    }`}
                   />
+                  {getFieldError('comp_official_phone') ? (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_official_phone')}</span>
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-gray-400 mt-1">Only numbers, +, space, or hyphens (min 10 digits)</p>
+                  )}
                 </div>
               </div>
             </div>
@@ -1087,7 +1499,7 @@ export const RegisterPage: React.FC = () => {
                   <button
                     type="button"
                     onClick={handleAddSampleCompDoc}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#F07421] hover:bg-[#D96214] text-white text-[10px] font-bold transition shadow-xs"
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded bg-[#F07421] hover:bg-[#D96214] text-white text-[10px] font-bold transition shadow-xs cursor-pointer"
                   >
                     <Sparkles className="w-3 h-3 text-white" />
                     Attach Sample Verified MCA / GST PDF
@@ -1126,7 +1538,7 @@ export const RegisterPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setPreviewDoc(doc)}
-                            className="p-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-bold flex items-center gap-1 transition-colors"
+                            className="p-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                             title="Preview PDF"
                           >
                             <Eye className="w-3.5 h-3.5" />
@@ -1135,7 +1547,7 @@ export const RegisterPage: React.FC = () => {
                           <button
                             type="button"
                             onClick={() => setCompDocs(prev => prev.filter(d => d.id !== doc.id))}
-                            className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            className="p-1.5 rounded-lg text-gray-400 hover:text-rose-600 hover:bg-rose-50 transition-colors cursor-pointer"
                             title="Remove document"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1159,6 +1571,7 @@ export const RegisterPage: React.FC = () => {
               </h3>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                {/* HR / Authorized Person Name */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     HR / Authorized Person Name <span className="text-rose-600">*</span>
@@ -1168,11 +1581,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="Enter authorized representative name"
                     value={compAdmin.fullName}
+                    onBlur={() => markTouched('comp_admin_name')}
                     onChange={(e) => setCompAdmin({ ...compAdmin, fullName: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#F07421] rounded-lg focus:outline-none"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('comp_admin_name')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
+                    }`}
                   />
+                  {getFieldError('comp_admin_name') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_admin_name')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Official Work Email */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Official Work Email (Login ID) <span className="text-rose-600">*</span>
@@ -1182,11 +1607,23 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="hr@company.com"
                     value={compAdmin.email}
-                    onChange={(e) => setCompAdmin({ ...compAdmin, email: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#F07421] rounded-lg font-mono text-xs focus:outline-none"
+                    onBlur={() => markTouched('comp_admin_email')}
+                    onChange={(e) => setCompAdmin({ ...compAdmin, email: e.target.value.trim() })}
+                    className={`w-full px-3 py-2 border rounded-lg font-mono text-xs focus:outline-none transition-colors ${
+                      getFieldError('comp_admin_email')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
+                    }`}
                   />
+                  {getFieldError('comp_admin_email') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_admin_email')}</span>
+                    </p>
+                  )}
                 </div>
 
+                {/* Contact Phone */}
                 <div>
                   <label className="block font-bold text-gray-700 uppercase mb-1">
                     Contact Phone <span className="text-rose-600">*</span>
@@ -1196,51 +1633,105 @@ export const RegisterPage: React.FC = () => {
                     required
                     placeholder="+91 98490 56789"
                     value={compAdmin.phone}
-                    onChange={(e) => setCompAdmin({ ...compAdmin, phone: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#F07421] rounded-lg focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">
-                    Create Password * <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Enter password (min 6 characters)"
-                    value={compAdmin.password}
-                    onChange={(e) => setCompAdmin({ ...compAdmin, password: e.target.value })}
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] focus:border-[#F07421] rounded-lg focus:outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">
-                    Confirm Password * <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="password"
-                    required
-                    placeholder="Re-enter password"
-                    value={compAdmin.confirmPassword}
-                    onChange={(e) => setCompAdmin({ ...compAdmin, confirmPassword: e.target.value })}
-                    className={`w-full px-3 py-2 bg-[#F6F7F9] border rounded-lg focus:outline-none ${
-                      compAdmin.confirmPassword && compAdmin.password !== compAdmin.confirmPassword
-                        ? 'border-rose-400 focus:ring-rose-500'
-                        : 'border-[#E3E6EB] focus:border-[#F07421]'
+                    onBlur={() => markTouched('comp_admin_phone')}
+                    onChange={(e) => {
+                      const clean = sanitizePhone(e.target.value);
+                      setCompAdmin({ ...compAdmin, phone: clean });
+                    }}
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      getFieldError('comp_admin_phone')
+                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
                     }`}
                   />
-                  {compAdmin.confirmPassword && compAdmin.password === compAdmin.confirmPassword && (
+                  {getFieldError('comp_admin_phone') ? (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_admin_phone')}</span>
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-gray-400 mt-1">Only numbers, +, space, or hyphens (min 10 digits)</p>
+                  )}
+                </div>
+
+                {/* Create Password */}
+                <div>
+                  <label className="block font-bold text-gray-700 uppercase mb-1">
+                    Create Password <span className="text-rose-600">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showCompPass ? 'text' : 'password'}
+                      required
+                      placeholder="Enter password (min 6 characters)"
+                      value={compAdmin.password}
+                      onBlur={() => markTouched('comp_admin_pass')}
+                      onChange={(e) => setCompAdmin({ ...compAdmin, password: e.target.value })}
+                      className={`w-full px-3 pr-10 py-2 border rounded-lg focus:outline-none transition-colors ${
+                        getFieldError('comp_admin_pass')
+                          ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                          : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowCompPass(prev => !prev)}
+                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+                      title={showCompPass ? 'Hide password' : 'Show password'}
+                    >
+                      {showCompPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {getFieldError('comp_admin_pass') && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_admin_pass')}</span>
+                    </p>
+                  )}
+                </div>
+
+                {/* Confirm Password */}
+                <div>
+                  <label className="block font-bold text-gray-700 uppercase mb-1">
+                    Confirm Password <span className="text-rose-600">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showCompConfirm ? 'text' : 'password'}
+                      required
+                      placeholder="Re-enter password"
+                      value={compAdmin.confirmPassword}
+                      onBlur={() => markTouched('comp_admin_confirm')}
+                      onChange={(e) => setCompAdmin({ ...compAdmin, confirmPassword: e.target.value })}
+                      className={`w-full px-3 pr-10 py-2 border rounded-lg focus:outline-none transition-colors ${
+                        getFieldError('comp_admin_confirm')
+                          ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                          : compAdmin.confirmPassword && compAdmin.password === compAdmin.confirmPassword
+                          ? 'border-emerald-500 bg-emerald-50/10'
+                          : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => setShowCompConfirm(prev => !prev)}
+                      className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+                      title={showCompConfirm ? 'Hide password' : 'Show password'}
+                    >
+                      {showCompConfirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  {getFieldError('comp_admin_confirm') ? (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{getFieldError('comp_admin_confirm')}</span>
+                    </p>
+                  ) : compAdmin.confirmPassword && compAdmin.password === compAdmin.confirmPassword ? (
                     <span className="text-[11px] text-emerald-600 font-bold flex items-center gap-1 mt-1">
                       <Check className="w-3.5 h-3.5" /> Passwords match
                     </span>
-                  )}
-                  {compAdmin.confirmPassword && compAdmin.password !== compAdmin.confirmPassword && (
-                    <span className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1">
-                      <AlertCircle className="w-3.5 h-3.5" /> Passwords do not match
-                    </span>
-                  )}
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -1254,9 +1745,9 @@ export const RegisterPage: React.FC = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`px-6 py-3 rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 ${
+                className={`px-6 py-3 rounded-xl text-xs sm:text-sm font-bold shadow-md transition-all flex items-center gap-2 cursor-pointer ${
                   isCompReadyToCreate
-                    ? 'bg-[#F07421] hover:bg-[#D96214] text-white cursor-pointer active:scale-98'
+                    ? 'bg-[#F07421] hover:bg-[#D96214] text-white active:scale-98'
                     : 'bg-slate-200 text-slate-500 border border-slate-300 hover:bg-slate-300'
                 }`}
                 title={isCompReadyToCreate ? 'All corporate requirements met' : 'Complete all fields and upload document to proceed'}
@@ -1284,12 +1775,12 @@ export const RegisterPage: React.FC = () => {
         )}
       </div>
 
-      {/* PDF / Document Viewer Modal */}
+      {/* Document Preview Modal */}
       {previewDoc && (
         <DocumentViewerModal
           document={previewDoc}
-          entityName={activeTab === 'institution' ? instForm.name : compForm.name}
           onClose={() => setPreviewDoc(null)}
+          entityName={activeTab === 'institution' ? instForm.name : compForm.name}
         />
       )}
     </div>

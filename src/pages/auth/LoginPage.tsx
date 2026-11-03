@@ -1,8 +1,9 @@
 // ============================================================================
 // AP VIDYACONNECT — LOGIN PAGE
+// Real-time validation, password toggle & clear feedback
 // ============================================================================
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { BrandLogo } from '../../components/common/BrandLogo';
@@ -12,28 +13,74 @@ import {
   ArrowRight,
   AlertCircle,
   CheckCircle2,
-  Loader2
+  Loader2,
+  Eye,
+  EyeOff
 } from 'lucide-react';
+
+const isValidEmail = (val: string): boolean => {
+  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val.trim());
+};
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { loginWithEmail } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [touched, setTouched] = useState<{ email?: boolean; password?: boolean }>({});
 
   const [showForgotModal, setShowForgotModal] = useState(false);
   const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotError, setForgotError] = useState<string | null>(null);
   const [forgotSent, setForgotSent] = useState(false);
+
+  // Field-level validation errors
+  const emailError = useMemo(() => {
+    if (!touched.email) return null;
+    const clean = email.trim();
+    if (!clean) return 'Official email address or student roll number is required';
+    if (clean.includes('@') && !isValidEmail(clean)) {
+      return 'Please enter a valid email address (e.g. name@domain.com)';
+    }
+    if (!clean.includes('@') && clean.length < 3) {
+      return 'Student roll number must be at least 3 characters';
+    }
+    return null;
+  }, [email, touched.email]);
+
+  const passwordError = useMemo(() => {
+    if (!touched.password) return null;
+    if (!password) return 'Password is required to sign in';
+    if (password.length < 4) return 'Password must be at least 4 characters';
+    return null;
+  }, [password, touched.password]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setTouched({ email: true, password: true });
     setError(null);
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setError('Please enter your official email or student roll number.');
+      return;
+    }
+    if (cleanEmail.includes('@') && !isValidEmail(cleanEmail)) {
+      setError('Please enter a valid email address format (e.g. principal@college.gov.in).');
+      return;
+    }
+    if (!password) {
+      setError('Please enter your password.');
+      return;
+    }
+
     setIsLoggingIn(true);
 
     try {
-      const res = await loginWithEmail(email, password);
+      const res = await loginWithEmail(cleanEmail, password);
       if (res.success && res.user) {
         if (res.requirePasswordChange) {
           navigate('/change-password', { replace: true });
@@ -71,13 +118,24 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-
   const handleForgotPassword = (e: React.FormEvent) => {
     e.preventDefault();
+    setForgotError(null);
+    const clean = forgotEmail.trim();
+    if (!clean) {
+      setForgotError('Please enter your registered email address.');
+      return;
+    }
+    if (!isValidEmail(clean)) {
+      setForgotError('Please enter a valid email format (e.g. user@domain.com).');
+      return;
+    }
+
     setForgotSent(true);
     setTimeout(() => {
       setForgotSent(false);
       setShowForgotModal(false);
+      setForgotError(null);
     }, 2800);
   };
 
@@ -96,29 +154,48 @@ export const LoginPage: React.FC = () => {
       </div>
 
       <div className="bg-white rounded-2xl border border-[#E3E6EB] p-6 sm:p-8 shadow-sm space-y-5">
-        <form onSubmit={handleLogin} className="space-y-4 text-xs">
+        <form onSubmit={handleLogin} className="space-y-4 text-xs" noValidate>
           <div>
-            <label className="block font-bold text-gray-700 uppercase mb-1">Official Email Address</label>
+            <label className="block font-bold text-gray-700 uppercase mb-1">
+              Official Email Address or Roll Number <span className="text-rose-600">*</span>
+            </label>
             <div className="relative">
               <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
               <input
-                type="email"
-                required
+                type="text"
+                autoComplete="username"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="e.g. principal@college.gov.in"
-                className="w-full pl-9 pr-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E2350]"
+                onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (error) setError(null);
+                }}
+                placeholder="e.g. principal@college.gov.in or 2023-CS-492"
+                className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                  emailError
+                    ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                    : 'bg-[#F6F7F9] border-[#E3E6EB] focus:ring-2 focus:ring-[#0E2350]'
+                }`}
               />
             </div>
+            {emailError && (
+              <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{emailError}</span>
+              </p>
+            )}
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1">
-              <label className="block font-bold text-gray-700 uppercase">Password</label>
+              <label className="block font-bold text-gray-700 uppercase">
+                Password <span className="text-rose-600">*</span>
+              </label>
               <button
                 type="button"
                 onClick={() => {
                   setForgotEmail(email);
+                  setForgotError(null);
                   setShowForgotModal(true);
                 }}
                 className="text-[11px] font-bold text-[#F07421] hover:underline"
@@ -129,14 +206,37 @@ export const LoginPage: React.FC = () => {
             <div className="relative">
               <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
               <input
-                type="password"
-                required
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onBlur={() => setTouched(prev => ({ ...prev, password: true }))}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  if (error) setError(null);
+                }}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E2350]"
+                className={`w-full pl-9 pr-10 py-2 border rounded-lg focus:outline-none transition-colors ${
+                  passwordError
+                    ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
+                    : 'bg-[#F6F7F9] border-[#E3E6EB] focus:ring-2 focus:ring-[#0E2350]'
+                }`}
               />
+              <button
+                type="button"
+                tabIndex={-1}
+                onClick={() => setShowPassword(prev => !prev)}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+                title={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
             </div>
+            {passwordError && (
+              <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{passwordError}</span>
+              </p>
+            )}
           </div>
 
           {error && (
@@ -158,7 +258,7 @@ export const LoginPage: React.FC = () => {
           <button
             type="submit"
             disabled={isLoggingIn}
-            className="w-full py-2.5 bg-[#0E2350] hover:bg-[#14336F] disabled:opacity-60 text-white rounded-lg font-bold shadow transition-all flex items-center justify-center gap-2 mt-2"
+            className="w-full py-2.5 bg-[#0E2350] hover:bg-[#14336F] disabled:opacity-60 text-white rounded-lg font-bold shadow transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer"
           >
             {isLoggingIn ? (
               <>
@@ -204,30 +304,47 @@ export const LoginPage: React.FC = () => {
                 <span>Password reset link dispatched to <strong>{forgotEmail}</strong>. Please check your inbox.</span>
               </div>
             ) : (
-              <form onSubmit={handleForgotPassword} className="space-y-3 text-xs">
+              <form onSubmit={handleForgotPassword} className="space-y-3 text-xs" noValidate>
                 <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">Registered Email</label>
+                  <label className="block font-bold text-gray-700 uppercase mb-1">
+                    Registered Email <span className="text-rose-600">*</span>
+                  </label>
                   <input
                     type="email"
-                    required
                     value={forgotEmail}
-                    onChange={(e) => setForgotEmail(e.target.value)}
+                    onChange={(e) => {
+                      setForgotEmail(e.target.value);
+                      if (forgotError) setForgotError(null);
+                    }}
                     placeholder="Enter your registered login email"
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#0E2350]"
+                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                      forgotError
+                        ? 'bg-rose-50/30 border-rose-400 focus:ring-2 focus:ring-rose-400'
+                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:ring-2 focus:ring-[#0E2350]'
+                    }`}
                   />
+                  {forgotError && (
+                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
+                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                      <span>{forgotError}</span>
+                    </p>
+                  )}
                 </div>
 
                 <div className="flex items-center justify-end gap-2 pt-2">
                   <button
                     type="button"
-                    onClick={() => setShowForgotModal(false)}
+                    onClick={() => {
+                      setShowForgotModal(false);
+                      setForgotError(null);
+                    }}
                     className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-bold hover:bg-gray-100"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-lg bg-[#F07421] hover:bg-[#D96214] text-white font-bold shadow"
+                    className="px-5 py-2 rounded-lg bg-[#F07421] hover:bg-[#D96214] text-white font-bold shadow cursor-pointer"
                   >
                     Send Reset Link
                   </button>
