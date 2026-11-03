@@ -10,6 +10,8 @@ import { useModal } from '../../context/ModalContext';
 import { db } from '../../services/dbStore';
 import { cloudSync } from '../../services/cloudSyncService';
 import { Student, InternshipBatch } from '../../types/database';
+import { PhoneInputWithCountryCode } from '../../components/common/PhoneInputWithCountryCode';
+import { validateEmail, validatePhone, formatWithCountryCode } from '../../utils/validation';
 import {
   Users,
   Plus,
@@ -139,6 +141,30 @@ export const StudentManagementPage: React.FC = () => {
       return;
     }
 
+    const emailCheck = validateEmail(formEmail);
+    if (!emailCheck.isValid) {
+      await showAlert({
+        title: 'Invalid Email Address',
+        subtitle: 'Student Email Validation',
+        type: 'warning',
+        message: emailCheck.error || 'Please provide a valid student email address.'
+      });
+      return;
+    }
+
+    if (formPhone.trim()) {
+      const phoneCheck = validatePhone(formPhone);
+      if (!phoneCheck.isValid) {
+        await showAlert({
+          title: 'Invalid Phone Number',
+          subtitle: 'Student Contact Validation',
+          type: 'warning',
+          message: phoneCheck.error || 'Please provide a valid 10-digit phone number.'
+        });
+        return;
+      }
+    }
+
     const myInstId = currentInstitution?.id || currentUser?.institution_id;
     if (!myInstId) {
       await showAlert({
@@ -157,7 +183,7 @@ export const StudentManagementPage: React.FC = () => {
         roll_number: formRollNumber.trim(),
         email: formEmail.trim().toLowerCase(),
         temp_password: formPassword.trim() || undefined,
-        phone: formPhone.trim(),
+        phone: formPhone.trim() ? formatWithCountryCode(formPhone.trim()) : undefined,
         gender: formGender,
         year_of_study: parseInt(formYear) || 3,
         cgpa: parseFloat(formCgpa) || 8.0,
@@ -188,9 +214,33 @@ export const StudentManagementPage: React.FC = () => {
     setShowEditModal(true);
   };
 
-  const handleUpdateStudent = (e: React.FormEvent) => {
+  const handleUpdateStudent = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingStudent) return;
+
+    const emailCheck = validateEmail(formEmail);
+    if (!emailCheck.isValid) {
+      await showAlert({
+        title: 'Invalid Email Address',
+        subtitle: 'Student Email Validation',
+        type: 'warning',
+        message: emailCheck.error || 'Please provide a valid student email address.'
+      });
+      return;
+    }
+
+    if (formPhone.trim()) {
+      const phoneCheck = validatePhone(formPhone);
+      if (!phoneCheck.isValid) {
+        await showAlert({
+          title: 'Invalid Phone Number',
+          subtitle: 'Student Contact Validation',
+          type: 'warning',
+          message: phoneCheck.error || 'Please provide a valid 10-digit phone number.'
+        });
+        return;
+      }
+    }
 
     db.updateStudent(
       editingStudent.id,
@@ -199,7 +249,7 @@ export const StudentManagementPage: React.FC = () => {
         roll_number: formRollNumber.trim(),
         email: formEmail.trim().toLowerCase(),
         temp_password: formPassword.trim() || undefined,
-        phone: formPhone.trim(),
+        phone: formPhone.trim() ? formatWithCountryCode(formPhone.trim()) : undefined,
         gender: formGender,
         year_of_study: parseInt(formYear) || 3,
         cgpa: parseFloat(formCgpa) || 8.0,
@@ -1072,15 +1122,13 @@ export const StudentManagementPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 items-start">
                 <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">Phone Number</label>
-                  <input
-                    type="text"
+                  <PhoneInputWithCountryCode
+                    label="Phone Number"
                     value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                    placeholder="+91 98480 77889"
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] rounded-lg font-medium"
+                    onChange={(digits) => setFormPhone(digits)}
+                    placeholder="9848077889"
                   />
                 </div>
 

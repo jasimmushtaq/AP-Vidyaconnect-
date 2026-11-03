@@ -16,10 +16,7 @@ import {
   Eye,
   EyeOff
 } from 'lucide-react';
-
-const isValidEmail = (val: string): boolean => {
-  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val.trim());
-};
+import { validateEmail } from '../../utils/validation';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -36,8 +33,9 @@ export const LoginPage: React.FC = () => {
     if (!touched.email) return null;
     const clean = email.trim();
     if (!clean) return 'Official email address or student roll number is required';
-    if (clean.includes('@') && !isValidEmail(clean)) {
-      return 'Please enter a valid email address (e.g. name@domain.com)';
+    if (clean.includes('@')) {
+      const check = validateEmail(clean);
+      if (!check.isValid) return check.error;
     }
     if (!clean.includes('@') && clean.length < 3) {
       return 'Student roll number must be at least 3 characters';
@@ -62,9 +60,12 @@ export const LoginPage: React.FC = () => {
       setError('Please enter your official email or student roll number.');
       return;
     }
-    if (cleanEmail.includes('@') && !isValidEmail(cleanEmail)) {
-      setError('Please enter a valid email address format (e.g. principal@college.gov.in).');
-      return;
+    if (cleanEmail.includes('@')) {
+      const check = validateEmail(cleanEmail);
+      if (!check.isValid) {
+        setError(check.error || 'Please enter a valid email address.');
+        return;
+      }
     }
     if (!password) {
       setError('Please enter your password.');

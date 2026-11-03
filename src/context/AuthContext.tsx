@@ -7,6 +7,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Profile, UserRole, Institution, Company, Student } from '../types/database';
 import { db } from '../services/dbStore';
 import { cloudSync } from '../services/cloudSyncService';
+import { validateEmail, validatePhone, formatWithCountryCode } from '../utils/validation';
 
 export const EMPTY_USER: Profile = {
   id: '',
@@ -324,6 +325,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     instData: Partial<Institution>,
     adminData: { fullName: string; email: string; phone: string; password?: string }
   ): Promise<{ success: boolean; institution?: Institution; user?: Profile; error?: string }> => {
+    // Backend validation guard
+    const emailRes = validateEmail(adminData.email);
+    if (!emailRes.isValid) {
+      return { success: false, error: emailRes.error || 'Invalid administrator email address.' };
+    }
+    const phoneRes = validatePhone(adminData.phone);
+    if (!phoneRes.isValid) {
+      return { success: false, error: phoneRes.error || 'Invalid administrator phone number.' };
+    }
+    if (instData.official_phone) {
+      const instPhoneRes = validatePhone(instData.official_phone);
+      if (!instPhoneRes.isValid) {
+        return { success: false, error: `Official Telephone: ${instPhoneRes.error}` };
+      }
+    }
+
     const instId = `inst-${Date.now()}`;
     const cleanEmail = adminData.email.trim().toLowerCase();
 
@@ -339,7 +356,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       pin_code: instData.pin_code || '522001',
       principal_name: instData.principal_name || adminData.fullName,
       official_email: cleanEmail,
-      official_phone: instData.official_phone || adminData.phone,
+      official_phone: formatWithCountryCode(instData.official_phone || adminData.phone),
       website: instData.website,
       establishment_year: instData.establishment_year || 2000,
       accreditation: instData.accreditation || 'State Higher Education Board',
@@ -365,7 +382,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `user-inst-${Date.now()}`,
       full_name: adminData.fullName,
       email: cleanEmail,
-      phone: adminData.phone,
+      phone: formatWithCountryCode(adminData.phone),
       role: 'institution_admin',
       institution_id: instId,
       avatar_url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=150',
@@ -441,6 +458,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     compData: Partial<Company>,
     adminData: { fullName: string; email: string; phone: string; password?: string }
   ): Promise<{ success: boolean; company?: Company; user?: Profile; error?: string }> => {
+    // Backend validation guard
+    const emailRes = validateEmail(adminData.email);
+    if (!emailRes.isValid) {
+      return { success: false, error: emailRes.error || 'Invalid administrator email address.' };
+    }
+    const phoneRes = validatePhone(adminData.phone);
+    if (!phoneRes.isValid) {
+      return { success: false, error: phoneRes.error || 'Invalid administrator phone number.' };
+    }
+    if (compData.official_phone) {
+      const compPhoneRes = validatePhone(compData.official_phone);
+      if (!compPhoneRes.isValid) {
+        return { success: false, error: `Official Company Phone: ${compPhoneRes.error}` };
+      }
+    }
+
     const compId = `comp-${Date.now()}`;
     const cleanEmail = adminData.email.trim().toLowerCase();
 
@@ -452,7 +485,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sector: compData.sector || 'Software Engineering',
       gst: compData.gst || '37AADCD9876E1Z5',
       official_email: cleanEmail,
-      official_phone: compData.official_phone || adminData.phone,
+      official_phone: formatWithCountryCode(compData.official_phone || adminData.phone),
       website: compData.website,
       headquarters: compData.headquarters || 'Visakhapatnam, Andhra Pradesh',
       description: compData.description || 'Corporate Industry Partner',
@@ -480,7 +513,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `user-comp-${Date.now()}`,
       full_name: adminData.fullName,
       email: cleanEmail,
-      phone: adminData.phone,
+      phone: formatWithCountryCode(adminData.phone),
       role: 'company_admin',
       company_id: compId,
       avatar_url: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150',

@@ -6,6 +6,7 @@
 import { supabase, supabaseUrl, supabaseAnonKey } from './supabaseClient';
 import { db } from './dbStore';
 import { Institution, Company, Profile, AppNotification, AuditLog, InternshipProposal, Student, InternshipBatch, AttendanceRecord } from '../types/database';
+import { validateEmail, validatePhone } from '../utils/validation';
 
 export interface EntityRegistrationPayload {
   entityType: 'institution' | 'company';
@@ -488,6 +489,22 @@ class CloudSyncService {
     auditLog?: AuditLog,
     notif?: AppNotification
   ): Promise<{ success: boolean; error?: string }> {
+    // Direct API guard: Strict email & phone validation
+    const emailRes = validateEmail(adminProfile.email);
+    if (!emailRes.isValid) {
+      return { success: false, error: emailRes.error || 'Invalid administrator email.' };
+    }
+    const phoneRes = validatePhone(adminProfile.phone);
+    if (!phoneRes.isValid) {
+      return { success: false, error: phoneRes.error || 'Invalid administrator phone number.' };
+    }
+    if (inst.official_phone) {
+      const instPhoneRes = validatePhone(inst.official_phone);
+      if (!instPhoneRes.isValid) {
+        return { success: false, error: `Invalid official telephone: ${instPhoneRes.error}` };
+      }
+    }
+
     // 1. Register account in Supabase Auth
     try {
       if (password) {
@@ -617,6 +634,22 @@ class CloudSyncService {
     auditLog?: AuditLog,
     notif?: AppNotification
   ): Promise<{ success: boolean; error?: string }> {
+    // Direct API guard: Strict email & phone validation
+    const emailRes = validateEmail(adminProfile.email);
+    if (!emailRes.isValid) {
+      return { success: false, error: emailRes.error || 'Invalid administrator email.' };
+    }
+    const phoneRes = validatePhone(adminProfile.phone);
+    if (!phoneRes.isValid) {
+      return { success: false, error: phoneRes.error || 'Invalid administrator phone number.' };
+    }
+    if (comp.official_phone) {
+      const compPhoneRes = validatePhone(comp.official_phone);
+      if (!compPhoneRes.isValid) {
+        return { success: false, error: `Invalid official company phone: ${compPhoneRes.error}` };
+      }
+    }
+
     // 1. Register account in Supabase Auth
     try {
       if (password) {

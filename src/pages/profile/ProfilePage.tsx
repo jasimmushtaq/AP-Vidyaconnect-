@@ -5,6 +5,8 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { StatusBadge } from '../../components/common/StatusBadge';
+import { PhoneInputWithCountryCode } from '../../components/common/PhoneInputWithCountryCode';
+import { validatePhone, formatWithCountryCode } from '../../utils/validation';
 import {
   User,
   School,
@@ -71,6 +73,7 @@ export const ProfilePage: React.FC = () => {
   const [pwdSuccess, setPwdSuccess] = useState<string | null>(null);
 
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   React.useEffect(() => {
     if (currentUser) {
@@ -103,9 +106,35 @@ export const ProfilePage: React.FC = () => {
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    setProfileError(null);
+
+    if (userPhone.trim()) {
+      const phoneCheck = validatePhone(userPhone);
+      if (!phoneCheck.isValid) {
+        setProfileError(phoneCheck.error || 'Please enter a valid 10-digit primary phone number.');
+        return;
+      }
+    }
+
+    if (instPhone.trim()) {
+      const phoneCheck = validatePhone(instPhone);
+      if (!phoneCheck.isValid) {
+        setProfileError(`Official Telephone: ${phoneCheck.error}`);
+        return;
+      }
+    }
+
+    if (compPhone.trim()) {
+      const phoneCheck = validatePhone(compPhone);
+      if (!phoneCheck.isValid) {
+        setProfileError(`Corporate Phone: ${phoneCheck.error}`);
+        return;
+      }
+    }
+
     updateProfile({
       full_name: userName,
-      phone: userPhone,
+      phone: userPhone.trim() ? formatWithCountryCode(userPhone) : '',
     });
 
     if (currentInstitution) {
@@ -113,7 +142,7 @@ export const ProfilePage: React.FC = () => {
         name: instName,
         address: instAddress,
         principal_name: instPrincipal,
-        official_phone: instPhone,
+        official_phone: instPhone.trim() ? formatWithCountryCode(instPhone) : '',
         website: instWebsite,
       });
     }
@@ -123,7 +152,7 @@ export const ProfilePage: React.FC = () => {
         name: compName,
         headquarters: compHQ,
         authorized_person_name: compContact,
-        official_phone: compPhone,
+        official_phone: compPhone.trim() ? formatWithCountryCode(compPhone) : '',
         website: compWebsite,
       });
     }
@@ -298,12 +327,11 @@ export const ProfilePage: React.FC = () => {
             </div>
 
             <div>
-              <label className="block font-bold text-slate-600 uppercase tracking-wider text-[10px] mb-1.5">Primary Phone Number</label>
-              <input
-                type="tel"
+              <PhoneInputWithCountryCode
+                label="Primary Phone Number"
                 value={userPhone}
-                onChange={(e) => setUserPhone(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E2350] focus:bg-white transition-all"
+                onChange={(digits) => setUserPhone(digits)}
+                placeholder="9848012345"
               />
             </div>
 
@@ -422,12 +450,11 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-600 uppercase tracking-wider text-[10px] mb-1.5">Official Telephone</label>
-                <input
-                  type="text"
+                <PhoneInputWithCountryCode
+                  label="Official Telephone"
                   value={instPhone}
-                  onChange={(e) => setInstPhone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E2350] focus:bg-white transition-all"
+                  onChange={(digits) => setInstPhone(digits)}
+                  placeholder="8662476161"
                 />
               </div>
 
@@ -503,12 +530,11 @@ export const ProfilePage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-slate-600 uppercase tracking-wider text-[10px] mb-1.5">Corporate Phone</label>
-                <input
-                  type="text"
+                <PhoneInputWithCountryCode
+                  label="Corporate Phone"
                   value={compPhone}
-                  onChange={(e) => setCompPhone(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-[#0E2350] focus:bg-white transition-all"
+                  onChange={(digits) => setCompPhone(digits)}
+                  placeholder="8912548900"
                 />
               </div>
 
@@ -532,6 +558,14 @@ export const ProfilePage: React.FC = () => {
                 />
               </div>
             </div>
+          </div>
+        )}
+
+        {/* Error Alert */}
+        {profileError && (
+          <div className="p-3.5 bg-rose-50 border border-rose-300 rounded-xl text-xs text-rose-700 font-bold flex items-center gap-2 animate-fade-in">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>{profileError}</span>
           </div>
         )}
 

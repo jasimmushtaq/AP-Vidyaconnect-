@@ -9,6 +9,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../context/ModalContext';
 import { db } from '../../services/dbStore';
 import { Mentor, InternshipBatch } from '../../types/database';
+import { PhoneInputWithCountryCode } from '../../components/common/PhoneInputWithCountryCode';
+import { validateEmail, validatePhone, formatWithCountryCode } from '../../utils/validation';
 import {
   Users,
   UserPlus,
@@ -111,13 +113,37 @@ export const IndustryMentorsPage: React.FC = () => {
       return;
     }
 
+    const emailCheck = validateEmail(formEmail);
+    if (!emailCheck.isValid) {
+      await showAlert({
+        title: 'Invalid Email Address',
+        subtitle: 'Mentor Corporate Email Validation',
+        type: 'warning',
+        message: emailCheck.error || 'Please enter a valid corporate email address.'
+      });
+      return;
+    }
+
+    if (formPhone.trim()) {
+      const phoneCheck = validatePhone(formPhone);
+      if (!phoneCheck.isValid) {
+        await showAlert({
+          title: 'Invalid Phone Number',
+          subtitle: 'Mentor Contact Validation',
+          type: 'warning',
+          message: phoneCheck.error || 'Please enter a valid 10-digit phone number.'
+        });
+        return;
+      }
+    }
+
     const res = db.generateIndustryMentor(
       {
         full_name: formName.trim(),
         department: formDept,
         designation: formDesignation,
         email: formEmail.trim().toLowerCase(),
-        phone: formPhone.trim(),
+        phone: formPhone.trim() ? formatWithCountryCode(formPhone.trim()) : '',
         password: formPassword,
         assigned_batches: formAssignedBatches,
       },
@@ -567,20 +593,13 @@ export const IndustryMentorsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-bold text-gray-700 uppercase mb-1">
-                  Contact Mobile Number <span className="text-rose-500">*</span>
-                </label>
-                <div className="relative">
-                  <Phone className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    required
-                    value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                    placeholder="+91 98765 22334"
-                    className="w-full pl-9 pr-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-[#0E2350]"
-                  />
-                </div>
+                <PhoneInputWithCountryCode
+                  label="Contact Mobile Number"
+                  required
+                  value={formPhone}
+                  onChange={(digits) => setFormPhone(digits)}
+                  placeholder="9876522334"
+                />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 p-3.5 bg-blue-50/50 rounded-xl border border-blue-100">

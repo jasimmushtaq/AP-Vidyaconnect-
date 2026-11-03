@@ -3,6 +3,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useModal } from '../../context/ModalContext';
 import { db } from '../../services/dbStore';
 import { FacultyCoordinator } from '../../types/database';
+import { PhoneInputWithCountryCode } from '../../components/common/PhoneInputWithCountryCode';
+import { validateEmail, validatePhone, formatWithCountryCode } from '../../utils/validation';
 import {
   Users,
   UserPlus,
@@ -90,6 +92,28 @@ export const FacultyCoordinatorsPage: React.FC = () => {
       return;
     }
 
+    const emailCheck = validateEmail(formEmail);
+    if (!emailCheck.isValid) {
+      await showAlert({
+        title: 'Invalid Email Address',
+        subtitle: 'Official Academic Email Validation',
+        type: 'warning',
+        message: emailCheck.error || 'Please enter a valid faculty email address.'
+      });
+      return;
+    }
+
+    const phoneCheck = validatePhone(formPhone);
+    if (!phoneCheck.isValid) {
+      await showAlert({
+        title: 'Invalid Phone Number',
+        subtitle: 'Contact Mobile Validation',
+        type: 'warning',
+        message: phoneCheck.error || 'Please enter a valid 10-digit mobile number.'
+      });
+      return;
+    }
+
     const myInstId = currentInstitution?.id || currentUser.institution_id || '';
     const res = db.generateFacultyCoordinator(
       {
@@ -97,7 +121,7 @@ export const FacultyCoordinatorsPage: React.FC = () => {
         department: formDept,
         designation: formDesignation,
         email: formEmail.trim().toLowerCase(),
-        phone: formPhone.trim(),
+        phone: formatWithCountryCode(formPhone),
         password: formPassword,
       },
       currentUser,
@@ -397,16 +421,12 @@ export const FacultyCoordinatorsPage: React.FC = () => {
                 </div>
 
                 <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">
-                    Mobile / Phone Number *
-                  </label>
-                  <input
-                    type="text"
+                  <PhoneInputWithCountryCode
+                    label="Mobile / Phone Number"
                     required
                     value={formPhone}
-                    onChange={(e) => setFormPhone(e.target.value)}
-                    placeholder="+91 98480 88990"
-                    className="w-full px-3 py-2 bg-[#F6F7F9] border border-[#E3E6EB] rounded-lg text-xs font-mono"
+                    onChange={(digits) => setFormPhone(digits)}
+                    placeholder="9848088990"
                   />
                 </div>
               </div>

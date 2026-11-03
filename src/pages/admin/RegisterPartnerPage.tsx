@@ -29,6 +29,8 @@ import {
 } from 'lucide-react';
 
 import { uploadToCloudinary } from '../../services/cloudinaryService';
+import { PhoneInputWithCountryCode } from '../../components/common/PhoneInputWithCountryCode';
+import { validateEmail, validatePhone, formatWithCountryCode } from '../../utils/validation';
 
 export const RegisterPartnerPage: React.FC = () => {
   const { currentUser } = useAuth();
@@ -138,6 +140,24 @@ export const RegisterPartnerPage: React.FC = () => {
         return;
       }
 
+      if (instForm.official_email.trim()) {
+        const emailCheck = validateEmail(instForm.official_email.trim());
+        if (!emailCheck.isValid) {
+          setToastMsg(emailCheck.error || 'Please provide a valid institution contact email.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      if (instForm.official_phone.trim()) {
+        const phoneCheck = validatePhone(instForm.official_phone.trim());
+        if (!phoneCheck.isValid) {
+          setToastMsg(phoneCheck.error || 'Please provide a valid 10-digit telephone number.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const created = db.addInstitution(
         {
           name: instForm.name.trim(),
@@ -146,7 +166,7 @@ export const RegisterPartnerPage: React.FC = () => {
           affiliated_university: instForm.affiliated_university.trim(),
           principal_name: instForm.principal_name.trim() || 'Principal In-Charge',
           official_email: instForm.official_email.trim() || `contact.${Date.now().toString().slice(-4)}@apgdc.edu.in`,
-          official_phone: instForm.official_phone.trim(),
+          official_phone: formatWithCountryCode(instForm.official_phone.trim()),
           district: instForm.district.trim(),
           state: instForm.state.trim(),
           pin_code: instForm.pin_code.trim(),
@@ -167,6 +187,24 @@ export const RegisterPartnerPage: React.FC = () => {
         return;
       }
 
+      if (compForm.official_email.trim()) {
+        const emailCheck = validateEmail(compForm.official_email.trim());
+        if (!emailCheck.isValid) {
+          setToastMsg(emailCheck.error || 'Please provide a valid corporate email.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      if (compForm.official_phone.trim()) {
+        const phoneCheck = validatePhone(compForm.official_phone.trim());
+        if (!phoneCheck.isValid) {
+          setToastMsg(phoneCheck.error || 'Please provide a valid 10-digit corporate phone number.');
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
       const created = db.addCompany(
         {
           name: compForm.name.trim(),
@@ -177,7 +215,7 @@ export const RegisterPartnerPage: React.FC = () => {
           authorized_person_name: compForm.authorized_person_name.trim() || 'Talent Acquisition Head',
           designation: compForm.designation.trim(),
           official_email: compForm.official_email.trim() || `careers.${Date.now().toString().slice(-4)}@company.com`,
-          official_phone: compForm.official_phone.trim(),
+          official_phone: formatWithCountryCode(compForm.official_phone.trim()),
           website: compForm.website.trim(),
           description: compForm.description.trim() || 'Official Corporate Internship & Skilling Partner.',
           logo_url: compForm.logo_url.trim(),
@@ -487,17 +525,13 @@ export const RegisterPartnerPage: React.FC = () => {
                   </div>
 
                   {/* Phone & District */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-start">
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">
-                        Official Phone
-                      </label>
-                      <input
-                        type="text"
+                      <PhoneInputWithCountryCode
+                        label="Official Telephone"
                         value={instForm.official_phone}
-                        onChange={(e) => setInstForm({ ...instForm, official_phone: e.target.value })}
-                        placeholder="+91 891 2345678"
-                        className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#0E2350]"
+                        onChange={(digits) => setInstForm({ ...instForm, official_phone: digits })}
+                        placeholder="8912345678"
                       />
                     </div>
 
@@ -656,15 +690,11 @@ export const RegisterPartnerPage: React.FC = () => {
                     </div>
 
                     <div>
-                      <label className="block text-xs font-bold text-gray-700 mb-1">
-                        Phone Number
-                      </label>
-                      <input
-                        type="text"
+                      <PhoneInputWithCountryCode
+                        label="Phone Number"
                         value={compForm.official_phone}
-                        onChange={(e) => setCompForm({ ...compForm, official_phone: e.target.value })}
-                        placeholder="+91 891 4567890"
-                        className="w-full text-xs px-3.5 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#F07421]"
+                        onChange={(digits) => setCompForm({ ...compForm, official_phone: digits })}
+                        placeholder="8914567890"
                       />
                     </div>
                   </div>

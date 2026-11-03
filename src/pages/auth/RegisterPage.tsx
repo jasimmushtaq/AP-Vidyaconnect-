@@ -10,6 +10,15 @@ import { InstitutionType, AttachedDocument } from '../../types/database';
 import { db } from '../../services/dbStore';
 import { FileUploader } from '../../components/common/FileUploader';
 import { DocumentViewerModal } from '../../components/common/DocumentViewerModal';
+import { PhoneInputWithCountryCode } from '../../components/common/PhoneInputWithCountryCode';
+import {
+  validateEmail,
+  validatePhone,
+  isValidEmail,
+  isValidPhone,
+  formatWithCountryCode,
+  sanitizePhoneDigits
+} from '../../utils/validation';
 import {
   School,
   Building2,
@@ -41,20 +50,7 @@ import {
 // Robust Validation & Sanitization Helpers
 // ============================================================================
 
-export const isValidEmail = (val: string): boolean => {
-  if (!val) return false;
-  return /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(val.trim());
-};
-
-export const sanitizePhone = (val: string): string => {
-  return val.replace(/[^0-9+\s\-()]/g, '');
-};
-
-export const isValidPhone = (val: string): boolean => {
-  if (!val) return false;
-  const digits = val.replace(/\D/g, '');
-  return digits.length >= 10 && digits.length <= 13;
-};
+export { isValidEmail, isValidPhone, sanitizePhoneDigits as sanitizePhone };
 
 export const isValidName = (val: string): boolean => {
   if (!val || val.trim().length < 2) return false;
@@ -277,22 +273,25 @@ export const RegisterPage: React.FC = () => {
         if (!instForm.principal_name.trim()) return 'Principal / Head Name is required';
         if (!isValidName(instForm.principal_name)) return 'Principal name must contain letters only (min 2 characters)';
         return null;
-      case 'inst_official_phone':
-        if (!instForm.official_phone.trim()) return 'Official College Telephone is required';
-        if (!isValidPhone(instForm.official_phone)) return 'Please enter a valid telephone number (at least 10 digits)';
+      case 'inst_official_phone': {
+        const phoneCheck = validatePhone(instForm.official_phone);
+        if (!phoneCheck.isValid) return phoneCheck.error;
         return null;
+      }
       case 'inst_admin_name':
         if (!instAdmin.fullName.trim()) return 'Administrator full name is required';
         if (!isValidName(instAdmin.fullName)) return 'Name must contain letters only (min 2 characters)';
         return null;
-      case 'inst_admin_email':
-        if (!instAdmin.email.trim()) return 'Official Admin Email is required (Login ID)';
-        if (!isValidEmail(instAdmin.email)) return 'Please enter a valid email address (e.g. principal@college.edu.in)';
+      case 'inst_admin_email': {
+        const emailCheck = validateEmail(instAdmin.email);
+        if (!emailCheck.isValid) return emailCheck.error;
         return null;
-      case 'inst_admin_phone':
-        if (!instAdmin.phone.trim()) return 'Admin Mobile / WhatsApp number is required';
-        if (!isValidPhone(instAdmin.phone)) return 'Please enter a valid 10-digit mobile number';
+      }
+      case 'inst_admin_phone': {
+        const phoneCheck = validatePhone(instAdmin.phone);
+        if (!phoneCheck.isValid) return phoneCheck.error;
         return null;
+      }
       case 'inst_admin_pass':
         if (!instAdmin.password) return 'Password is required to secure your admin account';
         if (instAdmin.password.length < 6) return 'Password must be at least 6 characters';
@@ -321,22 +320,25 @@ export const RegisterPage: React.FC = () => {
       case 'comp_hq':
         if (!compForm.headquarters.trim()) return 'HQ Address is required';
         return null;
-      case 'comp_official_phone':
-        if (!compForm.official_phone.trim()) return 'Official Company Phone is required';
-        if (!isValidPhone(compForm.official_phone)) return 'Please enter a valid phone number (at least 10 digits)';
+      case 'comp_official_phone': {
+        const phoneCheck = validatePhone(compForm.official_phone);
+        if (!phoneCheck.isValid) return phoneCheck.error;
         return null;
+      }
       case 'comp_admin_name':
         if (!compAdmin.fullName.trim()) return 'HR / Authorized Person Name is required';
         if (!isValidName(compAdmin.fullName)) return 'Name must contain letters only (min 2 characters)';
         return null;
-      case 'comp_admin_email':
-        if (!compAdmin.email.trim()) return 'Official Work Email is required (Login ID)';
-        if (!isValidEmail(compAdmin.email)) return 'Please enter a valid work email (e.g. hr@company.com)';
+      case 'comp_admin_email': {
+        const emailCheck = validateEmail(compAdmin.email);
+        if (!emailCheck.isValid) return emailCheck.error;
         return null;
-      case 'comp_admin_phone':
-        if (!compAdmin.phone.trim()) return 'Contact Phone is required';
-        if (!isValidPhone(compAdmin.phone)) return 'Please enter a valid 10-digit phone number';
+      }
+      case 'comp_admin_phone': {
+        const phoneCheck = validatePhone(compAdmin.phone);
+        if (!phoneCheck.isValid) return phoneCheck.error;
         return null;
+      }
       case 'comp_admin_pass':
         if (!compAdmin.password) return 'Password is required to secure your company account';
         if (compAdmin.password.length < 6) return 'Password must be at least 6 characters';
@@ -363,16 +365,21 @@ export const RegisterPage: React.FC = () => {
     if (!instForm.accreditation.trim()) missing.push('1. Accreditation (NAAC / NBA)');
     if (!instForm.principal_name.trim()) missing.push('1. Principal / Head Name');
     else if (!isValidName(instForm.principal_name)) missing.push('1. Principal / Head Name (letters only, min 2 characters)');
-    if (!instForm.official_phone.trim()) missing.push('1. Official College Telephone');
-    else if (!isValidPhone(instForm.official_phone)) missing.push('1. Official College Telephone (valid telephone with at least 10 digits)');
+    
+    const instPhoneRes = validatePhone(instForm.official_phone);
+    if (!instPhoneRes.isValid) missing.push(`1. Official College Telephone (${instPhoneRes.error})`);
+    
     if (instDocs.length === 0) missing.push('1. Mandatory Accreditation & Compliance Documents (At least 1 PDF/Image required)');
 
     if (!instAdmin.fullName.trim()) missing.push('2. Administrator Full Name');
     else if (!isValidName(instAdmin.fullName)) missing.push('2. Administrator Full Name (letters only, min 2 characters)');
-    if (!instAdmin.email.trim()) missing.push('2. Admin Official Email (Login ID)');
-    else if (!isValidEmail(instAdmin.email)) missing.push('2. Valid Admin Official Email format (e.g. principal@college.edu.in)');
-    if (!instAdmin.phone.trim()) missing.push('2. Admin Mobile / WhatsApp');
-    else if (!isValidPhone(instAdmin.phone)) missing.push('2. Admin Mobile / WhatsApp (valid mobile with at least 10 digits)');
+    
+    const instAdminEmailRes = validateEmail(instAdmin.email);
+    if (!instAdminEmailRes.isValid) missing.push(`2. Admin Official Email (${instAdminEmailRes.error})`);
+    
+    const instAdminPhoneRes = validatePhone(instAdmin.phone);
+    if (!instAdminPhoneRes.isValid) missing.push(`2. Admin Mobile / WhatsApp (${instAdminPhoneRes.error})`);
+    
     if (!instAdmin.password) missing.push('2. Create Secure Password');
     else if (instAdmin.password.length < 6) missing.push('2. Password must be at least 6 characters');
     if (!instAdmin.confirmPassword) missing.push('2. Confirm Password');
@@ -390,16 +397,21 @@ export const RegisterPage: React.FC = () => {
     if (!compForm.gst.trim()) missing.push('1. GST Registration No.');
     else if (!isValidGst(compForm.gst)) missing.push('1. GST Registration No. (must be 15 alphanumeric characters)');
     if (!compForm.headquarters.trim()) missing.push('1. HQ Address');
-    if (!compForm.official_phone.trim()) missing.push('1. Official Company Phone');
-    else if (!isValidPhone(compForm.official_phone)) missing.push('1. Official Company Phone (valid phone with at least 10 digits)');
+    
+    const compPhoneRes = validatePhone(compForm.official_phone);
+    if (!compPhoneRes.isValid) missing.push(`1. Official Company Phone (${compPhoneRes.error})`);
+    
     if (compDocs.length === 0) missing.push('1. Mandatory Corporate Documents & MCA/GST Proof (At least 1 PDF/Image required)');
 
     if (!compAdmin.fullName.trim()) missing.push('2. HR / Authorized Person Name');
     else if (!isValidName(compAdmin.fullName)) missing.push('2. HR / Authorized Person Name (letters only, min 2 characters)');
-    if (!compAdmin.email.trim()) missing.push('2. Official Work Email (Login ID)');
-    else if (!isValidEmail(compAdmin.email)) missing.push('2. Valid Work Email format (e.g. hr@company.com)');
-    if (!compAdmin.phone.trim()) missing.push('2. Contact Phone');
-    else if (!isValidPhone(compAdmin.phone)) missing.push('2. Contact Phone (valid phone with at least 10 digits)');
+    
+    const compAdminEmailRes = validateEmail(compAdmin.email);
+    if (!compAdminEmailRes.isValid) missing.push(`2. Official Work Email (${compAdminEmailRes.error})`);
+    
+    const compAdminPhoneRes = validatePhone(compAdmin.phone);
+    if (!compAdminPhoneRes.isValid) missing.push(`2. Contact Phone (${compAdminPhoneRes.error})`);
+    
     if (!compAdmin.password) missing.push('2. Create Password');
     else if (compAdmin.password.length < 6) missing.push('2. Password must be at least 6 characters');
     if (!compAdmin.confirmPassword) missing.push('2. Confirm Password');
@@ -486,14 +498,20 @@ export const RegisterPage: React.FC = () => {
 
     const payload = {
       ...instForm,
+      official_phone: formatWithCountryCode(instForm.official_phone),
       document_url: instDocs[0]?.url,
       document_name: instDocs[0]?.name,
       documents: instDocs
     };
 
+    const adminPayload = {
+      ...instAdmin,
+      phone: formatWithCountryCode(instAdmin.phone)
+    };
+
     setIsSubmitting(true);
     try {
-      const res = await registerInstitutionAdmin(payload, instAdmin);
+      const res = await registerInstitutionAdmin(payload, adminPayload);
       if (!res.success || !res.institution || !res.user) {
         setFormError(res.error || 'Failed to persist institution registration to shared database. Please try again.');
         return;
@@ -537,14 +555,20 @@ export const RegisterPage: React.FC = () => {
 
     const payload = {
       ...compForm,
+      official_phone: formatWithCountryCode(compForm.official_phone),
       document_url: compDocs[0]?.url,
       document_name: compDocs[0]?.name,
       documents: compDocs
     };
 
+    const adminPayload = {
+      ...compAdmin,
+      phone: formatWithCountryCode(compAdmin.phone)
+    };
+
     setIsSubmitting(true);
     try {
-      const res = await registerCompanyAdmin(payload, compAdmin);
+      const res = await registerCompanyAdmin(payload, adminPayload);
       if (!res.success || !res.company || !res.user) {
         setFormError(res.error || 'Failed to persist company registration to shared database. Please try again.');
         return;
@@ -922,33 +946,17 @@ export const RegisterPage: React.FC = () => {
 
                 {/* Official College Telephone */}
                 <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">
-                    Official College Telephone <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="tel"
+                  <PhoneInputWithCountryCode
+                    label="Official College Telephone"
                     required
-                    placeholder="e.g. +91 866 2476161"
                     value={instForm.official_phone}
                     onBlur={() => markTouched('inst_official_phone')}
-                    onChange={(e) => {
-                      const clean = sanitizePhone(e.target.value);
-                      setInstForm({ ...instForm, official_phone: clean });
+                    onChange={(digits) => {
+                      setInstForm(prev => ({ ...prev, official_phone: digits }));
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
-                      getFieldError('inst_official_phone')
-                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
-                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
-                    }`}
+                    error={getFieldError('inst_official_phone')}
+                    placeholder="8662476161"
                   />
-                  {getFieldError('inst_official_phone') ? (
-                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{getFieldError('inst_official_phone')}</span>
-                    </p>
-                  ) : (
-                    <p className="text-[10px] text-gray-400 mt-1">Only numbers, +, space, or hyphens (min 10 digits)</p>
-                  )}
                 </div>
               </div>
             </div>
@@ -1125,33 +1133,17 @@ export const RegisterPage: React.FC = () => {
 
                 {/* Admin Mobile / WhatsApp */}
                 <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">
-                    Admin Mobile / WhatsApp <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="tel"
+                  <PhoneInputWithCountryCode
+                    label="Admin Mobile / WhatsApp"
                     required
-                    placeholder="+91 98480 12345"
                     value={instAdmin.phone}
                     onBlur={() => markTouched('inst_admin_phone')}
-                    onChange={(e) => {
-                      const clean = sanitizePhone(e.target.value);
-                      setInstAdmin({ ...instAdmin, phone: clean });
+                    onChange={(digits) => {
+                      setInstAdmin(prev => ({ ...prev, phone: digits }));
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
-                      getFieldError('inst_admin_phone')
-                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
-                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#2A4E96]'
-                    }`}
+                    error={getFieldError('inst_admin_phone')}
+                    placeholder="9848012345"
                   />
-                  {getFieldError('inst_admin_phone') ? (
-                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{getFieldError('inst_admin_phone')}</span>
-                    </p>
-                  ) : (
-                    <p className="text-[10px] text-gray-400 mt-1">Only numbers, +, space, or hyphens (min 10 digits)</p>
-                  )}
                 </div>
 
                 {/* Create Secure Password */}
@@ -1422,33 +1414,17 @@ export const RegisterPage: React.FC = () => {
 
                 {/* Official Company Phone */}
                 <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">
-                    Official Company Phone <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="tel"
+                  <PhoneInputWithCountryCode
+                    label="Official Company Phone"
                     required
-                    placeholder="e.g. +91 891 2548900"
                     value={compForm.official_phone}
                     onBlur={() => markTouched('comp_official_phone')}
-                    onChange={(e) => {
-                      const clean = sanitizePhone(e.target.value);
-                      setCompForm({ ...compForm, official_phone: clean });
+                    onChange={(digits) => {
+                      setCompForm(prev => ({ ...prev, official_phone: digits }));
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
-                      getFieldError('comp_official_phone')
-                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
-                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
-                    }`}
+                    error={getFieldError('comp_official_phone')}
+                    placeholder="8912548900"
                   />
-                  {getFieldError('comp_official_phone') ? (
-                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{getFieldError('comp_official_phone')}</span>
-                    </p>
-                  ) : (
-                    <p className="text-[10px] text-gray-400 mt-1">Only numbers, +, space, or hyphens (min 10 digits)</p>
-                  )}
                 </div>
               </div>
             </div>
@@ -1625,33 +1601,17 @@ export const RegisterPage: React.FC = () => {
 
                 {/* Contact Phone */}
                 <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">
-                    Contact Phone <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="tel"
+                  <PhoneInputWithCountryCode
+                    label="Contact Phone"
                     required
-                    placeholder="+91 98490 56789"
                     value={compAdmin.phone}
                     onBlur={() => markTouched('comp_admin_phone')}
-                    onChange={(e) => {
-                      const clean = sanitizePhone(e.target.value);
-                      setCompAdmin({ ...compAdmin, phone: clean });
+                    onChange={(digits) => {
+                      setCompAdmin(prev => ({ ...prev, phone: digits }));
                     }}
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
-                      getFieldError('comp_admin_phone')
-                        ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
-                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:border-[#F07421]'
-                    }`}
+                    error={getFieldError('comp_admin_phone')}
+                    placeholder="9849056789"
                   />
-                  {getFieldError('comp_admin_phone') ? (
-                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{getFieldError('comp_admin_phone')}</span>
-                    </p>
-                  ) : (
-                    <p className="text-[10px] text-gray-400 mt-1">Only numbers, +, space, or hyphens (min 10 digits)</p>
-                  )}
                 </div>
 
                 {/* Create Password */}
