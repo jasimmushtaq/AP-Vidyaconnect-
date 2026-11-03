@@ -1,6 +1,6 @@
 // ============================================================================
 // AP VIDYACONNECT — LOGIN PAGE
-// Real-time validation, password toggle & clear feedback
+// Real-time validation, password toggle & clean credentials flow
 // ============================================================================
 
 import React, { useState, useMemo } from 'react';
@@ -12,7 +12,6 @@ import {
   Mail,
   ArrowRight,
   AlertCircle,
-  CheckCircle2,
   Loader2,
   Eye,
   EyeOff
@@ -31,11 +30,6 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [touched, setTouched] = useState<{ email?: boolean; password?: boolean }>({});
-
-  const [showForgotModal, setShowForgotModal] = useState(false);
-  const [forgotEmail, setForgotEmail] = useState('');
-  const [forgotError, setForgotError] = useState<string | null>(null);
-  const [forgotSent, setForgotSent] = useState(false);
 
   // Field-level validation errors
   const emailError = useMemo(() => {
@@ -118,27 +112,6 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleForgotPassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    setForgotError(null);
-    const clean = forgotEmail.trim();
-    if (!clean) {
-      setForgotError('Please enter your registered email address.');
-      return;
-    }
-    if (!isValidEmail(clean)) {
-      setForgotError('Please enter a valid email format (e.g. user@domain.com).');
-      return;
-    }
-
-    setForgotSent(true);
-    setTimeout(() => {
-      setForgotSent(false);
-      setShowForgotModal(false);
-      setForgotError(null);
-    }, 2800);
-  };
-
   return (
     <div className="max-w-md mx-auto px-4 py-12 space-y-6">
       <div className="text-center space-y-2">
@@ -187,22 +160,9 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block font-bold text-gray-700 uppercase">
-                Password <span className="text-rose-600">*</span>
-              </label>
-              <button
-                type="button"
-                onClick={() => {
-                  setForgotEmail(email);
-                  setForgotError(null);
-                  setShowForgotModal(true);
-                }}
-                className="text-[11px] font-bold text-[#F07421] hover:underline"
-              >
-                Forgot Password?
-              </button>
-            </div>
+            <label className="block font-bold text-gray-700 uppercase mb-1">
+              Password <span className="text-rose-600">*</span>
+            </label>
             <div className="relative">
               <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
               <input
@@ -283,77 +243,6 @@ export const LoginPage: React.FC = () => {
           </p>
         </div>
       </div>
-
-      {/* Forgot Password Modal */}
-      {showForgotModal && (
-        <div className="fixed inset-0 z-50 bg-[#07132c]/80 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-gray-100 space-y-4 text-left">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-[#FFF3EA] text-[#F07421] flex items-center justify-center">
-                <Lock className="w-5 h-5" />
-              </div>
-              <div>
-                <h3 className="text-base font-extrabold text-[#0E2350]">Reset Password</h3>
-                <p className="text-xs text-gray-500">Receive an official password reset link via email.</p>
-              </div>
-            </div>
-
-            {forgotSent ? (
-              <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
-                <span>Password reset link dispatched to <strong>{forgotEmail}</strong>. Please check your inbox.</span>
-              </div>
-            ) : (
-              <form onSubmit={handleForgotPassword} className="space-y-3 text-xs" noValidate>
-                <div>
-                  <label className="block font-bold text-gray-700 uppercase mb-1">
-                    Registered Email <span className="text-rose-600">*</span>
-                  </label>
-                  <input
-                    type="email"
-                    value={forgotEmail}
-                    onChange={(e) => {
-                      setForgotEmail(e.target.value);
-                      if (forgotError) setForgotError(null);
-                    }}
-                    placeholder="Enter your registered login email"
-                    className={`w-full px-3 py-2 border rounded-lg focus:outline-none transition-colors ${
-                      forgotError
-                        ? 'bg-rose-50/30 border-rose-400 focus:ring-2 focus:ring-rose-400'
-                        : 'bg-[#F6F7F9] border-[#E3E6EB] focus:ring-2 focus:ring-[#0E2350]'
-                    }`}
-                  />
-                  {forgotError && (
-                    <p className="text-[11px] text-rose-600 font-bold flex items-center gap-1 mt-1 animate-fade-in">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-                      <span>{forgotError}</span>
-                    </p>
-                  )}
-                </div>
-
-                <div className="flex items-center justify-end gap-2 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setShowForgotModal(false);
-                      setForgotError(null);
-                    }}
-                    className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 font-bold hover:bg-gray-100"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-5 py-2 rounded-lg bg-[#F07421] hover:bg-[#D96214] text-white font-bold shadow cursor-pointer"
-                  >
-                    Send Reset Link
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };
