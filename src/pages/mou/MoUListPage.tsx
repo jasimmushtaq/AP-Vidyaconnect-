@@ -50,7 +50,7 @@ export const MoUListPage: React.FC = () => {
       const compId = currentCompany?.id || currentUser?.company_id;
       return mous.filter((m) => !compId || m.company_id === compId);
     }
-    if (currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
+    if (currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
       const instId = currentInstitution?.id || currentUser?.institution_id;
       return mous.filter((m) => !instId || m.institution_id === instId);
     }

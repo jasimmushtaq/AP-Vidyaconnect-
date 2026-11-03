@@ -371,7 +371,7 @@ export const ProfilePage: React.FC = () => {
         )}
 
         {/* Linked College Profile (For Institution Admins / Faculty only) */}
-        {(currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') && currentInstitution && (
+        {(currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') && currentInstitution && (
           <div className="bg-white rounded-2xl border border-slate-200/80 p-6 sm:p-8 shadow-xs space-y-5">
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-3">

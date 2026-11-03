@@ -266,7 +266,7 @@ export const PublicCompanyProfilePage: React.FC = () => {
                       </div>
 
                       <div className="flex items-center gap-2 shrink-0">
-                        {(currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') && (
+                        {(currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') && (
                           <Link
                             to={`/proposals/new?companyId=${company.id}&domain=${encodeURIComponent(opp.domain)}`}
                             className="px-3 py-1.5 bg-[#0E2350] hover:bg-[#14336F] text-white text-[11px] font-bold rounded-lg shadow-sm"
@@ -315,7 +315,7 @@ export const PublicCompanyProfilePage: React.FC = () => {
               Higher education institutions can author custom proposals, allocate student rosters, and negotiate mentoring stipends under formal state governance.
             </p>
 
-            {(currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') ? (
+            {(currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') ? (
               <Link
                 to={`/proposals/new?companyId=${company.id}`}
                 className="w-full py-2.5 bg-[#F07421] hover:bg-[#D96214] text-white text-xs font-bold rounded-xl shadow transition-all flex items-center justify-center gap-1.5"

@@ -128,7 +128,7 @@ export const AppLayout: React.FC = () => {
               className="fixed inset-0 bg-black/60 backdrop-blur-sm"
               onClick={() => setMobileSidebarOpen(false)}
             />
-            <div className="relative z-10 w-72 h-full flex flex-col">
+            <div className="relative z-10 w-72 sm:w-80 max-w-[85vw] h-full flex flex-col">
               <Sidebar onMobileClose={() => setMobileSidebarOpen(false)} />
             </div>
           </div>

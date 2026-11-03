@@ -169,8 +169,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
       if (role === 'super_admin') {
         return n.recipient_role === 'super_admin' || n.recipient_role === 'admin';
       }
-      if (role === 'institution_admin') {
-        return n.recipient_role === 'institution_admin' || n.recipient_role === 'institution';
+      if (role === 'institution_admin' || role === 'college_admin') {
+        return n.recipient_role === 'institution_admin' || n.recipient_role === 'college_admin' || n.recipient_role === 'institution';
       }
       if (role === 'faculty_coordinator') {
         return n.recipient_role === 'faculty_coordinator' || n.recipient_role === 'faculty';

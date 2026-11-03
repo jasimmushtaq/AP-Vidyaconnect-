@@ -15,7 +15,7 @@ export const ActionQueueBanner: React.FC = () => {
   const getActionItems = () => {
     const items: { title: string; subtitle: string; link: string; type: 'urgent' | 'action' | 'info' }[] = [];
 
-    if (currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
+    if (currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') {
       // Check proposals ready for final acceptance
       const readyForAccept = db.proposals.filter(p => p.status === 'company_accepted' || p.status === 'company_accepted_with_changes');
       if (readyForAccept.length > 0) {

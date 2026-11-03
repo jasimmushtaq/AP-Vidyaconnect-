@@ -101,6 +101,7 @@ export const MoUDetailPage: React.FC = () => {
     (currentCompany && currentCompany.id === mou.company_id);
 
   const isCollegeUser =
+    currentRole === 'college_admin' ||
     currentRole === 'institution_admin' ||
     currentRole === 'faculty_coordinator' ||
     (currentInstitution && currentInstitution.id === mou.institution_id);

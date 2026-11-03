@@ -169,7 +169,7 @@ export const ProposalsListPage: React.FC = () => {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {(currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') && (
+            {(currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') && (
               <Link
                 to="/proposals/new"
                 className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#F07421] to-orange-600 hover:from-[#D96214] hover:to-[#C55005] text-white text-xs font-black shadow-md hover:shadow-lg transition-all flex items-center gap-2 transform active:scale-95"

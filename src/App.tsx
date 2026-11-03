@@ -202,7 +202,7 @@ export function App() {
                 <Route path="/certificates" element={<Navigate to="/dashboard" replace />} />
 
                 {/* Student Dedicated Routes */}
-                <Route path="/my-internship" element={<RoleGuard allowedRoles={['student', 'super_admin']}><DashboardRouter /></RoleGuard>} />
+                <Route path="/my-internship" element={<RoleGuard allowedRoles={['student', 'super_admin']}><StudentMyInternshipsPage /></RoleGuard>} />
                 <Route path="/my-internships" element={<RoleGuard allowedRoles={['student', 'super_admin']}><StudentMyInternshipsPage /></RoleGuard>} />
                 <Route path="/student/internships" element={<RoleGuard allowedRoles={['student', 'super_admin']}><StudentMyInternshipsPage /></RoleGuard>} />
                 <Route path="/reports" element={<DashboardRouter />} />

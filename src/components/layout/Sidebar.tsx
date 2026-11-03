@@ -128,11 +128,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
         return [
           { label: 'State Overview', path: '/dashboard', icon: LayoutDashboard },
           { label: 'Entity Verifications', path: '/admin/verifications', icon: ShieldCheck, badge: 'Pending' },
-          { label: 'Register Company / College Partner', path: '/admin/register-partner', icon: UserPlus, badge: 'Add' },
-          { label: 'Registered Colleges / Institutes', path: '/admin/institutions', icon: School },
+          { label: 'Register Partner Org', path: '/admin/register-partner', icon: UserPlus, badge: 'Add' },
+          { label: 'Registered Institutes', path: '/admin/institutions', icon: School },
           { label: 'Registered Companies', path: '/admin/companies', icon: Building2 },
           { label: 'Promotion Banner', path: '/admin/banners', icon: Megaphone, badge: 'Live' },
-          { label: 'My Profile & Org Detail', path: '/profile', icon: Building2 },
+          { label: 'State Admin Profile', path: '/profile', icon: Building2 },
         ];
     }
   };
@@ -141,7 +141,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
 
   return (
     <aside
-      className={`bg-[#0E2350] text-white flex flex-col transition-all duration-300 z-20 ${collapsed ? 'w-20' : 'w-64'
+      className={`bg-[#0E2350] text-white flex flex-col transition-all duration-300 z-20 ${collapsed ? 'w-20' : 'w-72'
         } h-full max-h-screen shadow-xl select-none`}
     >
       {/* Top Brand Banner & Active Context (Anchored at Top) */}
@@ -189,7 +189,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
                   if (onMobileClose) onMobileClose();
                 }}
                 className={({ isActive: active }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${active
+                  `flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all ${active
                     ? 'bg-[#14336F] text-white shadow-sm border-l-4 border-[#F07421]'
                     : 'text-[#DCE5F5]/80 hover:bg-[#102A60] hover:text-white'
                   } ${collapsed ? 'justify-center' : ''}`
@@ -198,10 +198,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapsed = false, onToggleCol
               >
                 <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-[#F07421]' : 'text-[#DCE5F5]'}`} />
                 {!collapsed && (
-                  <span className="truncate flex-1">{item.label}</span>
+                  <span className="whitespace-nowrap flex-1">{item.label}</span>
                 )}
                 {!collapsed && item.badge && (
-                  <span className="text-[10px] bg-[#F07421]/20 text-[#FFE5D3] px-1.5 py-0.5 rounded font-bold border border-[#F07421]/30">
+                  <span className="shrink-0 text-[10px] bg-[#F07421]/20 text-[#FFE5D3] px-2 py-0.5 rounded font-bold border border-[#F07421]/30 whitespace-nowrap ml-1 shadow-2xs">
                     {item.badge}
                   </span>
                 )}
