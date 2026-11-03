@@ -60,7 +60,9 @@ import {
   Sliders,
   Play,
   Pause,
-  AlertCircle
+  AlertCircle,
+  GripVertical,
+  Move
 } from 'lucide-react';
 
 // ============================================================================
@@ -725,6 +727,121 @@ export const VidyaConnectChatbot: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
 
+  // Draggable Floating Trigger Position
+  const [triggerPos, setTriggerPos] = useState<{ x: number; y: number } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    try {
+      const saved = localStorage.getItem('vidyabot_trigger_pos');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
+          const maxX = Math.max(10, window.innerWidth - 140);
+          const maxY = Math.max(10, window.innerHeight - 100);
+          return {
+            x: Math.min(Math.max(10, parsed.x), maxX),
+            y: Math.min(Math.max(10, parsed.y), maxY)
+          };
+        }
+      }
+    } catch {}
+    return null;
+  });
+
+  const [isDraggingTrigger, setIsDraggingTrigger] = useState(false);
+  const dragStartRef = useRef<{ pointerX: number; pointerY: number; startX: number; startY: number } | null>(null);
+  const hasMovedRef = useRef(false);
+  const triggerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setTriggerPos(prev => {
+        if (!prev) return null;
+        const elemWidth = triggerRef.current?.offsetWidth || 220;
+        const elemHeight = triggerRef.current?.offsetHeight || 80;
+        const maxX = Math.max(10, window.innerWidth - elemWidth - 10);
+        const maxY = Math.max(10, window.innerHeight - elemHeight - 10);
+        if (prev.x > maxX || prev.y > maxY) {
+          return {
+            x: Math.min(prev.x, maxX),
+            y: Math.min(prev.y, maxY)
+          };
+        }
+        return prev;
+      });
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const handleTriggerPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const elem = triggerRef.current;
+    if (!elem) return;
+
+    const rect = elem.getBoundingClientRect();
+    dragStartRef.current = {
+      pointerX: e.clientX,
+      pointerY: e.clientY,
+      startX: rect.left,
+      startY: rect.top
+    };
+    hasMovedRef.current = false;
+    setIsDraggingTrigger(true);
+
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const handleTriggerPointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+    const dx = e.clientX - dragStartRef.current.pointerX;
+    const dy = e.clientY - dragStartRef.current.pointerY;
+
+    if (!hasMovedRef.current && (Math.abs(dx) > 4 || Math.abs(dy) > 4)) {
+      hasMovedRef.current = true;
+    }
+
+    if (hasMovedRef.current) {
+      const elem = triggerRef.current;
+      const elemWidth = elem?.offsetWidth || 220;
+      const elemHeight = elem?.offsetHeight || 80;
+
+      const rawX = dragStartRef.current.startX + dx;
+      const rawY = dragStartRef.current.startY + dy;
+
+      const clampedX = Math.max(10, Math.min(window.innerWidth - elemWidth - 10, rawX));
+      const clampedY = Math.max(10, Math.min(window.innerHeight - elemHeight - 10, rawY));
+
+      setTriggerPos({ x: clampedX, y: clampedY });
+    }
+  };
+
+  const handleTriggerPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragStartRef.current) return;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {}
+
+    const wasMoved = hasMovedRef.current;
+    dragStartRef.current = null;
+    setIsDraggingTrigger(false);
+
+    if (wasMoved) {
+      setTriggerPos(current => {
+        if (current) {
+          try {
+            localStorage.setItem('vidyabot_trigger_pos', JSON.stringify(current));
+          } catch {}
+        }
+        return current;
+      });
+    } else {
+      setIsOpen(true);
+    }
+  };
+
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome-1',
@@ -975,23 +1092,47 @@ How can I assist your educational or corporate journey today?`,
 
   return (
     <>
-      {/* 1. FLOATING ACTION TRIGGER BUTTON */}
+      {/* 1. MOVABLE / DRAGGABLE FLOATING ACTION TRIGGER BUTTON */}
       {!isOpen && (
-        <div className="fixed bottom-3 right-3 sm:bottom-6 sm:right-6 z-50 flex items-end gap-3 print:hidden">
-          {/* Animated Mascot Badge Pill */}
+        <div
+          ref={triggerRef}
+          onPointerDown={handleTriggerPointerDown}
+          onPointerMove={handleTriggerPointerMove}
+          onPointerUp={handleTriggerPointerUp}
+          style={
+            triggerPos
+              ? {
+                  left: `${triggerPos.x}px`,
+                  top: `${triggerPos.y}px`,
+                  right: 'auto',
+                  bottom: 'auto',
+                  touchAction: 'none'
+                }
+              : {
+                  touchAction: 'none'
+                }
+          }
+          className={`fixed ${!triggerPos ? 'bottom-3 right-3 sm:bottom-6 sm:right-6' : ''} z-50 flex items-end gap-2.5 print:hidden select-none cursor-grab active:cursor-grabbing transition-transform ${
+            isDraggingTrigger ? 'scale-105 opacity-90 duration-0' : 'hover:scale-102 duration-200'
+          }`}
+          title="Drag anywhere to move • Tap/Click to open VidyaBot 3D AI"
+        >
+          {/* Animated Mascot Badge Pill with Drag Grip */}
           <div
-            onClick={() => setIsOpen(true)}
-            className="hidden sm:flex items-center gap-2.5 bg-[#0E2350]/95 backdrop-blur-md text-white pl-3.5 pr-4 py-2 rounded-2xl shadow-2xl border border-white/20 text-xs font-bold cursor-pointer hover:bg-[#14336F] transition-all transform hover:-translate-y-1 active:scale-95 shadow-blue-950/40 group mb-2"
+            className="hidden sm:flex items-center gap-2 bg-[#0E2350]/95 backdrop-blur-md text-white pl-2.5 pr-3.5 py-2 rounded-2xl shadow-2xl border border-white/20 text-xs font-bold transition-all shadow-blue-950/40 group mb-2 hover:bg-[#14336F]"
           >
-            <Sparkles className="w-4 h-4 text-[#F07421] group-hover:rotate-12 transition-transform" />
+            <GripVertical className="w-3.5 h-3.5 text-slate-400 group-hover:text-amber-400 transition-colors shrink-0" />
+            <Sparkles className="w-4 h-4 text-[#F07421] group-hover:rotate-12 transition-transform shrink-0" />
             <div className="flex flex-col text-left">
               <span className="leading-tight text-white font-extrabold text-xs">Need Help?</span>
-              <span className="text-[10px] text-[#F07421] font-bold">Ask VidyaBot 3D AI</span>
+              <span className="text-[10px] text-[#F07421] font-bold flex items-center gap-1">
+                <span>Ask VidyaBot 3D AI</span>
+              </span>
             </div>
           </div>
 
           {/* 3D Mascot Floating Character (Transparent PNG without box frame) */}
-          <div className="relative group cursor-pointer" onClick={() => setIsOpen(true)}>
+          <div className="relative group">
             {/* Ground Shadow */}
             <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-8 sm:w-12 h-2 sm:h-3 bg-black/25 rounded-full blur-[2px] group-hover:w-14 group-hover:bg-black/35 transition-all duration-300 pointer-events-none" />
 
@@ -1003,7 +1144,8 @@ How can I assist your educational or corporate journey today?`,
               <img
                 src="/brand/idyabot-3d.png"
                 alt="VidyaBot 3D AI Assistant Mascot"
-                className="w-full h-full object-contain filter drop-shadow-[0_6px_14px_rgba(14,35,80,0.35)] select-none pointer-events-auto"
+                className="w-full h-full object-contain filter drop-shadow-[0_6px_14px_rgba(14,35,80,0.35)] select-none pointer-events-none"
+                draggable={false}
               />
 
               {/* Online Status Dot */}
