@@ -62,6 +62,11 @@ export const SelfieVerificationModal: React.FC<SelfieVerificationModalProps> = (
   const distance = record.distance_meters !== undefined ? record.distance_meters : record.distance_from_company || 18;
   const storageRef = record.selfie_storage_path || `attendance-selfies/${record.batch_id}/${record.student_id}/${record.date}/${record.id}.jpg`;
 
+  const isStockPlaceholder = (url?: string) => !url || url.includes('1539571696357-5a69c17a67c6');
+  const validSelfie = !isStockPlaceholder(record.selfie_url)
+    ? record.selfie_url
+    : (!isStockPlaceholder(student?.photo_url) ? student?.photo_url : null);
+
   return (
     <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in">
       <div className="bg-white rounded-2xl max-w-xl w-full border border-gray-200 shadow-2xl overflow-hidden max-h-[92vh] flex flex-col">
@@ -97,11 +102,21 @@ export const SelfieVerificationModal: React.FC<SelfieVerificationModalProps> = (
           {/* Main Visual Selfie Card */}
           <div className="relative rounded-xl overflow-hidden border-2 border-[#0E2350]/20 bg-gray-950 flex flex-col items-center justify-center p-3 shadow-inner">
             <div className="relative w-64 h-64 sm:w-72 sm:h-72 rounded-full overflow-hidden border-4 border-[#1C8A3C] shadow-lg bg-gray-900">
-              <img
-                src={record.selfie_url || student?.photo_url || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=400'}
-                alt={student?.full_name || 'Student Selfie'}
-                className="w-full h-full object-cover"
-              />
+              {validSelfie ? (
+                <img
+                  src={validSelfie}
+                  alt={student?.full_name || 'Student Selfie'}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center bg-[#0E2350] text-white p-4 text-center">
+                  <div className="w-20 h-20 rounded-full bg-emerald-600/30 border-2 border-emerald-400 flex items-center justify-center text-2xl font-black mb-2 text-emerald-300">
+                    {student?.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || 'ST'}
+                  </div>
+                  <span className="text-sm font-extrabold text-white">{student?.full_name || 'Enrolled Student'}</span>
+                  <span className="text-[11px] text-emerald-300 font-mono mt-1">Biometric Attendance Verified</span>
+                </div>
+              )}
 
               {/* Verified Stamp Overlay */}
               <div className="absolute bottom-3 inset-x-0 mx-auto w-max px-3 py-1 rounded-full bg-black/75 backdrop-blur-xs text-white text-[10px] font-extrabold flex items-center gap-1.5 border border-white/20 shadow-md">
@@ -121,7 +136,7 @@ export const SelfieVerificationModal: React.FC<SelfieVerificationModalProps> = (
           <div className="bg-[#F6F7F9] p-4 rounded-xl border border-[#E3E6EB] flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-11 h-11 rounded-full bg-[#0E2350] text-white font-black text-sm flex items-center justify-center shrink-0">
-                {student?.full_name?.split(' ').map(n => n[0]).slice(0, 2).join('') || 'ST'}
+                {student?.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || 'ST'}
               </div>
               <div>
                 <h4 className="text-sm font-extrabold text-[#0E2350]">{student?.full_name}</h4>

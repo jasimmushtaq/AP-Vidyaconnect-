@@ -1084,9 +1084,19 @@ export const AttendancePage: React.FC = () => {
                   className="p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-blue-50/30 transition-colors"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0A1938] to-[#1E3A8A] text-white flex items-center justify-center font-black text-xs shrink-0 border border-blue-900/30 shadow-xs">
-                      {stu?.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || 'ST'}
-                    </div>
+                    {existingRec?.selfie_url && !existingRec.selfie_url.includes('1539571696357-5a69c17a67c6') ? (
+                      <img
+                        src={existingRec.selfie_url}
+                        alt={stu?.full_name || 'Intern'}
+                        className="w-10 h-10 rounded-xl object-cover border border-emerald-400 shadow-xs shrink-0 cursor-pointer hover:scale-105 transition-transform"
+                        onClick={() => setSelectedSelfieRecord(existingRec)}
+                        title="Click to view full biometric receipt"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0A1938] to-[#1E3A8A] text-white flex items-center justify-center font-black text-xs shrink-0 border border-blue-900/30 shadow-xs">
+                        {stu?.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || 'ST'}
+                      </div>
+                    )}
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-extrabold text-slate-900">{stu?.full_name}</p>

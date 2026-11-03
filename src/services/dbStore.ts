@@ -205,9 +205,16 @@ class DatabaseStore {
         photoCleansed = true;
       }
     });
+    this.attendance.forEach(a => {
+      if (a.selfie_url && a.selfie_url.includes('1539571696357-5a69c17a67c6')) {
+        a.selfie_url = '';
+        photoCleansed = true;
+      }
+    });
     if (photoCleansed) {
       this.persist('students');
       this.persist('profiles');
+      this.persist('attendance');
     }
 
     // Auto-enroll all batch students and ensure active status
@@ -2141,10 +2148,13 @@ class DatabaseStore {
         is_placed: true,
         account_status: 'active',
         first_login_completed: true,
-        photo_url: req.selfie_base64 || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150',
+        photo_url: req.selfie_base64 || '',
         created_at: new Date().toISOString()
       };
       this.students.push(student);
+      this.persist('students');
+    } else if (req.selfie_base64) {
+      student.photo_url = req.selfie_base64;
       this.persist('students');
     }
     const activeStudent: Student = student;
@@ -2235,7 +2245,7 @@ class DatabaseStore {
       distance_from_company: distanceMeters,
       face_verification_status: 'verified',
       liveness_status: 'passed',
-      selfie_url: req.selfie_base64 || activeStudent.photo_url || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150',
+      selfie_url: req.selfie_base64 || (activeStudent.photo_url && !activeStudent.photo_url.includes('1539571696357-5a69c17a67c6') ? activeStudent.photo_url : ''),
       selfie_storage_path: selfieStoragePath,
       verification_attempt_id: req.attempt_id,
       is_late: isLate,

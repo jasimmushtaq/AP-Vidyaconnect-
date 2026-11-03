@@ -1286,12 +1286,17 @@ class CloudSyncService {
     }
     this.inFlightAttendance.add(flightKey);
 
+    // Cleanse placeholder stock photo from record if present
+    let cleanSelfieUrl = record.selfie_url || '';
+    if (cleanSelfieUrl.includes('1539571696357-5a69c17a67c6')) {
+      cleanSelfieUrl = (record.student?.photo_url && !record.student.photo_url.includes('1539571696357-5a69c17a67c6'))
+        ? record.student.photo_url
+        : '';
+    }
+
     const sanitizedRecord: AttendanceRecord = {
       ...record,
-      // Strip large base64 selfie data from cloud sync payload to guarantee requests remain under browser quotas (< 3 KB)
-      selfie_url: (record.selfie_url && record.selfie_url.length > 2048)
-        ? (record.student?.photo_url || 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150')
-        : record.selfie_url
+      selfie_url: cleanSelfieUrl
     };
 
     // 1. Broadcast immediately to all active browser windows & tabs
@@ -1332,6 +1337,7 @@ class CloudSyncService {
           status: sanitizedRecord.status,
           check_in_time: sanitizedRecord.check_in_time,
           distance_meters: sanitizedRecord.distance_meters,
+          selfie_url: sanitizedRecord.selfie_url,
           is_late: sanitizedRecord.is_late
         }),
         documents: [{

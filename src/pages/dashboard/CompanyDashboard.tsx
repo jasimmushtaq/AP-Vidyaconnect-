@@ -570,9 +570,17 @@ export const CompanyDashboard: React.FC = () => {
                   className="bg-white p-3.5 rounded-xl border border-emerald-200/60 shadow-2xs flex items-center justify-between gap-3"
                 >
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-9 h-9 rounded-lg bg-[#0E2350] text-white flex items-center justify-center font-black text-xs shrink-0">
-                      {stu?.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || 'ST'}
-                    </div>
+                    {rec.selfie_url && !rec.selfie_url.includes('1539571696357-5a69c17a67c6') ? (
+                      <img
+                        src={rec.selfie_url}
+                        alt={stu?.full_name || 'Intern'}
+                        className="w-9 h-9 rounded-lg object-cover border border-emerald-300 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 rounded-lg bg-[#0E2350] text-white flex items-center justify-center font-black text-xs shrink-0">
+                        {stu?.full_name?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || 'ST'}
+                      </div>
+                    )}
                     <div className="min-w-0">
                       <p className="text-xs font-extrabold text-slate-900 truncate">{stu?.full_name || rec.student_id}</p>
                       <p className="text-[10px] text-slate-500 font-mono truncate">
@@ -586,9 +594,13 @@ export const CompanyDashboard: React.FC = () => {
                     }`}>
                       {isLate ? 'LATE' : 'PRESENT'}
                     </span>
-                    <span className="text-[9px] font-mono text-emerald-700">
-                      📍 {rec.distance_meters !== undefined ? `${Math.round(rec.distance_meters)}m` : 'Geofence'}
-                    </span>
+                    <Link
+                      to={`/attendance?batch=${rec.batch_id}&date=${rec.date}&student=${rec.student_id}`}
+                      className="text-[10px] font-extrabold text-emerald-800 hover:text-emerald-950 flex items-center gap-0.5 hover:underline"
+                    >
+                      <span>View Selfie</span>
+                      <ArrowRight className="w-2.5 h-2.5" />
+                    </Link>
                   </div>
                 </div>
               );
