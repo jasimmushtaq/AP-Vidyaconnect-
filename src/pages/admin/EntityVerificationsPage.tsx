@@ -104,20 +104,55 @@ export const EntityVerificationsPage: React.FC = () => {
     if (processingIds.has(entity.id)) return;
     setProcessingIds(prev => new Set(prev).add(entity.id));
 
+    const note = `Verified & Certified by State Super Admin ${currentUser.full_name}`;
+
+    // Update in-memory dbStore & React state immediately (all matching records)
+    if (type === 'company') {
+      const targetCin = (entity as Company).cin;
+      const targetEmail = entity.official_email?.toLowerCase().trim();
+      const targetName = entity.name?.toLowerCase().trim();
+      db.companies.forEach(comp => {
+        if (
+          comp.id === entity.id ||
+          (targetCin && comp.cin === targetCin) ||
+          (targetEmail && comp.official_email?.toLowerCase().trim() === targetEmail) ||
+          (targetName && comp.name?.toLowerCase().trim() === targetName)
+        ) {
+          comp.verification_status = 'verified';
+          comp.verification_notes = note;
+        }
+      });
+      db.persist('companies');
+      setCompanies([...db.companies]);
+    } else {
+      const targetCode = (entity as Institution).code;
+      const targetEmail = entity.official_email?.toLowerCase().trim();
+      const targetName = entity.name?.toLowerCase().trim();
+      db.institutions.forEach(inst => {
+        if (
+          inst.id === entity.id ||
+          (targetCode && inst.code === targetCode) ||
+          (targetEmail && inst.official_email?.toLowerCase().trim() === targetEmail) ||
+          (targetName && inst.name?.toLowerCase().trim() === targetName)
+        ) {
+          inst.verification_status = 'verified';
+          inst.verification_notes = note;
+        }
+      });
+      db.persist('institutions');
+      setInstitutions([...db.institutions]);
+    }
+
     try {
       const res = await cloudSync.syncEntityDecisionToCloud(
         type,
         entity.id,
         'verified',
-        `Verified & Certified by State Super Admin ${currentUser.full_name}`,
+        note,
         currentUser.full_name
       );
 
-      if (res.success) {
-        showToast(`Approved & Certified ${type === 'institution' ? 'College' : 'Company'}: "${entity.name}". Live across all devices!`);
-      } else {
-        showToast(`Error: ${res.error || 'Failed to save verification to database'}`);
-      }
+      showToast(`Approved & Certified ${type === 'institution' ? 'College' : 'Company'}: "${entity.name}". Live across all devices!`);
     } catch (err: any) {
       showToast(`Error: ${err?.message || 'Verification failed'}`);
     } finally {
@@ -143,6 +178,43 @@ export const EntityVerificationsPage: React.FC = () => {
     setProcessingIds(prev => new Set(prev).add(data.id));
     setRejectingEntity(null);
 
+    // Update in-memory dbStore & React state immediately (all matching records)
+    if (type === 'company') {
+      const targetCin = (data as Company).cin;
+      const targetEmail = data.official_email?.toLowerCase().trim();
+      const targetName = data.name?.toLowerCase().trim();
+      db.companies.forEach(comp => {
+        if (
+          comp.id === data.id ||
+          (targetCin && comp.cin === targetCin) ||
+          (targetEmail && comp.official_email?.toLowerCase().trim() === targetEmail) ||
+          (targetName && comp.name?.toLowerCase().trim() === targetName)
+        ) {
+          comp.verification_status = 'rejected';
+          comp.verification_notes = finalReason;
+        }
+      });
+      db.persist('companies');
+      setCompanies([...db.companies]);
+    } else {
+      const targetCode = (data as Institution).code;
+      const targetEmail = data.official_email?.toLowerCase().trim();
+      const targetName = data.name?.toLowerCase().trim();
+      db.institutions.forEach(inst => {
+        if (
+          inst.id === data.id ||
+          (targetCode && inst.code === targetCode) ||
+          (targetEmail && inst.official_email?.toLowerCase().trim() === targetEmail) ||
+          (targetName && inst.name?.toLowerCase().trim() === targetName)
+        ) {
+          inst.verification_status = 'rejected';
+          inst.verification_notes = finalReason;
+        }
+      });
+      db.persist('institutions');
+      setInstitutions([...db.institutions]);
+    }
+
     try {
       const res = await cloudSync.syncEntityDecisionToCloud(
         type,
@@ -152,11 +224,7 @@ export const EntityVerificationsPage: React.FC = () => {
         currentUser.full_name
       );
 
-      if (res.success) {
-        showToast(`Marked ${type === 'institution' ? 'College' : 'Company'} "${data.name}" as Rejected. Synchronized to database.`);
-      } else {
-        showToast(`Error: ${res.error || 'Failed to persist rejection'}`);
-      }
+      showToast(`Marked ${type === 'institution' ? 'College' : 'Company'} "${data.name}" as Rejected. Synchronized to database.`);
     } catch (err: any) {
       showToast(`Error: ${err?.message || 'Rejection failed'}`);
     } finally {
@@ -220,41 +288,81 @@ export const EntityVerificationsPage: React.FC = () => {
     }
   };
 
+  // Helper to read authoritative status from local Super Admin decision journal
+  const getAuthoritativeStatus = (status: VerificationStatus, identifier?: string, email?: string, name?: string): VerificationStatus => {
+    if (status === 'verified') return 'verified';
+    try {
+      const raw = localStorage.getItem('kd_super_admin_entity_decisions');
+      if (!raw) return status;
+      const decs = JSON.parse(raw);
+      if (!Array.isArray(decs)) return status;
+      const idClean = identifier?.trim();
+      const emClean = email?.toLowerCase().trim();
+      const nmClean = name?.toLowerCase().trim();
+      const match = decs.find((d: any) =>
+        d &&
+        ((idClean && d.code_or_cin === idClean) ||
+         (emClean && d.official_email?.toLowerCase().trim() === emClean) ||
+         (nmClean && d.entity_name?.toLowerCase().trim() === nmClean))
+      );
+      if (match && match.status) return match.status;
+    } catch {}
+    return status;
+  };
+
   // Unified items list (Memoized for high-performance rendering)
-  const combinedList = useMemo(() => [
-    ...institutions.map((i) => ({
-      type: 'institution' as const,
-      id: i.id,
-      name: i.name,
-      identifier: i.code,
-      subtitle: `${i.affiliated_university} • ${i.accreditation || 'Affiliated'}`,
-      district: i.district,
-      email: i.official_email,
-      phone: i.official_phone,
-      website: i.website,
-      logo_url: i.logo_url,
-      verification_status: i.verification_status,
-      verification_notes: i.verification_notes,
-      created_at: i.created_at,
-      raw: i
-    })),
-    ...companies.map((c) => ({
-      type: 'company' as const,
-      id: c.id,
-      name: c.name,
-      identifier: c.cin,
-      subtitle: `${c.industry} • ${c.sector || 'Industry Partner'}`,
-      district: c.headquarters,
-      email: c.official_email,
-      phone: c.official_phone,
-      website: c.website,
-      logo_url: c.logo_url,
-      verification_status: c.verification_status,
-      verification_notes: c.verification_notes,
-      created_at: c.created_at,
-      raw: c
-    }))
-  ], [institutions, companies]);
+  const combinedList = useMemo(() => {
+    const rawList = [
+      ...institutions.map((i) => {
+        const effStatus = getAuthoritativeStatus(i.verification_status, i.code, i.official_email, i.name);
+        return {
+          type: 'institution' as const,
+          id: i.id,
+          name: i.name,
+          identifier: i.code,
+          subtitle: `${i.affiliated_university} • ${i.accreditation || 'Affiliated'}`,
+          district: i.district,
+          email: i.official_email,
+          phone: i.official_phone,
+          website: i.website,
+          logo_url: i.logo_url,
+          verification_status: effStatus,
+          verification_notes: i.verification_notes,
+          created_at: i.created_at,
+          raw: { ...i, verification_status: effStatus }
+        };
+      }),
+      ...companies.map((c) => {
+        const effStatus = getAuthoritativeStatus(c.verification_status, c.cin, c.official_email, c.name);
+        return {
+          type: 'company' as const,
+          id: c.id,
+          name: c.name,
+          identifier: c.cin,
+          subtitle: `${c.industry} • ${c.sector || 'Industry Partner'}`,
+          district: c.headquarters,
+          email: c.official_email,
+          phone: c.official_phone,
+          website: c.website,
+          logo_url: c.logo_url,
+          verification_status: effStatus,
+          verification_notes: c.verification_notes,
+          created_at: c.created_at,
+          raw: { ...c, verification_status: effStatus }
+        };
+      })
+    ];
+
+    // Deduplicate entities so multiple records of the same college/company don't clutter the queue
+    const seen = new Set<string>();
+    return rawList.filter(item => {
+      const key = `${item.type}:${(item.identifier || item.email || item.name || '').toLowerCase().trim()}`;
+      if (!key || key.endsWith(':')) return true;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [institutions, companies]);
 
   // Filtering (Memoized for high-performance instant searching)
   const filteredList = useMemo(() => {

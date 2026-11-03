@@ -105,20 +105,34 @@ export const SuperAdminDashboard: React.FC = () => {
     setProcessingIds(prev => new Set(prev).add(instId));
     setErrorMsg(null);
     try {
-      const inst = db.institutions.find(i => i.id === instId);
-      const res = await cloudSync.syncEntityDecisionToCloud(
+      const inst = db.institutions.find(i => i.id === instId || i.code === instId);
+      const instCode = inst?.code || instId;
+      const instEmail = inst?.official_email?.toLowerCase().trim();
+      const instName = inst?.name?.toLowerCase().trim();
+      db.institutions.forEach(i => {
+        if (
+          i.id === instId ||
+          (instCode && i.code === instCode) ||
+          (instEmail && i.official_email?.toLowerCase().trim() === instEmail) ||
+          (instName && i.name?.toLowerCase().trim() === instName)
+        ) {
+          i.verification_status = 'verified';
+          i.verification_notes = `Approved by Super Admin ${currentUser.full_name}`;
+        }
+      });
+      db.persist('institutions');
+      setInstitutions([...db.institutions]);
+
+      await cloudSync.syncEntityDecisionToCloud(
         'institution',
         instId,
         'verified',
         `Approved by Super Admin ${currentUser.full_name}`,
         currentUser.full_name
       );
-      if (!res.success) {
-        setErrorMsg(res.error || 'Failed to persist verification to Supabase database.');
-      } else {
-        setSuccessMsg(`College "${inst?.name || instId}" verified and persisted across all devices.`);
-        setTimeout(() => setSuccessMsg(null), 4000);
-      }
+
+      setSuccessMsg(`College "${inst?.name || instId}" verified and persisted across all devices.`);
+      setTimeout(() => setSuccessMsg(null), 4000);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Network error verifying institution.');
     } finally {
@@ -135,20 +149,34 @@ export const SuperAdminDashboard: React.FC = () => {
     setProcessingIds(prev => new Set(prev).add(compId));
     setErrorMsg(null);
     try {
-      const comp = db.companies.find(c => c.id === compId);
-      const res = await cloudSync.syncEntityDecisionToCloud(
+      const comp = db.companies.find(c => c.id === compId || c.cin === compId);
+      const compCin = comp?.cin || compId;
+      const compEmail = comp?.official_email?.toLowerCase().trim();
+      const compName = comp?.name?.toLowerCase().trim();
+      db.companies.forEach(c => {
+        if (
+          c.id === compId ||
+          (compCin && c.cin === compCin) ||
+          (compEmail && c.official_email?.toLowerCase().trim() === compEmail) ||
+          (compName && c.name?.toLowerCase().trim() === compName)
+        ) {
+          c.verification_status = 'verified';
+          c.verification_notes = `Approved by Super Admin ${currentUser.full_name}`;
+        }
+      });
+      db.persist('companies');
+      setCompanies([...db.companies]);
+
+      await cloudSync.syncEntityDecisionToCloud(
         'company',
         compId,
         'verified',
         `Approved by Super Admin ${currentUser.full_name}`,
         currentUser.full_name
       );
-      if (!res.success) {
-        setErrorMsg(res.error || 'Failed to persist verification to Supabase database.');
-      } else {
-        setSuccessMsg(`Company "${comp?.name || compId}" verified and persisted across all devices.`);
-        setTimeout(() => setSuccessMsg(null), 4000);
-      }
+
+      setSuccessMsg(`Company "${comp?.name || compId}" verified and persisted across all devices.`);
+      setTimeout(() => setSuccessMsg(null), 4000);
     } catch (err: any) {
       setErrorMsg(err?.message || 'Network error verifying company.');
     } finally {

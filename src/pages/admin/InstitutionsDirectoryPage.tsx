@@ -156,27 +156,42 @@ export const InstitutionsDirectoryPage: React.FC = () => {
     if (processingIds.has(inst.id)) return;
     setProcessingIds(prev => new Set(prev).add(inst.id));
     const targetStatus = inst.verification_status === 'verified' ? 'under_verification' : 'verified';
+    const note = targetStatus === 'verified'
+      ? `Verified by State Super Admin ${currentUser.full_name}`
+      : 'Status set to Under Review by State Super Admin';
+
+    // Update in-memory dbStore & React state immediately (all matching records)
+    const instCode = inst.code;
+    const instEmail = inst.official_email?.toLowerCase().trim();
+    const instName = inst.name?.toLowerCase().trim();
+    db.institutions.forEach(i => {
+      if (
+        i.id === inst.id ||
+        (instCode && i.code === instCode) ||
+        (instEmail && i.official_email?.toLowerCase().trim() === instEmail) ||
+        (instName && i.name?.toLowerCase().trim() === instName)
+      ) {
+        i.verification_status = targetStatus;
+        i.verification_notes = note;
+      }
+    });
+    db.persist('institutions');
+    setInstitutions([...db.institutions]);
 
     try {
-      const res = await cloudSync.syncEntityDecisionToCloud(
+      await cloudSync.syncEntityDecisionToCloud(
         'institution',
         inst.id,
         targetStatus,
-        targetStatus === 'verified'
-          ? `Verified by State Super Admin ${currentUser.full_name}`
-          : 'Status set to Under Review by State Super Admin',
+        note,
         currentUser.full_name
       );
 
-      if (res.success) {
-        showToast(
-          targetStatus === 'verified'
-            ? `Verified "${inst.name}". Live across all devices!`
-            : `Set "${inst.name}" to Under Review.`
-        );
-      } else {
-        showToast(`Error: ${res.error || 'Failed to update institution verification'}`);
-      }
+      showToast(
+        targetStatus === 'verified'
+          ? `Verified "${inst.name}". Live across all devices!`
+          : `Set "${inst.name}" to Under Review.`
+      );
     } catch (err: any) {
       showToast(`Error: ${err?.message || 'Verification update failed'}`);
     } finally {

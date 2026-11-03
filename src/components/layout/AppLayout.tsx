@@ -16,16 +16,36 @@ export const AppLayout: React.FC = () => {
     return <Navigate to="/login" replace />;
   }
 
+  // Helper to check if Super Admin has permanently verified this entity
+  const isJournalVerified = (codeOrCin?: string, email?: string, name?: string) => {
+    try {
+      const raw = localStorage.getItem('kd_super_admin_entity_decisions');
+      if (!raw) return false;
+      const decs = JSON.parse(raw);
+      if (!Array.isArray(decs)) return false;
+      return decs.some((d: any) =>
+        d && d.status === 'verified' &&
+        ((codeOrCin && d.code_or_cin === codeOrCin) ||
+         (email && d.official_email?.toLowerCase().trim() === email.toLowerCase().trim()) ||
+         (name && d.entity_name?.toLowerCase().trim() === name.toLowerCase().trim()))
+      );
+    } catch {
+      return false;
+    }
+  };
+
   // Check if current user is an institution or company pending verification
   const isInstitutionUnderReview =
     (currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator') &&
     currentInstitution &&
-    currentInstitution.verification_status !== 'verified';
+    currentInstitution.verification_status !== 'verified' &&
+    !isJournalVerified(currentInstitution.code, currentInstitution.official_email, currentInstitution.name);
 
   const isCompanyUnderReview =
     (currentRole === 'company_admin' || currentRole === 'mentor') &&
     currentCompany &&
-    currentCompany.verification_status !== 'verified';
+    currentCompany.verification_status !== 'verified' &&
+    !isJournalVerified(currentCompany.cin, currentCompany.official_email, currentCompany.name);
 
   const isRejected =
     (isInstitutionUnderReview && currentInstitution?.verification_status === 'rejected') ||

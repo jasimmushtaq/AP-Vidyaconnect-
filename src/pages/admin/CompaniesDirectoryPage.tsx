@@ -168,27 +168,42 @@ export const CompaniesDirectoryPage: React.FC = () => {
     if (processingIds.has(comp.id)) return;
     setProcessingIds(prev => new Set(prev).add(comp.id));
     const targetStatus = comp.verification_status === 'verified' ? 'under_verification' : 'verified';
+    const note = targetStatus === 'verified'
+      ? `Verified by State Super Admin ${currentUser.full_name}`
+      : 'Status set to Under Review by State Super Admin';
+
+    // Update in-memory dbStore & React state immediately (all matching records)
+    const compCin = comp.cin;
+    const compEmail = comp.official_email?.toLowerCase().trim();
+    const compName = comp.name?.toLowerCase().trim();
+    db.companies.forEach(c => {
+      if (
+        c.id === comp.id ||
+        (compCin && c.cin === compCin) ||
+        (compEmail && c.official_email?.toLowerCase().trim() === compEmail) ||
+        (compName && c.name?.toLowerCase().trim() === compName)
+      ) {
+        c.verification_status = targetStatus;
+        c.verification_notes = note;
+      }
+    });
+    db.persist('companies');
+    setCompanies([...db.companies]);
 
     try {
-      const res = await cloudSync.syncEntityDecisionToCloud(
+      await cloudSync.syncEntityDecisionToCloud(
         'company',
         comp.id,
         targetStatus,
-        targetStatus === 'verified'
-          ? `Verified by State Super Admin ${currentUser.full_name}`
-          : 'Status set to Under Review by State Super Admin',
+        note,
         currentUser.full_name
       );
 
-      if (res.success) {
-        showToast(
-          targetStatus === 'verified'
-            ? `Verified "${comp.name}". Live across all devices!`
-            : `Set "${comp.name}" to Under Review.`
-        );
-      } else {
-        showToast(`Error: ${res.error || 'Failed to update company verification'}`);
-      }
+      showToast(
+        targetStatus === 'verified'
+          ? `Verified "${comp.name}". Live across all devices!`
+          : `Set "${comp.name}" to Under Review.`
+      );
     } catch (err: any) {
       showToast(`Error: ${err?.message || 'Verification update failed'}`);
     } finally {

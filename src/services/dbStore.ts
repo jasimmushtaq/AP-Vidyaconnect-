@@ -469,11 +469,54 @@ class DatabaseStore {
         const loadedComps = JSON.parse(compRaw);
         if (Array.isArray(loadedComps)) {
           loadedComps.forEach((lc: any) => {
-            const idx = this.companies.findIndex(c => c.id === lc.id || c.cin === lc.cin);
-            if (idx >= 0) this.companies[idx] = { ...this.companies[idx], ...lc };
-            else this.companies.unshift(lc);
+            const idx = this.companies.findIndex(c => c.id === lc.id || c.cin === lc.cin || (lc.official_email && c.official_email?.toLowerCase() === lc.official_email?.toLowerCase()));
+            if (idx >= 0) {
+              // Never downgrade an already verified company in memory to unverified
+              if (this.companies[idx].verification_status === 'verified' && lc.verification_status !== 'verified') {
+                lc.verification_status = 'verified';
+              }
+              this.companies[idx] = { ...this.companies[idx], ...lc };
+            } else {
+              this.companies.unshift(lc);
+            }
           });
         }
+      }
+
+      // Apply authoritative Super Admin Entity Decisions journal from local storage
+      const decRaw = localStorage.getItem('kd_super_admin_entity_decisions');
+      if (decRaw) {
+        try {
+          const decs = JSON.parse(decRaw);
+          if (Array.isArray(decs)) {
+            decs.forEach((d: any) => {
+              if (d && d.status) {
+                // Apply to companies
+                this.companies.forEach(c => {
+                  const match = (d.entity_id && c.id === d.entity_id) ||
+                    (d.code_or_cin && c.cin === d.code_or_cin) ||
+                    (d.official_email && c.official_email?.toLowerCase().trim() === d.official_email.toLowerCase().trim()) ||
+                    (d.entity_name && c.name?.toLowerCase().trim() === d.entity_name.toLowerCase().trim());
+                  if (match) {
+                    c.verification_status = d.status;
+                    if (d.notes) c.verification_notes = d.notes;
+                  }
+                });
+                // Apply to institutions
+                this.institutions.forEach(i => {
+                  const match = (d.entity_id && i.id === d.entity_id) ||
+                    (d.code_or_cin && i.code === d.code_or_cin) ||
+                    (d.official_email && i.official_email?.toLowerCase().trim() === d.official_email.toLowerCase().trim()) ||
+                    (d.entity_name && i.name?.toLowerCase().trim() === d.entity_name.toLowerCase().trim());
+                  if (match) {
+                    i.verification_status = d.status;
+                    if (d.notes) i.verification_notes = d.notes;
+                  }
+                });
+              }
+            });
+          }
+        } catch {}
       }
       const notifRaw = localStorage.getItem(STORAGE_PREFIX + 'notifications');
       if (notifRaw) {
