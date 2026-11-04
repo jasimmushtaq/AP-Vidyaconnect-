@@ -59,28 +59,28 @@ export const HomePage: React.FC = () => {
       <div className="w-full px-2.5 sm:px-6 lg:px-8 pt-2 sm:pt-3">
         <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#E2E8F0] bg-white shadow-[0_8px_30px_rgba(11,31,70,0.05)] min-h-[380px] lg:min-h-[440px] flex flex-col lg:flex-row items-center justify-between">
           
-          {/* Mobile-Only Full-Bleed 3D Academic Artwork Banner (No People, No Blurry Boxes) */}
-          <div className="lg:hidden w-full h-[210px] sm:h-[260px] relative overflow-hidden bg-gradient-to-r from-[#DDEAF8] to-[#EBF3FC] border-b border-[#E2E8F0] shrink-0">
+          {/* Mobile-Only Full Academic Artwork Banner (Complete Composition — Zero Cutoffs) */}
+          <div className="lg:hidden w-full h-[220px] sm:h-[260px] relative overflow-hidden bg-gradient-to-b from-[#8EBCFD]/20 via-white to-[#EBF3FC] border-b border-[#E2E8F0] flex items-center justify-center p-2 shrink-0">
             <img
-              src="/images/hero-academic-composition.jpg"
-              alt="Academic Foundation & Graduation Cap"
-              className="w-full h-full object-cover object-center select-none"
+              src="/images/hero-books-gradcap-blended.png"
+              alt="Academic Foundation & Graduation Cap with Better Skills Brighter Future"
+              className="w-full h-full object-contain object-center select-none"
             />
           </div>
 
-          {/* Desktop Right-Side Full-Bleed 3D Academic Artwork (Seamlessly Flush to Card Borders) */}
-          <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[56%] xl:w-[52%] h-full pointer-events-none select-none z-0 overflow-hidden">
+          {/* Desktop Right-Side Full-Bleed 3D Academic Artwork (Pinned Right — Full Calligraphy & Pencils Visible) */}
+          <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[56%] xl:w-[54%] h-full pointer-events-none select-none z-0 overflow-hidden">
             <img
               src="/images/hero-books-gradcap-blended.png"
-              alt="Stack of Academic Books with Graduation Cap, Diploma and Better Skills Calligraphy"
-              className="w-full h-full object-cover object-left"
+              alt="Stack of Academic Books with Graduation Cap, Diploma, Pencils and Better Skills Calligraphy"
+              className="w-full h-full object-cover object-right"
             />
-            {/* Seamless Leftward Fade Overlay - Dissolves Sky & Floor into Card White Background */}
-            <div className="absolute inset-y-0 left-0 w-32 xl:w-44 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none" />
+            {/* Seamless Leftward Fade Overlay - Soft dissolve into Card White Background */}
+            <div className="absolute inset-y-0 left-0 w-20 xl:w-28 bg-gradient-to-r from-white via-white/50 to-transparent pointer-events-none" />
           </div>
 
           {/* Left Column: Heading, Outlined Pill & Two Side-by-Side CTAs */}
-          <div className="relative z-10 w-full lg:w-[50%] xl:w-[52%] px-5 sm:px-8 lg:px-12 py-7 sm:py-9 lg:py-10 space-y-4 sm:space-y-5 text-left">
+          <div className="relative z-10 w-full lg:w-[48%] xl:w-[46%] max-w-[560px] px-5 sm:px-8 lg:px-12 py-7 sm:py-9 lg:py-10 space-y-4 sm:space-y-5 text-left">
             {/* Premium Category Pill Badge */}
             <div className="inline-flex items-center gap-2 bg-[#FFF9F3] border border-[#FF6500]/30 text-[#0B1F46] px-3.5 py-1 rounded-full text-xs font-bold shadow-2xs">
               <Sparkles className="w-3.5 h-3.5 text-[#FF6500] shrink-0" />
@@ -90,7 +90,7 @@ export const HomePage: React.FC = () => {
             </div>
 
             {/* Main Bold Heading with Orange Swoosh on 'Industry' */}
-            <h1 className="text-3xl sm:text-4xl lg:text-[48px] xl:text-[52px] font-black text-[#0B1F46] tracking-tight leading-[1.12]">
+            <h1 className="text-3xl sm:text-4xl lg:text-[44px] xl:text-[50px] font-black text-[#0B1F46] tracking-tight leading-[1.12]">
               Connecting Education<br />
               with{' '}
               <span className="relative inline-block text-[#FF6500]">
@@ -112,7 +112,7 @@ export const HomePage: React.FC = () => {
             </h1>
 
             {/* Supporting Description */}
-            <p className="text-xs sm:text-[14px] text-[#475569] max-w-[540px] font-normal leading-relaxed">
+            <p className="text-xs sm:text-[14px] text-[#475569] max-w-[520px] font-normal leading-relaxed">
               The centralized, two-sided institutional collaboration platform enabling formal proposal reviews, auditable batch creation, verified attendance, and government-recognized internship certifications.
             </p>
 
