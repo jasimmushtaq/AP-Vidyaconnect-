@@ -265,9 +265,9 @@ export const VerificationsQueuePage: React.FC = () => {
     setEditingCompany(null);
   };
 
-  const handleDeleteCompany = (c: Company) => {
+  const handleDeleteCompany = async (c: Company) => {
     if (confirm(`Are you sure you want to permanently delete company partner "${c.name}" (${c.cin})?`)) {
-      db.deleteCompany(c.id, currentUser);
+      await cloudSync.deleteEntityFromCloud('company', c, currentUser);
       showToast(`Deleted company "${c.name}" from database.`);
     }
   };
@@ -401,9 +401,9 @@ export const VerificationsQueuePage: React.FC = () => {
     setEditingInstitution(null);
   };
 
-  const handleDeleteInstitution = (inst: Institution) => {
+  const handleDeleteInstitution = async (inst: Institution) => {
     if (confirm(`Are you sure you want to delete college "${inst.name}" (${inst.code})?`)) {
-      db.deleteInstitution(inst.id, currentUser);
+      await cloudSync.deleteEntityFromCloud('institution', inst, currentUser);
       showToast(`Deleted college "${inst.name}".`);
     }
   };

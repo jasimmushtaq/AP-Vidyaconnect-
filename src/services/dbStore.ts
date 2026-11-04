@@ -59,7 +59,27 @@ const STORAGE_PREFIX = 'ap_vidyaconnect_v3_';
 function loadOrSeed<T>(key: string, seed: T): T {
   try {
     const saved = localStorage.getItem(STORAGE_PREFIX + key);
-    if (saved) return JSON.parse(saved);
+    let data = saved ? JSON.parse(saved) : seed;
+    if (Array.isArray(data) && (key === 'institutions' || key === 'companies')) {
+      const delRaw = typeof localStorage !== 'undefined' ? localStorage.getItem('kd_deleted_entities') : null;
+      if (delRaw) {
+        try {
+          const delList = JSON.parse(delRaw);
+          if (Array.isArray(delList)) {
+            const eType = key === 'institutions' ? 'institution' : 'company';
+            data = data.filter((item: any) => !delList.some((d: any) =>
+              d && d.entityType === eType && (
+                d.id === item.id ||
+                (d.code_or_cin && (item.code === d.code_or_cin || item.cin === d.code_or_cin)) ||
+                (d.official_email && item.official_email && item.official_email.toLowerCase().trim() === d.official_email.toLowerCase().trim()) ||
+                (d.name && item.name && item.name.toLowerCase().trim() === d.name.toLowerCase().trim())
+              )
+            )) as any;
+          }
+        } catch {}
+      }
+    }
+    return data;
   } catch (e) {
     console.error(`Failed to load ${key} from storage`, e);
   }
@@ -148,12 +168,14 @@ class DatabaseStore {
     syncProposalToCloud: (proposal: InternshipProposal) => Promise<{ success: boolean; error?: string }>;
     syncBatchToCloud?: (batch: InternshipBatch) => Promise<{ success: boolean; error?: string }>;
     syncAttendanceToCloud?: (record: AttendanceRecord) => Promise<{ success: boolean; error?: string }>;
+    deleteEntityFromCloud?: (entityType: 'institution' | 'company', entity: any, actor?: any) => Promise<{ success: boolean; error?: string }>;
   } | null = null;
 
   public registerCloudSyncProvider(provider: {
     syncProposalToCloud: (proposal: InternshipProposal) => Promise<{ success: boolean; error?: string }>;
     syncBatchToCloud?: (batch: InternshipBatch) => Promise<{ success: boolean; error?: string }>;
     syncAttendanceToCloud?: (record: AttendanceRecord) => Promise<{ success: boolean; error?: string }>;
+    deleteEntityFromCloud?: (entityType: 'institution' | 'company', entity: any, actor?: any) => Promise<{ success: boolean; error?: string }>;
   }) {
     this.cloudSyncProvider = provider;
   }
@@ -453,11 +475,32 @@ class DatabaseStore {
           });
         }
       }
+      const delRaw = typeof localStorage !== 'undefined' ? localStorage.getItem('kd_deleted_entities') : null;
+      let delList: any[] = [];
+      if (delRaw) {
+        try {
+          const parsed = JSON.parse(delRaw);
+          if (Array.isArray(parsed)) delList = parsed;
+        } catch {}
+      }
+
+      const isItemDeleted = (entityType: string, item: any) => {
+        return delList.some((d: any) =>
+          d && d.entityType === entityType && (
+            (d.id && d.id === item.id) ||
+            (d.code_or_cin && (item.code === d.code_or_cin || item.cin === d.code_or_cin)) ||
+            (d.official_email && item.official_email && item.official_email.toLowerCase().trim() === d.official_email.toLowerCase().trim()) ||
+            (d.name && item.name && item.name.toLowerCase().trim() === d.name.toLowerCase().trim())
+          )
+        );
+      };
+
       const instRaw = localStorage.getItem(STORAGE_PREFIX + 'institutions');
       if (instRaw) {
         const loadedInsts = JSON.parse(instRaw);
         if (Array.isArray(loadedInsts)) {
           loadedInsts.forEach((li: any) => {
+            if (isItemDeleted('institution', li)) return;
             const idx = this.institutions.findIndex(i => i.id === li.id || i.code === li.code);
             if (idx >= 0) this.institutions[idx] = { ...this.institutions[idx], ...li };
             else this.institutions.unshift(li);
@@ -469,6 +512,7 @@ class DatabaseStore {
         const loadedComps = JSON.parse(compRaw);
         if (Array.isArray(loadedComps)) {
           loadedComps.forEach((lc: any) => {
+            if (isItemDeleted('company', lc)) return;
             const idx = this.companies.findIndex(c => c.id === lc.id || c.cin === lc.cin || (lc.official_email && c.official_email?.toLowerCase() === lc.official_email?.toLowerCase()));
             if (idx >= 0) {
               // Never downgrade an already verified company in memory to unverified
@@ -481,6 +525,11 @@ class DatabaseStore {
             }
           });
         }
+      }
+
+      if (delList.length > 0) {
+        this.institutions = this.institutions.filter(i => !isItemDeleted('institution', i));
+        this.companies = this.companies.filter(c => !isItemDeleted('company', c));
       }
 
       // Apply authoritative Super Admin Entity Decisions journal from local storage
@@ -637,6 +686,51 @@ class DatabaseStore {
 
     const removed = this.companies.splice(idx, 1)[0];
     this.persist('companies');
+
+    // Record deletion tombstone in kd_deleted_entities
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('kd_deleted_entities');
+        const list: any[] = raw ? JSON.parse(raw) : [];
+        if (!list.some(d => d && d.entityType === 'company' && (d.id === compId || (removed.cin && d.code_or_cin === removed.cin)))) {
+          list.unshift({
+            entityType: 'company',
+            id: compId,
+            code_or_cin: removed.cin,
+            official_email: removed.official_email,
+            name: removed.name,
+            deleted_at: new Date().toISOString(),
+            deleted_by: actor?.name || 'State Administrator'
+          });
+          localStorage.setItem('kd_deleted_entities', JSON.stringify(list));
+        }
+
+        // Clean decision records
+        const decRaw = localStorage.getItem('kd_super_admin_entity_decisions');
+        if (decRaw) {
+          const decs = JSON.parse(decRaw);
+          const filtered = decs.filter((d: any) => d && d.entity_id !== compId && d.code_or_cin !== removed.cin && (!removed.official_email || d.official_email?.toLowerCase() !== removed.official_email.toLowerCase()));
+          localStorage.setItem('kd_super_admin_entity_decisions', JSON.stringify(filtered));
+        }
+      } catch {}
+    }
+
+    // Cascade delete associated profiles and opportunities
+    this.profiles = this.profiles.filter(p => p.company_id !== compId && (!removed.official_email || p.email?.toLowerCase().trim() !== removed.official_email.toLowerCase().trim()));
+    this.persist('profiles');
+
+    this.opportunities = this.opportunities.filter(o => o.company_id !== compId);
+    this.persist('opportunities');
+
+    if (removed.official_email) {
+      delete this.passwords[removed.official_email.toLowerCase().trim()];
+      this.persist('passwords');
+    }
+
+    if (this.cloudSyncProvider?.deleteEntityFromCloud) {
+      this.cloudSyncProvider.deleteEntityFromCloud('company', removed, actor).catch(() => {});
+    }
+
     this.logAudit(
       'delete_company',
       'company',
@@ -645,6 +739,7 @@ class DatabaseStore {
       null,
       actor || { id: 'admin', name: 'State Administrator', role: 'super_admin' }
     );
+    this.notify();
     return true;
   }
 
@@ -712,6 +807,48 @@ class DatabaseStore {
 
     const removed = this.institutions.splice(idx, 1)[0];
     this.persist('institutions');
+
+    // Record deletion tombstone in kd_deleted_entities
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const raw = localStorage.getItem('kd_deleted_entities');
+        const list: any[] = raw ? JSON.parse(raw) : [];
+        if (!list.some(d => d && d.entityType === 'institution' && (d.id === instId || (removed.code && d.code_or_cin === removed.code)))) {
+          list.unshift({
+            entityType: 'institution',
+            id: instId,
+            code_or_cin: removed.code,
+            official_email: removed.official_email,
+            name: removed.name,
+            deleted_at: new Date().toISOString(),
+            deleted_by: actor?.name || 'State Administrator'
+          });
+          localStorage.setItem('kd_deleted_entities', JSON.stringify(list));
+        }
+
+        // Clean decision records
+        const decRaw = localStorage.getItem('kd_super_admin_entity_decisions');
+        if (decRaw) {
+          const decs = JSON.parse(decRaw);
+          const filtered = decs.filter((d: any) => d && d.entity_id !== instId && d.code_or_cin !== removed.code && (!removed.official_email || d.official_email?.toLowerCase() !== removed.official_email.toLowerCase()));
+          localStorage.setItem('kd_super_admin_entity_decisions', JSON.stringify(filtered));
+        }
+      } catch {}
+    }
+
+    // Cascade delete associated profiles
+    this.profiles = this.profiles.filter(p => p.institution_id !== instId && (!removed.official_email || p.email?.toLowerCase().trim() !== removed.official_email.toLowerCase().trim()));
+    this.persist('profiles');
+
+    if (removed.official_email) {
+      delete this.passwords[removed.official_email.toLowerCase().trim()];
+      this.persist('passwords');
+    }
+
+    if (this.cloudSyncProvider?.deleteEntityFromCloud) {
+      this.cloudSyncProvider.deleteEntityFromCloud('institution', removed, actor).catch(() => {});
+    }
+
     this.logAudit(
       'delete_institution',
       'institution',
@@ -720,6 +857,7 @@ class DatabaseStore {
       null,
       actor || { id: 'admin', name: 'State Administrator', role: 'super_admin' }
     );
+    this.notify();
     return true;
   }
 

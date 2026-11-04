@@ -147,7 +147,7 @@ export const InstitutionsDirectoryPage: React.FC = () => {
     });
 
     if (confirmed) {
-      db.deleteInstitution(inst.id, currentUser);
+      await cloudSync.deleteEntityFromCloud('institution', inst, currentUser);
       showToast(`Removed "${inst.name}" from registry.`);
     }
   };

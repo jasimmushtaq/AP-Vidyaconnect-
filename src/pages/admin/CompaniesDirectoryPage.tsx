@@ -159,7 +159,7 @@ export const CompaniesDirectoryPage: React.FC = () => {
     });
 
     if (confirmed) {
-      db.deleteCompany(comp.id, currentUser);
+      await cloudSync.deleteEntityFromCloud('company', comp, currentUser);
       showToast(`Removed "${comp.name}" from partner registry.`);
     }
   };
