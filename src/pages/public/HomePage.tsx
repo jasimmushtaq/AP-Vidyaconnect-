@@ -603,121 +603,261 @@ export const HomePage: React.FC = () => {
           </section>
         </div>
 
-        {/* 5.3 THREE ACTORS VALUE PILLARS */}
+        {/* 5.3 THREE ACTORS VALUE PILLARS (REDESIGNED INTERNSHIP LIFECYCLE SECTION) */}
         <div className="w-full px-2.5 sm:px-6 lg:px-8">
-          <section className="w-full">
-            <div className="text-center max-w-3xl mx-auto mb-10">
+          <section className="w-full relative overflow-hidden rounded-3xl border border-[#D5E6F8] bg-gradient-to-b from-[#EBF5FE] via-[#F4F9FE] to-[#E8F3FD] shadow-[0_8px_30px_rgba(11,31,70,0.04)] px-5 sm:px-8 lg:px-12 py-10 sm:py-14 space-y-10 sm:space-y-12">
+            
+            {/* Background Decorative Abstract Waves & Dotted Grids (No Buildings/Photos) */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-0">
+              
+              {/* Top-Left Vibrant Curved Orange Swoop Arc */}
+              <div className="absolute top-0 left-0 w-72 sm:w-96 h-28 sm:h-36 pointer-events-none">
+                <svg viewBox="0 0 450 160" fill="none" className="w-full h-full">
+                  <path
+                    d="M 0 0 L 320 0 C 220 35, 120 95, 0 150 Z"
+                    fill="url(#stakeholder-orange-top)"
+                  />
+                  <path
+                    d="M 0 0 L 360 0 C 250 40, 140 110, 0 160"
+                    stroke="#38BDF8"
+                    strokeWidth="2"
+                    strokeOpacity="0.4"
+                  />
+                  <defs>
+                    <linearGradient id="stakeholder-orange-top" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#FF7900" />
+                      <stop offset="100%" stopColor="#FF5500" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+
+              {/* Top-Right Soft Blue & Cyan Wave Ribbons */}
+              <div className="absolute top-0 right-0 w-80 sm:w-[480px] h-32 sm:h-44 pointer-events-none opacity-40">
+                <svg viewBox="0 0 500 180" fill="none" className="w-full h-full">
+                  <path
+                    d="M 120 0 C 260 90, 380 40, 500 120 L 500 0 Z"
+                    fill="url(#stakeholder-blue-top)"
+                  />
+                  <path
+                    d="M 160 0 C 300 95, 400 50, 500 140"
+                    stroke="#1456C0"
+                    strokeWidth="2.5"
+                    strokeOpacity="0.3"
+                  />
+                  <defs>
+                    <linearGradient id="stakeholder-blue-top" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#38BDF8" stopOpacity="0.25" />
+                      <stop offset="100%" stopColor="#1456C0" stopOpacity="0.4" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+
+              {/* Bottom-Left Curved Vibrant Orange Wave Accent */}
+              <div className="absolute -bottom-1 left-0 w-64 sm:w-80 h-24 sm:h-32 pointer-events-none">
+                <svg viewBox="0 0 400 140" fill="none" className="w-full h-full">
+                  <path
+                    d="M 0 140 L 260 140 C 180 110, 90 60, 0 10 Z"
+                    fill="url(#stakeholder-orange-bottom)"
+                  />
+                  <path
+                    d="M 0 140 L 300 140 C 200 115, 110 70, 0 25"
+                    stroke="#0284C7"
+                    strokeWidth="2"
+                    strokeOpacity="0.3"
+                  />
+                  <defs>
+                    <linearGradient id="stakeholder-orange-bottom" x1="0%" y1="100%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#FF7900" />
+                      <stop offset="100%" stopColor="#FF6500" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+
+              {/* Bottom-Right Deep Royal Blue Flowing Wave Curve */}
+              <div className="absolute -bottom-1 right-0 w-72 sm:w-[460px] h-28 sm:h-36 pointer-events-none">
+                <svg viewBox="0 0 450 150" fill="none" className="w-full h-full">
+                  <path
+                    d="M 140 150 C 240 120, 340 70, 450 20 L 450 150 Z"
+                    fill="url(#stakeholder-navy-bottom)"
+                  />
+                  <path
+                    d="M 180 150 C 270 125, 360 80, 450 35"
+                    stroke="#38BDF8"
+                    strokeWidth="2"
+                    strokeOpacity="0.5"
+                  />
+                  <defs>
+                    <linearGradient id="stakeholder-navy-bottom" x1="0%" y1="100%" x2="100%" y2="0%">
+                      <stop offset="0%" stopColor="#0B1F46" />
+                      <stop offset="50%" stopColor="#1456C0" />
+                      <stop offset="100%" stopColor="#0284C7" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </div>
+
+              {/* Dot Matrix Pattern - Top Left */}
+              <svg className="absolute left-8 top-16 w-36 h-32 opacity-25 pointer-events-none" fill="none">
+                <pattern id="stakeholder-dots-tl" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
+                  <circle cx="2" cy="2" r="1.3" fill="#0284C7" />
+                </pattern>
+                <rect width="100%" height="100%" fill="url(#stakeholder-dots-tl)" />
+              </svg>
+
+              {/* Dot Matrix Pattern - Top Right */}
+              <svg className="absolute right-12 top-8 w-44 h-36 opacity-25 pointer-events-none" fill="none">
+                <pattern id="stakeholder-dots-tr" x="0" y="0" width="14" height="14" patternUnits="userSpaceOnUse">
+                  <circle cx="2" cy="2" r="1.3" fill="#1456C0" />
+                </pattern>
+                <rect width="100%" height="100%" fill="url(#stakeholder-dots-tr)" />
+              </svg>
+            </div>
+
+            {/* Section Header */}
+            <div className="text-center max-w-3xl mx-auto relative z-10">
               <div className="flex items-center justify-center gap-3 sm:gap-4 mb-2">
-                <div className="h-[1.5px] w-12 sm:w-20 bg-gradient-to-r from-transparent to-[#94A3B8]/60" />
+                <div className="h-[1.5px] w-12 sm:w-20 bg-gradient-to-r from-transparent to-[#1456C0]/50" />
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F46] tracking-tight">
                   Empowering Every Stakeholder in the{' '}
-                  <span className="text-[#FF6500]">Internship Lifecycle</span>
+                  <span className="text-[#FF7900]">Internship Lifecycle</span>
                 </h2>
-                <div className="h-[1.5px] w-12 sm:w-20 bg-gradient-to-l from-transparent to-[#94A3B8]/60" />
+                <div className="h-[1.5px] w-12 sm:w-20 bg-gradient-to-l from-transparent to-[#1456C0]/50" />
               </div>
               <p className="text-xs sm:text-sm text-[#475569] mt-2 font-medium">
                 Built specifically for academic rigor, industry productivity, and student career advancement.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-              {/* Institution Card */}
-              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-[#EEF2FA] flex items-center justify-center mb-4 text-[#0B1F46]">
+            {/* Three Equal-Height Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8 items-stretch relative z-10">
+              
+              {/* Card 1: Colleges & Institutions (Blue Accent) */}
+              <div className="bg-white/95 rounded-3xl border border-[#E2E8F0] border-l-4 border-l-[#1456C0] p-6 sm:p-7 shadow-[0_8px_25px_rgba(11,31,70,0.04)] hover:shadow-[0_16px_36px_rgba(20,86,192,0.12)] hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+                {/* Subtle Blue Corner Wave Accent */}
+                <div className="absolute -bottom-6 -right-6 w-32 h-32 rounded-full bg-gradient-to-tl from-[#1456C0]/15 via-[#1456C0]/5 to-transparent pointer-events-none group-hover:scale-125 transition-transform duration-500" />
+                
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-[#EBF3FC] border border-[#D5E6F8] flex items-center justify-center mb-5 text-[#1456C0] shadow-2xs group-hover:scale-105 transition-transform">
                     <School className="w-6 h-6" />
                   </div>
-                  <h3 className="text-lg font-bold text-[#0B1F46]">For Colleges & Institutions</h3>
-                  <p className="text-xs text-[#475569] mt-2 leading-relaxed">
+                  <h3 className="text-lg sm:text-[19px] font-extrabold text-[#0B1F46] tracking-tight">
+                    For Colleges & Institutions
+                  </h3>
+                  <p className="text-xs sm:text-[13px] text-[#475569] mt-2.5 leading-relaxed font-normal">
                     Seamlessly bulk-import students, discover verified corporate partners, formulate multi-student proposals, track live batch attendance, and monitor state accreditation metrics.
                   </p>
-                  <ul className="mt-4 space-y-2 text-xs text-[#10264A] font-medium">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                      CSV Bulk Student Ingestion & Validations
+                  <ul className="mt-5 space-y-2.5 text-xs text-[#10264A] font-medium">
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                      <span>CSV Bulk Student Ingestion & Validations</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                      Two-Sided Proposal Negotiation Stepper
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                      <span>Two-Sided Proposal Negotiation Stepper</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                      Realtime Attendance & Evaluation Sync
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                      <span>Realtime Attendance & Evaluation Sync</span>
                     </li>
                   </ul>
                 </div>
-                <Link
-                  to="/for-institutions"
-                  className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-[#1456C0] hover:text-[#0B1F46]"
-                >
-                  Institution Guide & Onboarding <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+
+                <div className="pt-6 relative z-10">
+                  <Link
+                    to="/for-institutions"
+                    className="inline-flex items-center gap-2 text-xs sm:text-[13px] font-bold text-[#1456C0] hover:text-[#0B1F46] group-hover:gap-2.5 transition-all"
+                  >
+                    <span>Institution Guide & Onboarding</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </div>
               </div>
 
-              {/* Company Card */}
-              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-[#FFF3EA] flex items-center justify-center mb-4 text-[#FF6500]">
+              {/* Card 2: Companies & Industry (Orange Accent) */}
+              <div className="bg-white/95 rounded-3xl border border-[#E2E8F0] border-l-4 border-l-[#FF7900] p-6 sm:p-7 shadow-[0_8px_25px_rgba(11,31,70,0.04)] hover:shadow-[0_16px_36px_rgba(255,121,0,0.12)] hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+                {/* Subtle Orange Corner Wave Accent */}
+                <div className="absolute -bottom-6 -right-6 w-32 h-32 rounded-full bg-gradient-to-tl from-[#FF7900]/15 via-[#FF7900]/5 to-transparent pointer-events-none group-hover:scale-125 transition-transform duration-500" />
+                
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-[#FFF4EC] border border-[#FED7AA] flex items-center justify-center mb-5 text-[#FF7900] shadow-2xs group-hover:scale-105 transition-transform">
                     <Building2 className="w-6 h-6" />
                   </div>
-                  <h3 className="text-lg font-bold text-[#0B1F46]">For Companies & Industry</h3>
-                  <p className="text-xs text-[#475569] mt-2 leading-relaxed">
+                  <h3 className="text-lg sm:text-[19px] font-extrabold text-[#0B1F46] tracking-tight">
+                    For Companies & Industry
+                  </h3>
+                  <p className="text-xs sm:text-[13px] text-[#475569] mt-2.5 leading-relaxed font-normal">
                     Review tailored proposals from premier colleges, allocate verified seats, assign technical supervisors, track milestones, and recruit pre-evaluated talent with zero overhead.
                   </p>
-                  <ul className="mt-4 space-y-2 text-xs text-[#10264A] font-medium">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                      Direct Proposal Review & Counter-Offers
+                  <ul className="mt-5 space-y-2.5 text-xs text-[#10264A] font-medium">
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                      <span>Direct Proposal Review & Counter-Offers</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                      Intern Task Pipelines & Code Reviews
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                      <span>Intern Task Pipelines & Code Reviews</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                      Multi-Factor Performance Evaluation Form
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                      <span>Multi-Factor Performance Evaluation Form</span>
                     </li>
                   </ul>
                 </div>
-                <Link
-                  to="/for-companies"
-                  className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-[#FF6500] hover:text-[#E65A00]"
-                >
-                  Industry Partner Portal <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+
+                <div className="pt-6 relative z-10">
+                  <Link
+                    to="/for-companies"
+                    className="inline-flex items-center gap-2 text-xs sm:text-[13px] font-bold text-[#FF7900] hover:text-[#E65A00] group-hover:gap-2.5 transition-all"
+                  >
+                    <span>Industry Partner Portal</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </div>
               </div>
 
-              {/* Student Card */}
-              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
-                <div>
-                  <div className="w-12 h-12 rounded-xl bg-[#EAF6EE] flex items-center justify-center mb-4 text-[#10B981]">
+              {/* Card 3: Students & Interns (Green Accent) */}
+              <div className="bg-white/95 rounded-3xl border border-[#E2E8F0] border-l-4 border-l-[#10B981] p-6 sm:p-7 shadow-[0_8px_25px_rgba(11,31,70,0.04)] hover:shadow-[0_16px_36px_rgba(16,185,129,0.12)] hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between relative overflow-hidden group">
+                {/* Subtle Green Corner Wave Accent */}
+                <div className="absolute -bottom-6 -right-6 w-32 h-32 rounded-full bg-gradient-to-tl from-[#10B981]/15 via-[#10B981]/5 to-transparent pointer-events-none group-hover:scale-125 transition-transform duration-500" />
+                
+                <div className="relative z-10">
+                  <div className="w-12 h-12 rounded-2xl bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center mb-5 text-[#10B981] shadow-2xs group-hover:scale-105 transition-transform">
                     <GraduationCap className="w-6 h-6" />
                   </div>
-                  <h3 className="text-lg font-bold text-[#0B1F46]">For Students & Interns</h3>
-                  <p className="text-xs text-[#475569] mt-2 leading-relaxed">
+                  <h3 className="text-lg sm:text-[19px] font-extrabold text-[#0B1F46] tracking-tight">
+                    For Students & Interns
+                  </h3>
+                  <p className="text-xs sm:text-[13px] text-[#475569] mt-2.5 leading-relaxed font-normal">
                     Receive verified college placements with direct automated batch enrollment, log daily GPS attendance, submit milestone deliverables, and receive structured supervisor appraisals.
                   </p>
-                  <ul className="mt-4 space-y-2 text-xs text-[#10264A] font-medium">
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                      Direct Automated Cohort Enrollment
+                  <ul className="mt-5 space-y-2.5 text-xs text-[#10264A] font-medium">
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                      <span>Direct Automated Cohort Enrollment</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                      Deliverable & GitHub Link Submission
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                      <span>Deliverable & GitHub Link Submission</span>
                     </li>
-                    <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
-                      Verified Academic Credit Transfer
+                    <li className="flex items-center gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981] shrink-0" />
+                      <span>Verified Academic Credit Transfer</span>
                     </li>
                   </ul>
                 </div>
-                <Link
-                  to="/for-students"
-                  className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-[#10B981] hover:text-emerald-800"
-                >
-                  Student Portal & Guidelines <ArrowRight className="w-3.5 h-3.5" />
-                </Link>
+
+                <div className="pt-6 relative z-10">
+                  <Link
+                    to="/for-students"
+                    className="inline-flex items-center gap-2 text-xs sm:text-[13px] font-bold text-[#10B981] hover:text-[#065F46] group-hover:gap-2.5 transition-all"
+                  >
+                    <span>Student Portal & Guidelines</span>
+                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                  </Link>
+                </div>
               </div>
             </div>
           </section>
