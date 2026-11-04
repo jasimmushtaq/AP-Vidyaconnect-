@@ -171,52 +171,66 @@ export const HomePage: React.FC = () => {
       </div>
 
       {/* ======================================================================== */}
-      {/* 2. IMPACT STATISTICS BAR (White Rounded Panel with Indian Tiranga Swash) */}
+      {/* 2. IMPACT STATISTICS BAR (Real-Time Industry & Institutional Networks)   */}
       {/* ======================================================================== */}
       <div className="w-full px-2.5 sm:px-6 lg:px-8 mt-3 sm:mt-4">
-        <div className="w-full bg-white rounded-2xl lg:rounded-full border border-[#E2E8F0] shadow-[0_4px_20px_rgba(11,31,70,0.04)] px-4 sm:px-8 py-3.5 sm:py-4">
-          <div className="grid grid-cols-2 sm:grid-cols-2 lg:flex lg:items-center lg:justify-between gap-4 sm:gap-6">
-            {/* Metric 1: 25K+ Internships */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#0B1F46] text-white flex items-center justify-center shrink-0 shadow-sm">
-                <Users className="w-5 h-5" />
+        <div className="w-full bg-white rounded-2xl lg:rounded-full border border-[#E2E8F0] shadow-[0_4px_20px_rgba(11,31,70,0.04)] px-5 sm:px-8 py-3.5 sm:py-4">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
+            
+            {/* Metric 1: Industry Networks (Real-Time Live Data) */}
+            <Link
+              to="/partners"
+              className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3 group hover:opacity-95 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#10B981] text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                  <Building2 className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xl sm:text-2xl font-black text-[#0B1F46] leading-none flex items-center gap-2">
+                    <span>{verifiedCompaniesCount || companies.length}</span>
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                      LIVE
+                    </span>
+                  </div>
+                  <div className="text-xs sm:text-[13px] text-[#475569] font-bold mt-0.5 group-hover:text-[#1456C0] transition-colors">
+                    Industry Networks
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="text-xl sm:text-2xl font-black text-[#0B1F46] leading-none">25K+</div>
-                <div className="text-xs text-[#475569] font-medium mt-0.5">Internships</div>
+            </Link>
+
+            <div className="h-9 w-[1px] bg-[#E2E8F0] hidden sm:block" />
+
+            {/* Metric 2: Institutional Networks (Real-Time Live Data) */}
+            <Link
+              to="/institutions"
+              className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3 group hover:opacity-95 transition-all"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-[#0B1F46] text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                  <School className="w-5 h-5 text-[#FF6500]" />
+                </div>
+                <div>
+                  <div className="text-xl sm:text-2xl font-black text-[#0B1F46] leading-none flex items-center gap-2">
+                    <span>{registeredCollegesCount || institutions.length}</span>
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                      LIVE
+                    </span>
+                  </div>
+                  <div className="text-xs sm:text-[13px] text-[#475569] font-bold mt-0.5 group-hover:text-[#1456C0] transition-colors">
+                    Institutional Networks
+                  </div>
+                </div>
               </div>
-            </div>
+            </Link>
 
             <div className="h-9 w-[1px] bg-[#E2E8F0] hidden lg:block" />
 
-            {/* Metric 2: 26 Districts */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#E9272E] text-white flex items-center justify-center shrink-0 shadow-sm">
-                <MapPin className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xl sm:text-2xl font-black text-[#0B1F46] leading-none">26</div>
-                <div className="text-xs text-[#475569] font-medium mt-0.5">Districts</div>
-              </div>
-            </div>
-
-            <div className="h-9 w-[1px] bg-[#E2E8F0] hidden lg:block" />
-
-            {/* Metric 3: 100+ Industry Partners */}
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-[#10B981] text-white flex items-center justify-center shrink-0 shadow-sm">
-                <Building2 className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xl sm:text-2xl font-black text-[#0B1F46] leading-none">100+</div>
-                <div className="text-xs text-[#475569] font-medium mt-0.5">Industry Partners</div>
-              </div>
-            </div>
-
-            <div className="h-9 w-[1px] bg-[#E2E8F0] hidden lg:block" />
-
-            {/* Metric 4: Building a Skilled & Self-Reliant India + Tiranga Wave */}
-            <div className="col-span-2 sm:col-span-2 lg:col-span-auto flex items-center justify-between sm:justify-start gap-4">
+            {/* Metric 3: Building a Skilled & Self-Reliant India + Tiranga Wave */}
+            <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFF3EA] to-[#FFE0C7] text-[#FF6500] flex items-center justify-center shrink-0 border border-[#FED7AA]">
                   <TrendingUp className="w-5 h-5" />
@@ -294,7 +308,7 @@ export const HomePage: React.FC = () => {
               <ul className="pt-2 space-y-2.5 text-xs sm:text-[13px] text-white/90">
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#FF6500] shrink-0 mt-0.5" />
-                  <span>Over 25,000+ subsidized technical internships across 26 AP districts</span>
+                  <span>Direct technical internships across verified industry & institutional networks</span>
                 </li>
                 <li className="flex items-start gap-2.5">
                   <CheckCircle2 className="w-4 h-4 text-[#FF6500] shrink-0 mt-0.5" />
@@ -307,23 +321,30 @@ export const HomePage: React.FC = () => {
               </ul>
             </div>
 
-            {/* Right Side: 3 Metric Cards + View Details CTA */}
+            {/* Right Side: Real-Time Industry & Institutional Networks Cards + View Details CTA */}
             <div className="lg:col-span-5 flex flex-col items-start lg:items-end gap-5">
-              <div className="grid grid-cols-3 gap-2.5 sm:gap-4 w-full">
-                <div className="p-3 sm:p-4 rounded-xl bg-white/5 border border-white/10 text-center backdrop-blur-xs">
-                  <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-white/90 mx-auto mb-1.5" />
-                  <p className="text-[11px] sm:text-xs font-bold text-white">Internships</p>
-                </div>
+              <div className="grid grid-cols-2 gap-2.5 sm:gap-4 w-full">
+                <Link
+                  to="/partners"
+                  className="p-3 sm:p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-center backdrop-blur-xs transition group"
+                >
+                  <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-[#FF6500] mx-auto mb-1 group-hover:scale-110 transition-transform" />
+                  <p className="text-xl sm:text-2xl font-black text-white leading-none">
+                    {verifiedCompaniesCount || companies.length}
+                  </p>
+                  <p className="text-[11px] sm:text-xs font-bold text-[#DCE5F5] mt-1">Industry Networks</p>
+                </Link>
 
-                <div className="p-3 sm:p-4 rounded-xl bg-white/5 border border-white/10 text-center backdrop-blur-xs">
-                  <School className="w-5 h-5 sm:w-6 sm:h-6 text-white/90 mx-auto mb-1.5" />
-                  <p className="text-[11px] sm:text-xs font-bold text-white">26 Districts</p>
-                </div>
-
-                <div className="p-3 sm:p-4 rounded-xl bg-white/5 border border-white/10 text-center backdrop-blur-xs">
-                  <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white/90 mx-auto mb-1.5" />
-                  <p className="text-[11px] sm:text-xs font-bold text-white">Industry Partners</p>
-                </div>
+                <Link
+                  to="/institutions"
+                  className="p-3 sm:p-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-center backdrop-blur-xs transition group"
+                >
+                  <School className="w-5 h-5 sm:w-6 sm:h-6 text-[#60A5FA] mx-auto mb-1 group-hover:scale-110 transition-transform" />
+                  <p className="text-xl sm:text-2xl font-black text-white leading-none">
+                    {registeredCollegesCount || institutions.length}
+                  </p>
+                  <p className="text-[11px] sm:text-xs font-bold text-[#DCE5F5] mt-1">Institutional Networks</p>
+                </Link>
               </div>
 
               {/* View Details Button */}
