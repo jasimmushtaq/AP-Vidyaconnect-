@@ -93,15 +93,15 @@ export const HomePage: React.FC = () => {
           <div className="w-full grid grid-cols-1 lg:grid-cols-12 items-center min-h-[380px] lg:min-h-[430px] px-4 sm:px-8 lg:px-12 py-6 lg:py-8 relative z-10">
             {/* Left Column: Heading, Outlined Pill & Two Side-by-Side CTAs */}
             <div className="w-full lg:col-span-7 space-y-4 sm:space-y-5 text-left">
-              {/* National Framework Pill Badge with Govt Emblem */}
+              {/* State Council Pill Badge with AP Govt Emblem */}
               <div className="inline-flex items-center gap-2 bg-white border border-[#E2E8F0] text-[#10264A] px-3 py-1 rounded-full text-xs font-semibold shadow-2xs">
                 <img
                   src="/brand/ap-govt-emblem.svg"
-                  alt="Govt of India / AP Emblem"
+                  alt="Govt of Andhra Pradesh Emblem"
                   className="w-4 h-4 object-contain shrink-0"
                 />
                 <span className="tracking-tight text-[11px] sm:text-xs font-semibold text-[#10264A]">
-                  National Internship Transformation Framework • Govt of India
+                  Andhra Pradesh State Council of Higher Education (APSCHE) • Govt of AP
                 </span>
               </div>
 
