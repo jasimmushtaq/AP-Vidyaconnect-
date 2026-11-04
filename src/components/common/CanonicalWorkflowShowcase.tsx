@@ -129,13 +129,20 @@ export const CanonicalWorkflowShowcase: React.FC = () => {
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-4/5 h-28 bg-gradient-to-r from-[#FF6B00]/10 via-[#8B5CF6]/10 to-[#10B981]/10 rounded-full blur-3xl -z-10 pointer-events-none" />
 
       {/* Section Header */}
-      <div className="text-center max-w-2xl mx-auto px-4 mb-4">
-        <p className="text-[10.5px] font-extrabold uppercase tracking-widest text-gray-500 mb-0.5">
-          CANONICAL TWO-SIDED AUDITABLE WORKFLOW
-        </p>
-        <h3 className="text-lg sm:text-2xl font-black text-[#0E2350] tracking-tight">
-          How Andhra Pradesh Connects Education to Industry
+      <div className="text-center max-w-3xl mx-auto px-4 mb-6">
+        <div className="inline-flex items-center gap-2 bg-[#FFF6EE] border border-[#FF6500]/30 text-[#0B1F46] px-3.5 py-1 rounded-full text-[11px] sm:text-xs font-bold shadow-2xs mb-2.5">
+          <Sparkles className="w-3.5 h-3.5 text-[#FF6500] shrink-0" />
+          <span className="tracking-wide uppercase font-extrabold text-[#0B1F46]">
+            7-STAGE COLLABORATION WORKFLOW
+          </span>
+        </div>
+        <h3 className="text-xl sm:text-2xl lg:text-3xl font-black text-[#0B1F46] tracking-tight">
+          How VidyaConnect Bridges Education with{' '}
+          <span className="text-[#FF6500]">Industry</span>
         </h3>
+        <p className="text-xs sm:text-sm text-[#475569] mt-2 font-normal max-w-xl mx-auto leading-relaxed">
+          A transparent 7-step governance lifecycle connecting colleges, corporate partners, and students from initial proposal to academic credit certification.
+        </p>
       </div>
 
       {/* Modern Connected Stepper Bar Container (Same Width & Curved Endpoints as Promotional Banner) */}
