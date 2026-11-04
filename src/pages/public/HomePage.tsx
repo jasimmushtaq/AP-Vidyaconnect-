@@ -437,7 +437,6 @@ export const HomePage: React.FC = () => {
                     <PartnerCard
                       key={`${company.id}-${idx}`}
                       company={company}
-                      featured={partnerCarouselIndex === 0 && idx === 0}
                     />
                   ))}
                 </div>
@@ -575,7 +574,6 @@ export const HomePage: React.FC = () => {
                     <InstitutionCard
                       key={`${inst.id}-${idx}`}
                       institution={inst}
-                      featured={instCarouselIndex === 0 && idx === 0}
                     />
                   ))}
                 </div>
