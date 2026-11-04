@@ -99,7 +99,7 @@ export const HomePage: React.FC = () => {
       {/* 1. HERO SECTION (Art-Directed Academic Composition — Seamless Full-Bleed) */}
       {/* ======================================================================== */}
       <div className="w-full px-2.5 sm:px-6 lg:px-8 pt-2 sm:pt-3">
-        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#E2E8F0] bg-white shadow-[0_8px_30px_rgba(11,31,70,0.05)] min-h-[380px] lg:min-h-[440px] flex flex-col lg:flex-row items-center justify-between">
+        <section className="w-full max-w-[1480px] mx-auto relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#E2E8F0] bg-white shadow-[0_8px_30px_rgba(11,31,70,0.05)] min-h-[380px] lg:min-h-[440px] flex flex-col lg:flex-row items-center justify-between">
           
           {/* Mobile-Only Full Academic Artwork Banner (Complete Composition — Zero Cutoffs) */}
           <div className="lg:hidden w-full h-[220px] sm:h-[260px] relative overflow-hidden bg-gradient-to-b from-[#8EBCFD]/20 via-white to-[#EBF3FC] border-b border-[#E2E8F0] flex items-center justify-center p-2 shrink-0">
@@ -111,7 +111,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Desktop Right-Side Full-Bleed 3D Academic Artwork (Seamless Edge-to-Edge with Full Composition) */}
-          <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[72%] xl:w-[65%] 2xl:w-[60%] max-w-[960px] h-full pointer-events-none select-none z-0 overflow-hidden">
+          <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[78%] xl:w-[74%] 2xl:w-[70%] h-full pointer-events-none select-none z-0 overflow-hidden">
             <img
               src="/images/hero-books-gradcap-blended.png"
               alt="Stack of Academic Books with Graduation Cap, Diploma, Pencils and Better Skills Calligraphy"
