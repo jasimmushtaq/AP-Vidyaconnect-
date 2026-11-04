@@ -42,8 +42,12 @@ import {
 export const VerificationsQueuePage: React.FC = () => {
   const { currentUser } = useAuth();
   const location = useLocation();
-  const [institutions, setInstitutions] = useState<Institution[]>(db.institutions);
-  const [companies, setCompanies] = useState<Company[]>(db.companies);
+  const [institutions, setInstitutions] = useState<Institution[]>(() =>
+    db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i))
+  );
+  const [companies, setCompanies] = useState<Company[]>(() =>
+    db.companies.filter(c => !cloudSync.isEntityDeleted('company', c))
+  );
   const [search, setSearch] = useState('');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
@@ -147,13 +151,13 @@ export const VerificationsQueuePage: React.FC = () => {
     });
 
     const unsub = db.subscribe(() => {
-      setInstitutions([...db.institutions]);
-      setCompanies([...db.companies]);
+      setInstitutions(db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i)));
+      setCompanies(db.companies.filter(c => !cloudSync.isEntityDeleted('company', c)));
     });
 
     const handleSync = () => {
-      setInstitutions([...db.institutions]);
-      setCompanies([...db.companies]);
+      setInstitutions(db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i)));
+      setCompanies(db.companies.filter(c => !cloudSync.isEntityDeleted('company', c)));
     };
     window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
 
@@ -267,6 +271,7 @@ export const VerificationsQueuePage: React.FC = () => {
 
   const handleDeleteCompany = async (c: Company) => {
     if (confirm(`Are you sure you want to permanently delete company partner "${c.name}" (${c.cin})?`)) {
+      setCompanies(prev => prev.filter(item => item.id !== c.id && item.cin !== c.cin));
       await cloudSync.deleteEntityFromCloud('company', c, currentUser);
       showToast(`Deleted company "${c.name}" from database.`);
     }
@@ -403,6 +408,7 @@ export const VerificationsQueuePage: React.FC = () => {
 
   const handleDeleteInstitution = async (inst: Institution) => {
     if (confirm(`Are you sure you want to delete college "${inst.name}" (${inst.code})?`)) {
+      setInstitutions(prev => prev.filter(item => item.id !== inst.id && item.code !== inst.code));
       await cloudSync.deleteEntityFromCloud('institution', inst, currentUser);
       showToast(`Deleted college "${inst.name}".`);
     }
@@ -447,18 +453,20 @@ export const VerificationsQueuePage: React.FC = () => {
   // Filter lists
   const filteredInstitutions = institutions.filter(
     (i) =>
-      i.name.toLowerCase().includes(search.toLowerCase()) ||
+      !cloudSync.isEntityDeleted('institution', i) &&
+      (i.name.toLowerCase().includes(search.toLowerCase()) ||
       i.code.toLowerCase().includes(search.toLowerCase()) ||
       i.district?.toLowerCase().includes(search.toLowerCase()) ||
-      i.affiliated_university?.toLowerCase().includes(search.toLowerCase())
+      i.affiliated_university?.toLowerCase().includes(search.toLowerCase()))
   );
 
   const filteredCompanies = companies.filter(
     (c) =>
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      !cloudSync.isEntityDeleted('company', c) &&
+      (c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.cin.toLowerCase().includes(search.toLowerCase()) ||
       c.industry?.toLowerCase().includes(search.toLowerCase()) ||
-      c.headquarters?.toLowerCase().includes(search.toLowerCase())
+      c.headquarters?.toLowerCase().includes(search.toLowerCase()))
   );
 
   return (

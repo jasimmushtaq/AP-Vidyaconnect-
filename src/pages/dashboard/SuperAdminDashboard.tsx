@@ -63,8 +63,12 @@ const SECTOR_DATA = [
 
 export const SuperAdminDashboard: React.FC = () => {
   const { currentUser } = useAuth();
-  const [institutions, setInstitutions] = useState(db.institutions);
-  const [companies, setCompanies] = useState(db.companies);
+  const [institutions, setInstitutions] = useState(() =>
+    db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i))
+  );
+  const [companies, setCompanies] = useState(() =>
+    db.companies.filter(c => !cloudSync.isEntityDeleted('company', c))
+  );
   const [banners, setBanners] = useState(db.banners);
   const [showBannerModal, setShowBannerModal] = useState(false);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
@@ -78,14 +82,14 @@ export const SuperAdminDashboard: React.FC = () => {
     });
 
     const unsub = db.subscribe(() => {
-      setInstitutions([...db.institutions]);
-      setCompanies([...db.companies]);
+      setInstitutions(db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i)));
+      setCompanies(db.companies.filter(c => !cloudSync.isEntityDeleted('company', c)));
       setBanners([...db.banners]);
     });
 
     const handleSync = () => {
-      setInstitutions([...db.institutions]);
-      setCompanies([...db.companies]);
+      setInstitutions(db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i)));
+      setCompanies(db.companies.filter(c => !cloudSync.isEntityDeleted('company', c)));
       setBanners([...db.banners]);
     };
 

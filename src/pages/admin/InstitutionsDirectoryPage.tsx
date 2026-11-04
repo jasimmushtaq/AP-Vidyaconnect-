@@ -36,7 +36,9 @@ import {
 export const InstitutionsDirectoryPage: React.FC = () => {
   const { currentUser } = useAuth();
   const { showConfirm, showToast: modalToast } = useModal();
-  const [institutions, setInstitutions] = useState<Institution[]>(db.institutions);
+  const [institutions, setInstitutions] = useState<Institution[]>(() =>
+    db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i))
+  );
   const [search, setSearch] = useState('');
   const [districtFilter, setDistrictFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -75,11 +77,11 @@ export const InstitutionsDirectoryPage: React.FC = () => {
     });
 
     const unsub = db.subscribe(() => {
-      setInstitutions([...db.institutions]);
+      setInstitutions(db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i)));
     });
 
     const handleSync = () => {
-      setInstitutions([...db.institutions]);
+      setInstitutions(db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i)));
     };
     window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
 
@@ -147,6 +149,7 @@ export const InstitutionsDirectoryPage: React.FC = () => {
     });
 
     if (confirmed) {
+      setInstitutions(prev => prev.filter(i => i.id !== inst.id && i.code !== inst.code));
       await cloudSync.deleteEntityFromCloud('institution', inst, currentUser);
       showToast(`Removed "${inst.name}" from registry.`);
     }
@@ -207,6 +210,8 @@ export const InstitutionsDirectoryPage: React.FC = () => {
   const districts = Array.from(new Set(institutions.map((i) => i.district))).filter(Boolean);
 
   const filtered = institutions.filter((i) => {
+    if (cloudSync.isEntityDeleted('institution', i)) return false;
+
     const matchesSearch =
       i.name.toLowerCase().includes(search.toLowerCase()) ||
       i.code.toLowerCase().includes(search.toLowerCase()) ||

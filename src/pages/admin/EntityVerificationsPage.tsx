@@ -55,8 +55,12 @@ import {
 
 export const EntityVerificationsPage: React.FC = () => {
   const { currentUser } = useAuth();
-  const [institutions, setInstitutions] = useState<Institution[]>(db.institutions);
-  const [companies, setCompanies] = useState<Company[]>(db.companies);
+  const [institutions, setInstitutions] = useState<Institution[]>(() =>
+    db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i))
+  );
+  const [companies, setCompanies] = useState<Company[]>(() =>
+    db.companies.filter(c => !cloudSync.isEntityDeleted('company', c))
+  );
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'under_verification' | 'verified' | 'rejected'>('under_verification');
   const [typeFilter, setTypeFilter] = useState<'all' | 'institution' | 'company'>('all');
@@ -77,13 +81,13 @@ export const EntityVerificationsPage: React.FC = () => {
     });
 
     const unsub = db.subscribe(() => {
-      setInstitutions([...db.institutions]);
-      setCompanies([...db.companies]);
+      setInstitutions(db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i)));
+      setCompanies(db.companies.filter(c => !cloudSync.isEntityDeleted('company', c)));
     });
 
     const handleSync = () => {
-      setInstitutions([...db.institutions]);
-      setCompanies([...db.companies]);
+      setInstitutions(db.institutions.filter(i => !cloudSync.isEntityDeleted('institution', i)));
+      setCompanies(db.companies.filter(c => !cloudSync.isEntityDeleted('company', c)));
     };
 
     window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);

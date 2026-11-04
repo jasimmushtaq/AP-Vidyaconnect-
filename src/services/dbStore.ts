@@ -169,6 +169,7 @@ class DatabaseStore {
     syncBatchToCloud?: (batch: InternshipBatch) => Promise<{ success: boolean; error?: string }>;
     syncAttendanceToCloud?: (record: AttendanceRecord) => Promise<{ success: boolean; error?: string }>;
     deleteEntityFromCloud?: (entityType: 'institution' | 'company', entity: any, actor?: any) => Promise<{ success: boolean; error?: string }>;
+    isEntityDeleted?: (entityType: 'institution' | 'company', entity: any) => boolean;
   } | null = null;
 
   public registerCloudSyncProvider(provider: {
@@ -176,6 +177,7 @@ class DatabaseStore {
     syncBatchToCloud?: (batch: InternshipBatch) => Promise<{ success: boolean; error?: string }>;
     syncAttendanceToCloud?: (record: AttendanceRecord) => Promise<{ success: boolean; error?: string }>;
     deleteEntityFromCloud?: (entityType: 'institution' | 'company', entity: any, actor?: any) => Promise<{ success: boolean; error?: string }>;
+    isEntityDeleted?: (entityType: 'institution' | 'company', entity: any) => boolean;
   }) {
     this.cloudSyncProvider = provider;
   }
@@ -485,12 +487,13 @@ class DatabaseStore {
       }
 
       const isItemDeleted = (entityType: string, item: any) => {
+        const testName = item.name?.toLowerCase().trim().replace(/^deleted:\s*/, '');
         return delList.some((d: any) =>
           d && d.entityType === entityType && (
             (d.id && d.id === item.id) ||
             (d.code_or_cin && (item.code === d.code_or_cin || item.cin === d.code_or_cin)) ||
             (d.official_email && item.official_email && item.official_email.toLowerCase().trim() === d.official_email.toLowerCase().trim()) ||
-            (d.name && item.name && item.name.toLowerCase().trim() === d.name.toLowerCase().trim())
+            (testName && d.name && d.name.toLowerCase().trim().replace(/^deleted:\s*/, '') === testName)
           )
         );
       };
@@ -680,11 +683,36 @@ class DatabaseStore {
     return comp;
   }
 
-  deleteCompany(compId: string, actor?: { id?: string; name?: string; role?: any }): boolean {
-    const idx = this.companies.findIndex((c) => c.id === compId);
-    if (idx === -1) return false;
+  deleteCompany(
+    compIdOrEntity: string | { id: string; cin?: string; official_email?: string; name?: string },
+    actor?: { id?: string; name?: string; role?: any },
+    options?: { skipCloudSync?: boolean }
+  ): boolean {
+    const targetId = typeof compIdOrEntity === 'string' ? compIdOrEntity : compIdOrEntity.id;
+    const targetCin = typeof compIdOrEntity === 'object' ? compIdOrEntity.cin : undefined;
+    const targetEmail = typeof compIdOrEntity === 'object' ? compIdOrEntity.official_email : undefined;
+    const targetName = typeof compIdOrEntity === 'object' ? compIdOrEntity.name : undefined;
 
-    const removed = this.companies.splice(idx, 1)[0];
+    const matched = this.companies.find((c) =>
+      c.id === targetId ||
+      (targetCin && c.cin === targetCin) ||
+      (targetEmail && c.official_email?.toLowerCase().trim() === targetEmail.toLowerCase().trim()) ||
+      (targetName && c.name?.toLowerCase().trim() === targetName.toLowerCase().trim())
+    );
+
+    const removed = matched || (typeof compIdOrEntity === 'object' ? compIdOrEntity as any : { id: targetId, cin: targetCin || '', name: targetName || '', official_email: targetEmail || '' });
+
+    const cleanEmail = (removed.official_email || targetEmail || '')?.toLowerCase().trim();
+    const cleanCin = (removed.cin || targetCin || '')?.trim();
+    const cleanName = (removed.name || targetName || '')?.toLowerCase().trim().replace(/^deleted:\s*/, '');
+
+    // Purge ALL matching records from this.companies
+    this.companies = this.companies.filter(c =>
+      c.id !== targetId &&
+      (!cleanCin || c.cin !== cleanCin) &&
+      (!cleanEmail || c.official_email?.toLowerCase().trim() !== cleanEmail) &&
+      (!cleanName || c.name?.toLowerCase().trim().replace(/^deleted:\s*/, '') !== cleanName)
+    );
     this.persist('companies');
 
     // Record deletion tombstone in kd_deleted_entities
@@ -692,13 +720,13 @@ class DatabaseStore {
       try {
         const raw = localStorage.getItem('kd_deleted_entities');
         const list: any[] = raw ? JSON.parse(raw) : [];
-        if (!list.some(d => d && d.entityType === 'company' && (d.id === compId || (removed.cin && d.code_or_cin === removed.cin)))) {
+        if (!list.some(d => d && d.entityType === 'company' && (d.id === targetId || (cleanCin && d.code_or_cin === cleanCin)))) {
           list.unshift({
             entityType: 'company',
-            id: compId,
-            code_or_cin: removed.cin,
-            official_email: removed.official_email,
-            name: removed.name,
+            id: targetId,
+            code_or_cin: cleanCin,
+            official_email: cleanEmail,
+            name: removed.name || targetName,
             deleted_at: new Date().toISOString(),
             deleted_by: actor?.name || 'State Administrator'
           });
@@ -709,32 +737,41 @@ class DatabaseStore {
         const decRaw = localStorage.getItem('kd_super_admin_entity_decisions');
         if (decRaw) {
           const decs = JSON.parse(decRaw);
-          const filtered = decs.filter((d: any) => d && d.entity_id !== compId && d.code_or_cin !== removed.cin && (!removed.official_email || d.official_email?.toLowerCase() !== removed.official_email.toLowerCase()));
+          const filtered = decs.filter((d: any) =>
+            d &&
+            d.entity_id !== targetId &&
+            (!cleanCin || d.code_or_cin !== cleanCin) &&
+            (!cleanEmail || d.official_email?.toLowerCase().trim() !== cleanEmail) &&
+            (!cleanName || d.entity_name?.toLowerCase().trim().replace(/^deleted:\s*/, '') !== cleanName)
+          );
           localStorage.setItem('kd_super_admin_entity_decisions', JSON.stringify(filtered));
         }
       } catch {}
     }
 
     // Cascade delete associated profiles and opportunities
-    this.profiles = this.profiles.filter(p => p.company_id !== compId && (!removed.official_email || p.email?.toLowerCase().trim() !== removed.official_email.toLowerCase().trim()));
+    this.profiles = this.profiles.filter(p =>
+      p.company_id !== targetId &&
+      (!cleanEmail || p.email?.toLowerCase().trim() !== cleanEmail)
+    );
     this.persist('profiles');
 
-    this.opportunities = this.opportunities.filter(o => o.company_id !== compId);
+    this.opportunities = this.opportunities.filter(o => o.company_id !== targetId);
     this.persist('opportunities');
 
-    if (removed.official_email) {
-      delete this.passwords[removed.official_email.toLowerCase().trim()];
+    if (cleanEmail) {
+      delete this.passwords[cleanEmail];
       this.persist('passwords');
     }
 
-    if (this.cloudSyncProvider?.deleteEntityFromCloud) {
+    if (this.cloudSyncProvider?.deleteEntityFromCloud && !options?.skipCloudSync) {
       this.cloudSyncProvider.deleteEntityFromCloud('company', removed, actor).catch(() => {});
     }
 
     this.logAudit(
       'delete_company',
       'company',
-      compId,
+      targetId,
       { name: removed.name, cin: removed.cin },
       null,
       actor || { id: 'admin', name: 'State Administrator', role: 'super_admin' }
@@ -801,11 +838,36 @@ class DatabaseStore {
     return inst;
   }
 
-  deleteInstitution(instId: string, actor?: { id?: string; name?: string; role?: any }): boolean {
-    const idx = this.institutions.findIndex((i) => i.id === instId);
-    if (idx === -1) return false;
+  deleteInstitution(
+    instIdOrEntity: string | { id: string; code?: string; official_email?: string; name?: string },
+    actor?: { id?: string; name?: string; role?: any },
+    options?: { skipCloudSync?: boolean }
+  ): boolean {
+    const targetId = typeof instIdOrEntity === 'string' ? instIdOrEntity : instIdOrEntity.id;
+    const targetCode = typeof instIdOrEntity === 'object' ? instIdOrEntity.code : undefined;
+    const targetEmail = typeof instIdOrEntity === 'object' ? instIdOrEntity.official_email : undefined;
+    const targetName = typeof instIdOrEntity === 'object' ? instIdOrEntity.name : undefined;
 
-    const removed = this.institutions.splice(idx, 1)[0];
+    const matched = this.institutions.find((i) =>
+      i.id === targetId ||
+      (targetCode && i.code === targetCode) ||
+      (targetEmail && i.official_email?.toLowerCase().trim() === targetEmail.toLowerCase().trim()) ||
+      (targetName && i.name?.toLowerCase().trim() === targetName.toLowerCase().trim())
+    );
+
+    const removed = matched || (typeof instIdOrEntity === 'object' ? instIdOrEntity as any : { id: targetId, code: targetCode || '', name: targetName || '', official_email: targetEmail || '' });
+
+    const cleanEmail = (removed.official_email || targetEmail || '')?.toLowerCase().trim();
+    const cleanCode = (removed.code || targetCode || '')?.trim();
+    const cleanName = (removed.name || targetName || '')?.toLowerCase().trim().replace(/^deleted:\s*/, '');
+
+    // Purge ALL matching records from this.institutions
+    this.institutions = this.institutions.filter(i =>
+      i.id !== targetId &&
+      (!cleanCode || i.code !== cleanCode) &&
+      (!cleanEmail || i.official_email?.toLowerCase().trim() !== cleanEmail) &&
+      (!cleanName || i.name?.toLowerCase().trim().replace(/^deleted:\s*/, '') !== cleanName)
+    );
     this.persist('institutions');
 
     // Record deletion tombstone in kd_deleted_entities
@@ -813,13 +875,13 @@ class DatabaseStore {
       try {
         const raw = localStorage.getItem('kd_deleted_entities');
         const list: any[] = raw ? JSON.parse(raw) : [];
-        if (!list.some(d => d && d.entityType === 'institution' && (d.id === instId || (removed.code && d.code_or_cin === removed.code)))) {
+        if (!list.some(d => d && d.entityType === 'institution' && (d.id === targetId || (cleanCode && d.code_or_cin === cleanCode)))) {
           list.unshift({
             entityType: 'institution',
-            id: instId,
-            code_or_cin: removed.code,
-            official_email: removed.official_email,
-            name: removed.name,
+            id: targetId,
+            code_or_cin: cleanCode,
+            official_email: cleanEmail,
+            name: removed.name || targetName,
             deleted_at: new Date().toISOString(),
             deleted_by: actor?.name || 'State Administrator'
           });
@@ -830,29 +892,38 @@ class DatabaseStore {
         const decRaw = localStorage.getItem('kd_super_admin_entity_decisions');
         if (decRaw) {
           const decs = JSON.parse(decRaw);
-          const filtered = decs.filter((d: any) => d && d.entity_id !== instId && d.code_or_cin !== removed.code && (!removed.official_email || d.official_email?.toLowerCase() !== removed.official_email.toLowerCase()));
+          const filtered = decs.filter((d: any) =>
+            d &&
+            d.entity_id !== targetId &&
+            (!cleanCode || d.code_or_cin !== cleanCode) &&
+            (!cleanEmail || d.official_email?.toLowerCase().trim() !== cleanEmail) &&
+            (!cleanName || d.entity_name?.toLowerCase().trim().replace(/^deleted:\s*/, '') !== cleanName)
+          );
           localStorage.setItem('kd_super_admin_entity_decisions', JSON.stringify(filtered));
         }
       } catch {}
     }
 
     // Cascade delete associated profiles
-    this.profiles = this.profiles.filter(p => p.institution_id !== instId && (!removed.official_email || p.email?.toLowerCase().trim() !== removed.official_email.toLowerCase().trim()));
+    this.profiles = this.profiles.filter(p =>
+      p.institution_id !== targetId &&
+      (!cleanEmail || p.email?.toLowerCase().trim() !== cleanEmail)
+    );
     this.persist('profiles');
 
-    if (removed.official_email) {
-      delete this.passwords[removed.official_email.toLowerCase().trim()];
+    if (cleanEmail) {
+      delete this.passwords[cleanEmail];
       this.persist('passwords');
     }
 
-    if (this.cloudSyncProvider?.deleteEntityFromCloud) {
+    if (this.cloudSyncProvider?.deleteEntityFromCloud && !options?.skipCloudSync) {
       this.cloudSyncProvider.deleteEntityFromCloud('institution', removed, actor).catch(() => {});
     }
 
     this.logAudit(
       'delete_institution',
       'institution',
-      instId,
+      targetId,
       { name: removed.name, code: removed.code },
       null,
       actor || { id: 'admin', name: 'State Administrator', role: 'super_admin' }
@@ -1308,6 +1379,36 @@ class DatabaseStore {
   public persist(key: string) {
     save(key, (this as any)[key]);
     this.notify();
+  }
+
+  public isEntityDeleted(
+    entityType: 'institution' | 'company',
+    entity: { id?: string; code?: string; cin?: string; official_email?: string; name?: string }
+  ): boolean {
+    if (this.cloudSyncProvider?.isEntityDeleted) {
+      return this.cloudSyncProvider.isEntityDeleted(entityType, entity);
+    }
+    if (typeof localStorage === 'undefined' || !entity) return false;
+    try {
+      const raw = localStorage.getItem('kd_deleted_entities');
+      if (!raw) return false;
+      const list = JSON.parse(raw);
+      if (!Array.isArray(list)) return false;
+      const testId = entity.id;
+      const testCode = (entity.code || entity.cin || '')?.trim();
+      const testEmail = entity.official_email?.toLowerCase().trim();
+      const testName = entity.name?.toLowerCase().trim().replace(/^deleted:\s*/, '');
+      return list.some((d: any) =>
+        d && d.entityType === entityType && (
+          (testId && d.id === testId) ||
+          (testCode && d.code_or_cin === testCode) ||
+          (testEmail && d.official_email && d.official_email.toLowerCase().trim() === testEmail) ||
+          (testName && d.name && d.name.toLowerCase().trim().replace(/^deleted:\s*/, '') === testName)
+        )
+      );
+    } catch {
+      return false;
+    }
   }
 
   // --- Audit Log Helper ---

@@ -56,6 +56,7 @@ class CloudSyncService {
   private inFlightProposals = new Set<string>();
   private inFlightBatches = new Set<string>();
   private inFlightAttendance = new Set<string>();
+  private inFlightDeletions = new Set<string>();
 
   public getDeletedEntities(): DeletedEntityRecord[] {
     if (typeof localStorage === 'undefined') return [];
@@ -76,14 +77,15 @@ class CloudSyncService {
       const cleanId = record.id;
       const cleanCode = record.code_or_cin?.trim();
       const cleanEmail = record.official_email?.toLowerCase().trim();
-      const cleanName = record.name?.toLowerCase().trim();
+      const rawName = record.name?.toLowerCase().trim();
+      const cleanName = rawName?.replace(/^deleted:\s*/, '');
 
       const exists = list.some(item =>
         item.entityType === record.entityType && (
           item.id === cleanId ||
           (cleanCode && item.code_or_cin === cleanCode) ||
           (cleanEmail && item.official_email && item.official_email.toLowerCase().trim() === cleanEmail) ||
-          (cleanName && item.name && item.name.toLowerCase().trim() === cleanName)
+          (cleanName && item.name && item.name.toLowerCase().trim().replace(/^deleted:\s*/, '') === cleanName)
         )
       );
 
@@ -104,14 +106,18 @@ class CloudSyncService {
     const testId = entity.id;
     const testCode = (entity.code || entity.cin || '')?.trim();
     const testEmail = entity.official_email?.toLowerCase().trim();
-    const testName = entity.name?.toLowerCase().trim();
+    const rawName = entity.name?.toLowerCase().trim();
+    const testName = rawName?.replace(/^deleted:\s*/, '');
 
     return deletedList.some(d => {
       if (d.entityType !== entityType) return false;
       if (testId && d.id && d.id === testId) return true;
       if (testCode && d.code_or_cin && d.code_or_cin === testCode) return true;
       if (testEmail && d.official_email && d.official_email.toLowerCase().trim() === testEmail) return true;
-      if (testName && d.name && d.name.toLowerCase().trim() === testName) return true;
+      if (testName && d.name) {
+        const dCleanName = d.name.toLowerCase().trim().replace(/^deleted:\s*/, '');
+        if (dCleanName === testName) return true;
+      }
       return false;
     });
   }
@@ -1144,10 +1150,16 @@ class CloudSyncService {
     entity: { id: string; code?: string; cin?: string; official_email?: string; name?: string },
     currentUser?: any
   ): Promise<{ success: boolean; error?: string }> {
+    const isCompany = entityType === 'company';
+    const targetId = entity.id;
+    const codeOrCin = isCompany ? ((entity as any).cin || (entity as any).code || '') : ((entity as any).code || (entity as any).cin || '');
+    const cleanKey = `${entityType}:${targetId}:${codeOrCin}`;
+    if (this.inFlightDeletions.has(cleanKey)) {
+      return { success: true };
+    }
+    this.inFlightDeletions.add(cleanKey);
+
     try {
-      const isCompany = entityType === 'company';
-      const targetId = entity.id;
-      const codeOrCin = isCompany ? ((entity as any).cin || (entity as any).code || '') : ((entity as any).code || (entity as any).cin || '');
       const entityName = entity.name || `${entityType} ${targetId}`;
       const officialEmail = entity.official_email || '';
       const adminName = currentUser?.full_name || currentUser?.name || 'State Super Admin';
@@ -1171,27 +1183,27 @@ class CloudSyncService {
         if (rawDecs) {
           const decList: any[] = JSON.parse(rawDecs);
           const cleanEmail = officialEmail.toLowerCase().trim();
-          const cleanName = entityName.toLowerCase().trim();
+          const cleanName = entityName.toLowerCase().trim().replace(/^deleted:\s*/, '');
           const filtered = decList.filter(d => {
             if (!d) return false;
             if (d.entity_id && d.entity_id === targetId) return false;
             if (d.code_or_cin && (d.code_or_cin === codeOrCin || d.code_or_cin === targetId)) return false;
             if (cleanEmail && d.official_email && d.official_email.toLowerCase().trim() === cleanEmail) return false;
-            if (cleanName && d.entity_name && d.entity_name.toLowerCase().trim() === cleanName) return false;
+            if (cleanName && d.entity_name && d.entity_name.toLowerCase().trim().replace(/^deleted:\s*/, '') === cleanName) return false;
             return true;
           });
           localStorage.setItem('kd_super_admin_entity_decisions', JSON.stringify(filtered));
         }
       } catch {}
 
-      // 3. Purge entity from in-memory dbStore & localStorage immediately
+      // 3. Purge entity from in-memory dbStore & localStorage immediately (with recursion guard skipCloudSync)
       if (isCompany) {
-        db.deleteCompany(targetId, currentUser);
+        db.deleteCompany(targetId, currentUser, { skipCloudSync: true });
         db.companies = db.companies.filter(c =>
           c.id !== targetId &&
           (!codeOrCin || c.cin !== codeOrCin) &&
           (!officialEmail || c.official_email?.toLowerCase().trim() !== officialEmail.toLowerCase().trim()) &&
-          (!entityName || c.name?.toLowerCase().trim() !== entityName.toLowerCase().trim())
+          (!entityName || c.name?.toLowerCase().trim().replace(/^deleted:\s*/, '') !== entityName.toLowerCase().trim().replace(/^deleted:\s*/, ''))
         );
         db.persist('companies');
 
@@ -1205,12 +1217,12 @@ class CloudSyncService {
         db.opportunities = db.opportunities.filter(o => o.company_id !== targetId);
         db.persist('opportunities');
       } else {
-        db.deleteInstitution(targetId, currentUser);
+        db.deleteInstitution(targetId, currentUser, { skipCloudSync: true });
         db.institutions = db.institutions.filter(i =>
           i.id !== targetId &&
           (!codeOrCin || i.code !== codeOrCin) &&
           (!officialEmail || i.official_email?.toLowerCase().trim() !== officialEmail.toLowerCase().trim()) &&
-          (!entityName || i.name?.toLowerCase().trim() !== entityName.toLowerCase().trim())
+          (!entityName || i.name?.toLowerCase().trim().replace(/^deleted:\s*/, '') !== entityName.toLowerCase().trim().replace(/^deleted:\s*/, ''))
         );
         db.persist('institutions');
 
@@ -1285,8 +1297,8 @@ class CloudSyncService {
         }
       }
 
-      // 6. Post authoritative sync tombstone row to Supabase institutions journal
-      // This ensures any other client running syncFromCloud learns about the deletion
+      // 6. Post authoritative sync tombstone row to Supabase institutions & companies journals
+      // Note: verification_status MUST be 'verified' so Supabase PostgreSQL RLS policy accepts the row.
       const tombstoneCode = `DEL-${isCompany ? 'C' : 'I'}-${cleanId}-${Date.now()}`.slice(0, 50);
       const tombstoneDoc = {
         sync_type: 'ENTITY_DELETED',
@@ -1312,7 +1324,7 @@ class CloudSyncService {
         official_email: `deleted.${entityType}.${Date.now()}.${Math.random().toString(36).slice(2, 6)}@sync.vidyaconnect.ap.gov.in`,
         official_phone: '+91 891 0000000',
         establishment_year: 2026,
-        verification_status: 'rejected',
+        verification_status: 'verified',
         verification_notes: JSON.stringify(tombstoneDoc),
         documents: [tombstoneDoc]
       };
@@ -1337,7 +1349,9 @@ class CloudSyncService {
           official_email: `deleted.comp.${Date.now()}.${Math.random().toString(36).slice(2, 6)}@sync.vidyaconnect.ap.gov.in`,
           official_phone: '+91 891 0000000',
           headquarters: 'Visakhapatnam, Andhra Pradesh',
-          verification_status: 'rejected',
+          authorized_person_name: adminName || 'State Super Admin',
+          designation: 'State Super Admin',
+          verification_status: 'verified',
           verification_notes: JSON.stringify(tombstoneDoc),
           documents: [tombstoneDoc]
         };
@@ -1359,6 +1373,8 @@ class CloudSyncService {
     } catch (err: any) {
       console.error('[CloudSync] Error deleting entity from cloud:', err);
       return { success: false, error: err?.message || 'Failed to delete entity' };
+    } finally {
+      setTimeout(() => this.inFlightDeletions.delete(cleanKey), 5000);
     }
   }
 
@@ -1920,7 +1936,11 @@ class CloudSyncService {
 
         // Pass 0: Extract all authoritative Super Admin ENTITY_DELETED tombstone records
         for (const cloudInst of cloudInstitutions) {
-          if (cloudInst.code?.startsWith('DEL-') || cloudInst.code?.startsWith('SYNC-DEL-')) {
+          if (
+            cloudInst.code?.startsWith('DEL-') ||
+            cloudInst.code?.startsWith('SYNC-DEL-') ||
+            cloudInst.name?.startsWith('DELETED:')
+          ) {
             let delDoc = Array.isArray(cloudInst.documents)
               ? cloudInst.documents.find((d: any) => d && d.sync_type === 'ENTITY_DELETED')
               : null;
@@ -1934,17 +1954,18 @@ class CloudSyncService {
               } catch {}
             }
 
-            if (delDoc) {
-              this.recordDeletedEntity({
-                entityType: delDoc.entity_type || 'institution',
-                id: delDoc.entity_id || cloudInst.id,
-                code_or_cin: delDoc.code_or_cin,
-                official_email: delDoc.official_email,
-                name: delDoc.entity_name,
-                deleted_at: delDoc.deleted_at || cloudInst.created_at || new Date().toISOString(),
-                deleted_by: delDoc.deleted_by
-              });
-            }
+            const inferredType = (delDoc?.entity_type || (cloudInst.code?.startsWith('DEL-C-') ? 'company' : 'institution')) as 'company' | 'institution';
+            const inferredName = delDoc?.entity_name || cloudInst.name?.replace(/^DELETED:\s*/, '');
+
+            this.recordDeletedEntity({
+              entityType: inferredType,
+              id: delDoc?.entity_id || cloudInst.id,
+              code_or_cin: delDoc?.code_or_cin,
+              official_email: delDoc?.official_email,
+              name: inferredName,
+              deleted_at: delDoc?.deleted_at || cloudInst.created_at || new Date().toISOString(),
+              deleted_by: delDoc?.deleted_by
+            });
           }
         }
 
@@ -1965,6 +1986,17 @@ class CloudSyncService {
             }
 
             if (decDoc && decDoc.status) {
+              const targetType = (decDoc.entity_type || (cloudInst.code?.startsWith('DEC-C-') ? 'company' : 'institution')) as 'company' | 'institution';
+              if (this.isEntityDeleted(targetType, {
+                id: decDoc.entity_id,
+                code: decDoc.code_or_cin,
+                cin: decDoc.code_or_cin,
+                official_email: decDoc.official_email,
+                name: decDoc.entity_name
+              })) {
+                continue;
+              }
+
               const decidedAt = new Date(decDoc.decided_at || cloudInst.created_at || 0).getTime();
               const decData = { status: decDoc.status as any, notes: decDoc.notes || '', decidedAt };
 
@@ -1982,7 +2014,7 @@ class CloudSyncService {
                 if (!existing || decidedAt >= existing.decidedAt) decisionMap.set(cleanEmail, decData);
               }
               if (decDoc.entity_name) {
-                const cleanName = decDoc.entity_name.toLowerCase().trim();
+                const cleanName = decDoc.entity_name.toLowerCase().trim().replace(/^deleted:\s*/, '');
                 const existing = decisionMap.get(cleanName);
                 if (!existing || decidedAt >= existing.decidedAt) decisionMap.set(cleanName, decData);
               }
@@ -2464,16 +2496,14 @@ class CloudSyncService {
 
           // CRITICAL: Filter out permanently deleted institutions so they never resurrect on refresh
           if (this.isEntityDeleted('institution', cloudInst)) {
-            const localIdx = db.institutions.findIndex(i =>
-              i.id === cloudInst.id ||
-              i.code === cloudInst.code ||
-              (cloudInst.official_email && i.official_email?.toLowerCase() === cloudInst.official_email.toLowerCase()) ||
-              (instCleanName && i.name?.toLowerCase().trim() === instCleanName)
+            const preCount = db.institutions.length;
+            db.institutions = db.institutions.filter(i =>
+              i.id !== cloudInst.id &&
+              i.code !== cloudInst.code &&
+              (!cloudInst.official_email || i.official_email?.toLowerCase().trim() !== cloudInst.official_email.toLowerCase().trim()) &&
+              (!instCleanName || i.name?.toLowerCase().trim().replace(/^deleted:\s*/, '') !== instCleanName.replace(/^deleted:\s*/, ''))
             );
-            if (localIdx >= 0) {
-              db.institutions.splice(localIdx, 1);
-              anyChanged = true;
-            }
+            if (db.institutions.length !== preCount) anyChanged = true;
             continue;
           }
 
@@ -2591,7 +2621,11 @@ class CloudSyncService {
 
         // Pass 0: Extract all authoritative Super Admin ENTITY_DELETED tombstone records from companies table
         for (const cloudComp of cloudCompanies) {
-          if (cloudComp.cin?.startsWith('DEL-') || cloudComp.cin?.startsWith('SYNC-DEL-')) {
+          if (
+            cloudComp.cin?.startsWith('DEL-') ||
+            cloudComp.cin?.startsWith('SYNC-DEL-') ||
+            cloudComp.name?.startsWith('DELETED:')
+          ) {
             let delDoc = Array.isArray(cloudComp.documents)
               ? cloudComp.documents.find((d: any) => d && d.sync_type === 'ENTITY_DELETED')
               : null;
@@ -2605,17 +2639,17 @@ class CloudSyncService {
               } catch {}
             }
 
-            if (delDoc) {
-              this.recordDeletedEntity({
-                entityType: delDoc.entity_type || 'company',
-                id: delDoc.entity_id || cloudComp.id,
-                code_or_cin: delDoc.code_or_cin,
-                official_email: delDoc.official_email,
-                name: delDoc.entity_name,
-                deleted_at: delDoc.deleted_at || cloudComp.created_at || new Date().toISOString(),
-                deleted_by: delDoc.deleted_by
-              });
-            }
+            const inferredName = delDoc?.entity_name || cloudComp.name?.replace(/^DELETED:\s*/, '');
+
+            this.recordDeletedEntity({
+              entityType: 'company',
+              id: delDoc?.entity_id || cloudComp.id,
+              code_or_cin: delDoc?.code_or_cin || cloudComp.cin,
+              official_email: delDoc?.official_email || cloudComp.official_email,
+              name: inferredName,
+              deleted_at: delDoc?.deleted_at || cloudComp.created_at || new Date().toISOString(),
+              deleted_by: delDoc?.deleted_by
+            });
           }
         }
 
@@ -2693,12 +2727,24 @@ class CloudSyncService {
               } catch {}
             }
             if (decDoc && decDoc.status) {
+              if (this.isEntityDeleted('company', {
+                id: decDoc.entity_id,
+                cin: decDoc.code_or_cin,
+                official_email: decDoc.official_email,
+                name: decDoc.entity_name
+              })) {
+                continue;
+              }
+
               const decidedAt = new Date(decDoc.decided_at || cloudComp.created_at || 0).getTime();
               const decData = { status: decDoc.status as any, notes: decDoc.notes || '', decidedAt };
               if (decDoc.entity_id) decisionMap.set(decDoc.entity_id, decData);
               if (decDoc.code_or_cin) decisionMap.set(decDoc.code_or_cin, decData);
               if (decDoc.official_email) decisionMap.set(decDoc.official_email.toLowerCase().trim(), decData);
-              if (decDoc.entity_name) decisionMap.set(decDoc.entity_name.toLowerCase().trim(), decData);
+              if (decDoc.entity_name) {
+                const cleanName = decDoc.entity_name.toLowerCase().trim().replace(/^deleted:\s*/, '');
+                decisionMap.set(cleanName, decData);
+              }
             }
             continue;
           }
@@ -2717,16 +2763,14 @@ class CloudSyncService {
 
           // CRITICAL: Filter out permanently deleted companies so they never resurrect on refresh
           if (this.isEntityDeleted('company', cloudComp)) {
-            const localIdx = db.companies.findIndex(c =>
-              c.id === cloudComp.id ||
-              c.cin === cloudComp.cin ||
-              (cloudComp.official_email && c.official_email?.toLowerCase() === cloudComp.official_email.toLowerCase()) ||
-              (cloudComp.name && c.name?.toLowerCase().trim() === cloudComp.name.toLowerCase().trim())
+            const preCount = db.companies.length;
+            db.companies = db.companies.filter(c =>
+              c.id !== cloudComp.id &&
+              c.cin !== cloudComp.cin &&
+              (!cloudComp.official_email || c.official_email?.toLowerCase().trim() !== cloudComp.official_email.toLowerCase().trim()) &&
+              (!compCleanName || c.name?.toLowerCase().trim().replace(/^deleted:\s*/, '') !== compCleanName.replace(/^deleted:\s*/, ''))
             );
-            if (localIdx >= 0) {
-              db.companies.splice(localIdx, 1);
-              anyChanged = true;
-            }
+            if (db.companies.length !== preCount) anyChanged = true;
             continue;
           }
 
@@ -2877,19 +2921,38 @@ class CloudSyncService {
       db.companies = db.companies.filter(c => !this.isEntityDeleted('company', c));
       if (db.companies.length !== preCompCount) anyChanged = true;
 
-      if (anyChanged) {
-        db.persist('institutions');
-        db.persist('companies');
-        db.persist('profiles');
-        db.persist('passwords');
-        db.persist('proposals');
-        db.persist('batches');
-        db.persist('students');
-        db.persist('notifications');
-        db.notify();
-        window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
-        window.dispatchEvent(new CustomEvent('vidyaconnect:batch_updated'));
+      // Clean up orphaned profiles, passwords, and opportunities for all deleted entities
+      const deletedEntities = this.getDeletedEntities();
+      for (const del of deletedEntities) {
+        if (del.entityType === 'company') {
+          db.profiles = db.profiles.filter(p =>
+            p.company_id !== del.id &&
+            (!del.official_email || p.email?.toLowerCase().trim() !== del.official_email.toLowerCase().trim())
+          );
+          db.opportunities = db.opportunities.filter(o => o.company_id !== del.id);
+        } else {
+          db.profiles = db.profiles.filter(p =>
+            p.institution_id !== del.id &&
+            (!del.official_email || p.email?.toLowerCase().trim() !== del.official_email.toLowerCase().trim())
+          );
+        }
+        if (del.official_email) {
+          delete db.passwords[del.official_email.toLowerCase().trim()];
+        }
       }
+
+      // Always persist and emit sync events to guarantee React re-renders on every device/refresh
+      db.persist('institutions');
+      db.persist('companies');
+      db.persist('profiles');
+      db.persist('passwords');
+      db.persist('proposals');
+      db.persist('batches');
+      db.persist('students');
+      db.persist('notifications');
+      db.notify();
+      window.dispatchEvent(new CustomEvent('vidyaconnect:cloud_sync_updated'));
+      window.dispatchEvent(new CustomEvent('vidyaconnect:batch_updated'));
     } catch (e) {
       console.warn('[CloudSync] syncFromCloud error:', e);
     } finally {

@@ -36,7 +36,9 @@ import {
 export const CompaniesDirectoryPage: React.FC = () => {
   const { currentUser } = useAuth();
   const { showConfirm, showToast: modalToast } = useModal();
-  const [companies, setCompanies] = useState<Company[]>(db.companies);
+  const [companies, setCompanies] = useState<Company[]>(() =>
+    db.companies.filter(c => !cloudSync.isEntityDeleted('company', c))
+  );
   const [search, setSearch] = useState('');
   const [industryFilter, setIndustryFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -81,11 +83,11 @@ export const CompaniesDirectoryPage: React.FC = () => {
     });
 
     const unsub = db.subscribe(() => {
-      setCompanies([...db.companies]);
+      setCompanies(db.companies.filter(c => !cloudSync.isEntityDeleted('company', c)));
     });
 
     const handleSync = () => {
-      setCompanies([...db.companies]);
+      setCompanies(db.companies.filter(c => !cloudSync.isEntityDeleted('company', c)));
     };
     window.addEventListener('vidyaconnect:cloud_sync_updated', handleSync);
 
@@ -159,6 +161,7 @@ export const CompaniesDirectoryPage: React.FC = () => {
     });
 
     if (confirmed) {
+      setCompanies(prev => prev.filter(c => c.id !== comp.id && c.cin !== comp.cin));
       await cloudSync.deleteEntityFromCloud('company', comp, currentUser);
       showToast(`Removed "${comp.name}" from partner registry.`);
     }
@@ -219,6 +222,8 @@ export const CompaniesDirectoryPage: React.FC = () => {
   const industries = Array.from(new Set(companies.map((c) => c.industry))).filter(Boolean);
 
   const filtered = companies.filter((c) => {
+    if (cloudSync.isEntityDeleted('company', c)) return false;
+
     const matchesSearch =
       c.name.toLowerCase().includes(search.toLowerCase()) ||
       c.cin.toLowerCase().includes(search.toLowerCase()) ||
