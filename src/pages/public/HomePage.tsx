@@ -63,30 +63,12 @@ export const HomePage: React.FC = () => {
           <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-gradient-to-tr from-[#FED7AA]/35 via-[#FDBA74]/15 to-transparent blur-3xl pointer-events-none hidden lg:block" />
 
           {/* Mobile-Only Academic Books & Graduation Cap Composition (No People) */}
-          <div className="lg:hidden w-full h-[180px] sm:h-[230px] relative overflow-hidden bg-gradient-to-r from-white via-[#FFF8F2] to-[#F4F7FC] border-b border-[#E2E8F0] flex items-center justify-center">
+          <div className="lg:hidden w-full h-[190px] sm:h-[240px] relative overflow-hidden bg-gradient-to-r from-white via-[#FFF8F2] to-[#F4F7FC] border-b border-[#E2E8F0] flex items-center justify-center p-2">
             <img
               src="/images/hero-books-gradcap-blended.png"
               alt="Academic Foundation & Graduation Cap"
-              className="w-full h-full object-contain object-right-bottom select-none"
+              className="w-full h-full object-contain object-center select-none"
             />
-            {/* Mobile Calligraphy Overlay */}
-            <div className="absolute top-2.5 right-3 text-right select-none pointer-events-none">
-              <span
-                className="block text-lg sm:text-xl font-bold text-[#0B1F46] leading-none tracking-tight -rotate-6"
-                style={{ fontFamily: "'Caveat', cursive" }}
-              >
-                Better Skills
-              </span>
-              <span
-                className="block text-lg sm:text-xl font-bold text-[#0B1F46] leading-none tracking-tight -rotate-6 mt-0.5"
-                style={{ fontFamily: "'Caveat', cursive" }}
-              >
-                Brighter Future
-              </span>
-              <svg className="w-20 h-2 text-[#FF6500] ml-auto -rotate-6" viewBox="0 0 100 10" fill="none">
-                <path d="M2 3C30 9 70 9 98 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </div>
           </div>
 
           {/* Desktop Two-Column Hero Grid */}
@@ -154,12 +136,12 @@ export const HomePage: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Column: Realistic Academic Composition (Books + Mortarboard + University Facade) */}
+            {/* Right Column: Realistic Academic Composition (Books + Mortarboard + Diploma & Pencils) */}
             <div className="hidden lg:flex lg:col-span-5 relative items-center justify-end h-full min-h-[380px]">
               <img
                 src="/images/hero-books-gradcap-blended.png"
-                alt="Stack of Academic Books with Graduation Cap & Campus Architecture"
-                className="relative z-10 w-full max-w-[540px] h-auto max-h-[360px] object-contain object-right select-none drop-shadow-sm"
+                alt="Stack of Academic Books with Graduation Cap, Diploma and Better Skills Calligraphy"
+                className="relative z-10 w-full max-w-[580px] h-auto max-h-[380px] object-contain object-right select-none drop-shadow-sm"
               />
             </div>
           </div>
