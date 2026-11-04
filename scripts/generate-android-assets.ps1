@@ -74,13 +74,13 @@ function Create-Splash($w, $h) {
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
 
-    # Deep Navy / AP Royal Blue Gradient
-    $brush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 11, 31, 70))
+    # Seamless Soft Light Radial Match (#F5F9FE)
+    $brush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 245, 249, 254))
     $g.FillRectangle($brush, 0, 0, $w, $h)
 
     $logo = $srcLogo
     $aspect = $logo.Width / $logo.Height
-    $targetW = [int]($w * 0.7)
+    $targetW = [int]($w * 0.78)
     $targetH = [int]($targetW / $aspect)
 
     $offsetX = [int](($w - $targetW) / 2)
