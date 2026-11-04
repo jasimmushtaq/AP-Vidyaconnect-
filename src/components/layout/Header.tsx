@@ -114,13 +114,9 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
     return (
       <header className="sticky top-0 z-40 w-full pt-2 pb-1.5 px-3 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0] shadow-2xs">
         <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-2">
-          {/* PixelWind Technologies Logo */}
+          {/* AP VidyaConnect Official Logo */}
           <Link to="/" className="flex items-center gap-2">
-            <img
-              src="/brand/pixelwind-logo.png"
-              alt="PixelWind Technologies"
-              className="h-7 sm:h-8 w-auto object-contain select-none"
-            />
+            <BrandLogo className="h-7 sm:h-8 w-auto object-contain" />
           </Link>
 
           {/* Navigation Items ONLY: About, Login, Register (or Dashboard, Sign Out if logged in) */}

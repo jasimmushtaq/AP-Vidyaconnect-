@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { db } from '../../services/dbStore';
 import { useAuth } from '../../context/AuthContext';
 import { PartnerCard } from '../../components/common/PartnerCard';
@@ -29,6 +30,17 @@ import {
 
 export const HomePage: React.FC = () => {
   const { currentUser } = useAuth();
+
+  const isApk =
+    typeof window !== 'undefined' &&
+    (Capacitor.isNativePlatform() ||
+      Capacitor.getPlatform() === 'android' ||
+      Capacitor.getPlatform() === 'ios' ||
+      !!(window as any).Capacitor?.isNativePlatform?.() ||
+      document.documentElement.classList.contains('plt-mobile') ||
+      document.documentElement.classList.contains('plt-capacitor') ||
+      window.location.search.includes('platform=apk'));
+
   const [institutions, setInstitutions] = useState(db.institutions);
   const [companies, setCompanies] = useState(db.companies);
   const [students, setStudents] = useState(db.students);
@@ -210,9 +222,12 @@ export const HomePage: React.FC = () => {
         </section>
       </div>
 
-      {/* ======================================================================== */}
-      {/* 2. IMPACT STATISTICS BAR (Real-Time Industry & Institutional Networks)   */}
-      {/* ======================================================================== */}
+      {/* Website Full Ecosystem Directories & Pillars (Hidden in Native Mobile APK View) */}
+      {!isApk && (
+        <>
+          {/* ======================================================================== */}
+          {/* 2. IMPACT STATISTICS BAR (Real-Time Industry & Institutional Networks)   */}
+          {/* ======================================================================== */}
       <div className="w-full px-2.5 sm:px-6 lg:px-8 mt-3 sm:mt-4">
         <div className="w-full bg-white rounded-2xl lg:rounded-full border border-[#E2E8F0] shadow-[0_4px_20px_rgba(11,31,70,0.04)] px-4 sm:px-8 py-3.5 sm:py-4">
           <div className="grid grid-cols-2 lg:flex lg:items-center lg:justify-between gap-3 sm:gap-6">
@@ -959,6 +974,8 @@ export const HomePage: React.FC = () => {
           </section>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };

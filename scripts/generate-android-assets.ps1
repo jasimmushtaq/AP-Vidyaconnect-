@@ -1,7 +1,7 @@
 Add-Type -AssemblyName System.Drawing
 
-$srcLogo = [System.Drawing.Bitmap]::new((Resolve-Path "public/brand/pixelwind-logo.png").Path)
-$srcLogoWhite = [System.Drawing.Bitmap]::new((Resolve-Path "public/brand/pixelwind-logo-white.png").Path)
+$srcLogo = [System.Drawing.Bitmap]::new((Resolve-Path "public/brand/splash-logo.png").Path)
+$srcLogoWhite = [System.Drawing.Bitmap]::new((Resolve-Path "public/brand/ap-vidyaconnect-logo-white.png").Path)
 
 function Create-Square-Icon($width, $isRound, $isForeground) {
     $bmp = [System.Drawing.Bitmap]::new($width, $width, [System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
@@ -16,17 +16,17 @@ function Create-Square-Icon($width, $isRound, $isForeground) {
             $path.AddEllipse(0, 0, $width, $width)
             $g.SetClip($path)
         }
-        $brush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 11, 31, 70)) # Navy #0B1F46
+        $brush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 255, 255, 255)) # Clean white card
         $g.FillRectangle($brush, 0, 0, $width, $width)
     }
 
-    # Center white logo inside
-    $logo = $srcLogoWhite
+    # Center AP VidyaConnect logo inside
+    $logo = if ($isForeground) { $srcLogo } else { $srcLogo }
     $aspect = $logo.Width / $logo.Height
-    $targetW = [int]($width * 0.75)
+    $targetW = [int]($width * 0.82)
     $targetH = [int]($targetW / $aspect)
-    if ($targetH -gt ($width * 0.75)) {
-        $targetH = [int]($width * 0.75)
+    if ($targetH -gt ($width * 0.82)) {
+        $targetH = [int]($width * 0.82)
         $targetW = [int]($targetH * $aspect)
     }
 
@@ -74,13 +74,13 @@ function Create-Splash($w, $h) {
     $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::HighQuality
     $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
 
-    # Deep Navy Background
+    # Deep Navy / AP Royal Blue Gradient
     $brush = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 11, 31, 70))
     $g.FillRectangle($brush, 0, 0, $w, $h)
 
-    $logo = $srcLogoWhite
+    $logo = $srcLogo
     $aspect = $logo.Width / $logo.Height
-    $targetW = [int]($w * 0.6)
+    $targetW = [int]($w * 0.7)
     $targetH = [int]($targetW / $aspect)
 
     $offsetX = [int](($w - $targetW) / 2)
@@ -96,7 +96,7 @@ function Create-Splash($w, $h) {
 $splash = Create-Splash 480 800
 $splash.Save("android/app/src/main/res/drawable/splash.png", [System.Drawing.Imaging.ImageFormat]::Png)
 $splash.Dispose()
-Write-Host "Generated splash.png"
+Write-Host "Generated splash.png with AP VidyaConnect branding"
 
 $srcLogo.Dispose()
 $srcLogoWhite.Dispose()

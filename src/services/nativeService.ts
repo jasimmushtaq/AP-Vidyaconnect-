@@ -70,3 +70,4 @@ export async function initNativeApp(callbacks?: {
     console.warn('[Native] Network listener error:', err);
   }
 }
+
