@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, Navigate } from 'react-router-dom';
 import { Header } from './Header';
 import { Sidebar } from './Sidebar';
+import { MobileBottomNav } from './MobileBottomNav';
 import { GovernmentTechBackground } from '../common/GovernmentTechBackground';
 import { BrandLogo } from '../common/BrandLogo';
 import { useAuth } from '../../context/AuthContext';
@@ -162,8 +163,8 @@ export const AppLayout: React.FC = () => {
           </div>
 
           {/* Independently scrollable page content */}
-          <div className="flex-1 overflow-y-auto print:overflow-visible relative">
-            <main className="p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full">
+          <div className="flex-1 overflow-y-auto print:overflow-visible relative pb-20 lg:pb-0">
+            <main className="p-3 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto print:p-0 print:m-0 print:max-w-none print:w-full">
             {/* Inline Verification Status Banner for Pending Audits */}
             {(isInstitutionUnderReview || isCompanyUnderReview) && (
               <div className="mb-6 p-4 sm:p-5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -192,6 +193,9 @@ export const AppLayout: React.FC = () => {
             <Outlet />
           </main>
           </div>
+
+          {/* Native Mobile Bottom Navigation Bar (Visible on mobile/APK) */}
+          <MobileBottomNav onOpenMenu={() => setMobileSidebarOpen(true)} />
         </div>
       </div>
     </div>

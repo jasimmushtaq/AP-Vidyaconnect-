@@ -113,42 +113,110 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const fillDemoCredentials = (role: 'institution' | 'company' | 'student' | 'admin') => {
+    setError(null);
+    switch (role) {
+      case 'institution':
+        setEmail('principal.gdckhairatabad@telangana.gov.in');
+        setPassword('pixelwind@2005');
+        break;
+      case 'company':
+        setEmail('arjun.verma@pixelwindtech.com');
+        setPassword('pixelwind@2005');
+        break;
+      case 'student':
+        setEmail('rahul.sharma23@student.gdck.ac.in');
+        setPassword('pixelwind@2005');
+        break;
+      case 'admin':
+        setEmail('varunsurya@gmail.com');
+        setPassword('Pixelwind@223');
+        break;
+    }
+  };
+
   return (
-    <div className="max-w-md mx-auto px-4 py-12 space-y-6">
-      <div className="text-center space-y-2">
-        <div className="flex justify-center mb-2">
-          <BrandLogo variant="stacked" size={200} />
+    <div className="w-full max-w-md mx-auto px-3.5 sm:px-4 py-4 sm:py-10 space-y-4 sm:space-y-6">
+      <div className="text-center space-y-1 sm:space-y-2">
+        <div className="flex justify-center mb-1">
+          <BrandLogo variant="stacked" className="h-14 sm:h-20 w-auto object-contain" />
         </div>
-        <h1 className="text-xl sm:text-2xl font-extrabold text-[#0E2350]">
+        <h1 className="text-xl sm:text-2xl font-black text-[#0B1F46] tracking-tight">
           Sign In to AP VidyaConnect
         </h1>
-        <p className="text-xs text-gray-500">
-          Enter your official institutional, corporate or student login credentials.
+        <p className="text-xs text-slate-500 max-w-xs mx-auto">
+          Enter your official institutional, corporate, or student credentials.
         </p>
       </div>
 
-      <div className="bg-white rounded-2xl border border-[#E3E6EB] p-6 sm:p-8 shadow-sm space-y-5">
-        <form onSubmit={handleLogin} className="space-y-4 text-xs" noValidate>
+      {/* Quick 1-Tap Demo Logins for Easy Mobile APK Testing */}
+      <div className="bg-slate-50/90 border border-slate-200/80 rounded-2xl p-2.5 sm:p-3 shadow-2xs">
+        <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 px-1 mb-1.5">
+          <span>⚡ Quick 1-Tap Credentials</span>
+          <span className="text-[10px] text-slate-400">Mobile Ready</span>
+        </div>
+        <div className="grid grid-cols-2 xs:grid-cols-4 gap-1.5 text-[11px] font-bold">
+          <button
+            type="button"
+            onClick={() => fillDemoCredentials('institution')}
+            className="py-1.5 px-2 rounded-xl bg-white hover:bg-blue-50 border border-slate-200 text-[#0B1F46] active:scale-95 transition-all shadow-2xs flex items-center justify-center gap-1"
+          >
+            <span>🏛️</span>
+            <span>College</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => fillDemoCredentials('company')}
+            className="py-1.5 px-2 rounded-xl bg-white hover:bg-orange-50 border border-slate-200 text-[#0B1F46] active:scale-95 transition-all shadow-2xs flex items-center justify-center gap-1"
+          >
+            <span>🏢</span>
+            <span>Industry</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => fillDemoCredentials('student')}
+            className="py-1.5 px-2 rounded-xl bg-white hover:bg-emerald-50 border border-slate-200 text-[#0B1F46] active:scale-95 transition-all shadow-2xs flex items-center justify-center gap-1"
+          >
+            <span>🎓</span>
+            <span>Student</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => fillDemoCredentials('admin')}
+            className="py-1.5 px-2 rounded-xl bg-white hover:bg-purple-50 border border-slate-200 text-[#0B1F46] active:scale-95 transition-all shadow-2xs flex items-center justify-center gap-1"
+          >
+            <span>🛡️</span>
+            <span>Admin</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#E2E8F0] p-5 sm:p-8 shadow-[0_4px_24px_rgba(11,31,70,0.06)] space-y-4">
+        <form onSubmit={handleLogin} className="space-y-3.5 text-xs" noValidate>
           <div>
-            <label className="block font-bold text-gray-700 uppercase mb-1">
-              Official Email Address or Roll Number <span className="text-rose-600">*</span>
+            <label className="block font-bold text-slate-700 uppercase mb-1 text-[11px] tracking-wide">
+              Official Email or Roll Number <span className="text-rose-600">*</span>
             </label>
             <div className="relative">
-              <Mail className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+              <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
                 type="text"
                 autoComplete="username"
+                inputMode="email"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 value={email}
                 onBlur={() => setTouched(prev => ({ ...prev, email: true }))}
                 onChange={(e) => {
                   setEmail(e.target.value);
                   if (error) setError(null);
                 }}
-                placeholder="e.g. principal@college.gov.in or 2023-CS-492"
-                className={`w-full pl-9 pr-3 py-2 border rounded-lg focus:outline-none transition-colors ${
+                placeholder="e.g. principal@college.gov.in or roll number"
+                className={`w-full pl-10 pr-3 py-2.5 min-h-[44px] text-xs sm:text-sm border rounded-xl focus:outline-none transition-colors ${
                   emailError
                     ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
-                    : 'bg-[#F6F7F9] border-[#E3E6EB] focus:ring-2 focus:ring-[#0E2350]'
+                    : 'bg-[#F8FAFC] border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#0B1F46] focus:border-[#0B1F46]'
                 }`}
               />
             </div>
@@ -161,14 +229,17 @@ export const LoginPage: React.FC = () => {
           </div>
 
           <div>
-            <label className="block font-bold text-gray-700 uppercase mb-1">
+            <label className="block font-bold text-slate-700 uppercase mb-1 text-[11px] tracking-wide">
               Password <span className="text-rose-600">*</span>
             </label>
             <div className="relative">
-              <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+              <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
               <input
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 value={password}
                 onBlur={() => setTouched(prev => ({ ...prev, password: true }))}
                 onChange={(e) => {
@@ -176,17 +247,17 @@ export const LoginPage: React.FC = () => {
                   if (error) setError(null);
                 }}
                 placeholder="••••••••"
-                className={`w-full pl-9 pr-10 py-2 border rounded-lg focus:outline-none transition-colors ${
+                className={`w-full pl-10 pr-11 py-2.5 min-h-[44px] text-xs sm:text-sm border rounded-xl focus:outline-none transition-colors ${
                   passwordError
                     ? 'bg-rose-50/30 border-rose-400 text-rose-900 focus:ring-2 focus:ring-rose-400'
-                    : 'bg-[#F6F7F9] border-[#E3E6EB] focus:ring-2 focus:ring-[#0E2350]'
+                    : 'bg-[#F8FAFC] border-slate-200 focus:bg-white focus:ring-2 focus:ring-[#0B1F46] focus:border-[#0B1F46]'
                 }`}
               />
               <button
                 type="button"
                 tabIndex={-1}
                 onClick={() => setShowPassword(prev => !prev)}
-                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 focus:outline-none"
+                className="absolute right-3.5 top-2.5 p-1 text-slate-400 hover:text-slate-600 focus:outline-none"
                 title={showPassword ? 'Hide password' : 'Show password'}
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -201,7 +272,7 @@ export const LoginPage: React.FC = () => {
           </div>
 
           {error && (
-            <div className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
+            <div className={`p-3 rounded-xl border text-xs flex items-start gap-2.5 ${
               error.includes('Under Verification')
                 ? 'bg-amber-50 border-amber-300 text-amber-900'
                 : 'bg-rose-50 border-rose-200 text-rose-700'
@@ -209,7 +280,7 @@ export const LoginPage: React.FC = () => {
               <AlertCircle className={`w-4 h-4 shrink-0 mt-0.5 ${
                 error.includes('Under Verification') ? 'text-amber-600' : 'text-rose-600'
               }`} />
-              <div className="space-y-1">
+              <div className="space-y-0.5">
                 <span className="font-bold block">{error.includes('Under Verification') ? 'Verification Pending Review' : 'Access Restricted'}</span>
                 <span className="leading-relaxed block">{error}</span>
               </div>
@@ -219,7 +290,7 @@ export const LoginPage: React.FC = () => {
           <button
             type="submit"
             disabled={isLoggingIn}
-            className="w-full py-2.5 bg-[#0E2350] hover:bg-[#14336F] disabled:opacity-60 text-white rounded-lg font-bold shadow transition-all flex items-center justify-center gap-2 mt-2 cursor-pointer"
+            className="w-full min-h-[46px] py-2.5 px-4 bg-[#0B1F46] hover:bg-[#14336F] disabled:opacity-60 text-white rounded-xl font-bold shadow-md hover:shadow-lg transition-all flex items-center justify-center gap-2 mt-2 active:scale-98 cursor-pointer"
           >
             {isLoggingIn ? (
               <>
@@ -229,16 +300,16 @@ export const LoginPage: React.FC = () => {
             ) : (
               <>
                 <span>Sign In to Platform</span>
-                <ArrowRight className="w-4 h-4 text-[#F07421]" />
+                <ArrowRight className="w-4 h-4 text-[#FF6500]" />
               </>
             )}
           </button>
         </form>
 
-        <div className="text-center pt-2">
-          <p className="text-xs text-gray-500">
+        <div className="text-center pt-1">
+          <p className="text-xs text-slate-500">
             Don't have an institutional account?{' '}
-            <Link to="/register" className="text-[#0E2350] font-bold hover:underline">
+            <Link to="/register" className="text-[#FF6500] font-bold hover:underline">
               Register here
             </Link>
           </p>

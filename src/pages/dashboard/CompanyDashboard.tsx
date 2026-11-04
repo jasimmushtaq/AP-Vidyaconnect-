@@ -496,27 +496,30 @@ export const CompanyDashboard: React.FC = () => {
               <p className="text-[11px] text-slate-400 mt-0.5">Cohort attendance compliance metrics will appear once batches are chartered.</p>
             </div>
           ) : (
-            <div className="h-56 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={batchAttendanceBarData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 10, fill: '#64748B' }}
-                    angle={-15}
-                    textAnchor="end"
-                    interval={0}
-                  />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#64748B' }} />
-                  <Tooltip
-                    formatter={(val: any, name: any) => [`${val}%`, name]}
-                    contentStyle={{ backgroundColor: '#0E2350', color: '#fff', borderRadius: '8px', border: 'none', fontSize: '11px' }}
-                    itemStyle={{ color: '#fff' }}
-                  />
-                  <Bar dataKey="avgAttendance" fill="#0E2350" radius={[4, 4, 0, 0]} name="Avg Attendance (%)" />
-                  <Bar dataKey="compliantPct" fill="#10B981" radius={[4, 4, 0, 0]} name=">= 75% Compliant (%)" />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-60 w-full pt-2 overflow-x-auto">
+              <div className="min-w-[320px] sm:min-w-full h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={batchAttendanceBarData} margin={{ top: 10, right: 10, left: -10, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 9, fill: '#64748B' }}
+                      angle={-15}
+                      textAnchor="end"
+                      interval={0}
+                      height={35}
+                    />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#64748B' }} width={26} />
+                    <Tooltip
+                      formatter={(val: any, name: any) => [`${val}%`, name]}
+                      contentStyle={{ backgroundColor: '#0E2350', color: '#fff', borderRadius: '8px', border: 'none', fontSize: '11px' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                    <Bar dataKey="avgAttendance" fill="#0E2350" radius={[4, 4, 0, 0]} name="Avg Attendance (%)" maxBarSize={24} />
+                    <Bar dataKey="compliantPct" fill="#10B981" radius={[4, 4, 0, 0]} name=">= 75% Compliant (%)" maxBarSize={24} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
 

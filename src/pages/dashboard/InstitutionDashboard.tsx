@@ -252,23 +252,23 @@ export const InstitutionDashboard: React.FC = () => {
   }, [myActiveBatches, attendance]);
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto pb-10">
+    <div className="space-y-4 sm:space-y-6 max-w-7xl mx-auto pb-10">
       
       {/* 1. TOP HERO INSTITUTION BANNER */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#0A1938] via-[#0E2350] to-[#163673] border border-blue-900/40 p-6 sm:p-8 shadow-xl text-white">
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-[#0A1938] via-[#0E2350] to-[#163673] border border-blue-900/40 p-4 sm:p-8 shadow-xl text-white">
         {/* Ambient Glows */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
         <div className="absolute bottom-0 left-1/4 w-72 h-72 bg-amber-500/10 rounded-full blur-2xl pointer-events-none"></div>
 
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-6">
           {/* Institution Identity */}
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-md bg-blue-500/20 border border-blue-400/30 text-blue-200 text-xs font-mono font-bold tracking-wide">
+          <div className="space-y-1.5 sm:space-y-2">
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <span className="px-2 py-0.5 rounded-md bg-blue-500/20 border border-blue-400/30 text-blue-200 text-[10px] sm:text-xs font-mono font-bold tracking-wide">
                 {currentInstitution?.code || 'GDC-NLG-2026'}
               </span>
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-xs font-semibold">
-                <ShieldCheck className="w-3.5 h-3.5" />
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/30 text-emerald-300 text-[10px] sm:text-xs font-semibold">
+                <ShieldCheck className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
                 NAAC A+ Accredited Government Institution
               </span>
               <span className="hidden sm:inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-white/10 text-slate-200 text-[11px] font-medium backdrop-blur-sm">
@@ -276,49 +276,49 @@ export const InstitutionDashboard: React.FC = () => {
               </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
-              {currentInstitution?.name || 'kaka shah high school'}
+            <h1 className="text-xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-2">
+              {currentInstitution?.name || 'Government Degree College'}
             </h1>
 
-            <p className="text-xs text-blue-200/80 flex flex-wrap items-center gap-2 font-mono">
-              <span>Affiliated to {currentInstitution?.affiliated_university || 'jkbose'}</span>
+            <p className="text-[11px] sm:text-xs text-blue-200/80 flex flex-wrap items-center gap-1.5 sm:gap-2 font-mono">
+              <span>Affiliated to {currentInstitution?.affiliated_university || 'State University'}</span>
               <span>•</span>
               <span className="font-sans">Principal: {currentInstitution?.principal_name || 'Dr. G. Ramana Rao'}</span>
             </p>
           </div>
 
-          {/* Action Header Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5">
+          {/* Action Header Buttons - Responsive 2x2 grid on mobile */}
+          <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2 sm:gap-2.5 pt-1 sm:pt-0">
             <Link
               to="/students"
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-black shadow-md transition-all flex items-center gap-2 transform active:scale-95"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-[11px] sm:text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95"
             >
-              <Users className="w-4 h-4 text-amber-300" />
-              <span>Student Management</span>
+              <Users className="w-3.5 h-3.5 text-amber-300" />
+              <span>Students</span>
             </Link>
 
             <Link
               to="/proposals/new"
-              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#F07421] to-orange-600 hover:from-[#D96214] hover:to-[#C55005] text-white text-xs font-black shadow-md transition-all flex items-center gap-2 transform active:scale-95"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-[#FF6500] to-orange-600 hover:from-[#E65A00] text-white text-[11px] sm:text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95"
             >
-              <FileText className="w-4 h-4 text-white" />
+              <FileText className="w-3.5 h-3.5 text-white" />
               <span>Create Proposal</span>
             </Link>
 
             <Link
               to="/attendance"
-              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black shadow-md transition-all flex items-center gap-2 transform active:scale-95"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] sm:text-xs font-bold shadow-md transition-all flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95"
             >
-              <FileSpreadsheet className="w-4 h-4 text-emerald-200" />
-              <span>Attendance Register</span>
+              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-200" />
+              <span>Attendance</span>
             </Link>
 
             <Link
               to="/opportunities"
-              className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-black border border-white/20 backdrop-blur-md transition-all flex items-center gap-2 shadow-2xs"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-[11px] sm:text-xs font-bold border border-white/20 backdrop-blur-md transition-all flex items-center justify-center gap-1.5 sm:gap-2 active:scale-95 shadow-2xs"
             >
-              <Building2 className="w-4 h-4 text-blue-300" />
-              <span>Explore Companies</span>
+              <Building2 className="w-3.5 h-3.5 text-blue-300" />
+              <span>Companies</span>
             </Link>
           </div>
         </div>
@@ -823,27 +823,30 @@ export const InstitutionDashboard: React.FC = () => {
               <p className="text-[11px] text-slate-400 mt-0.5">Cohort attendance compliance metrics will appear once batches are chartered.</p>
             </div>
           ) : (
-            <div className="h-56 w-full pt-2">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={batchComplianceBarData} margin={{ top: 10, right: 10, left: -20, bottom: 20 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
-                  <XAxis
-                    dataKey="name"
-                    tick={{ fontSize: 10, fill: '#64748B' }}
-                    angle={-15}
-                    textAnchor="end"
-                    interval={0}
-                  />
-                  <YAxis domain={[0, 100]} tick={{ fontSize: 10, fill: '#64748B' }} />
-                  <Tooltip
-                    formatter={(val: any, name: any) => [`${val}%`, name]}
-                    contentStyle={{ backgroundColor: '#0E2350', color: '#fff', borderRadius: '8px', border: 'none', fontSize: '11px' }}
-                    itemStyle={{ color: '#fff' }}
-                  />
-                  <Bar dataKey="avgAttendance" fill="#0E2350" radius={[4, 4, 0, 0]} name="Avg Attendance (%)" />
-                  <Bar dataKey="compliantPct" fill="#10B981" radius={[4, 4, 0, 0]} name=">= 75% Compliant (%)" />
-                </BarChart>
-              </ResponsiveContainer>
+            <div className="h-60 w-full pt-2 overflow-x-auto">
+              <div className="min-w-[320px] sm:min-w-full h-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={batchComplianceBarData} margin={{ top: 10, right: 10, left: -10, bottom: 25 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis
+                      dataKey="name"
+                      tick={{ fontSize: 9, fill: '#64748B' }}
+                      angle={-15}
+                      textAnchor="end"
+                      interval={0}
+                      height={35}
+                    />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 9, fill: '#64748B' }} width={26} />
+                    <Tooltip
+                      formatter={(val: any, name: any) => [`${val}%`, name]}
+                      contentStyle={{ backgroundColor: '#0E2350', color: '#fff', borderRadius: '8px', border: 'none', fontSize: '11px' }}
+                      itemStyle={{ color: '#fff' }}
+                    />
+                    <Bar dataKey="avgAttendance" fill="#0E2350" radius={[4, 4, 0, 0]} name="Avg Attendance (%)" maxBarSize={24} />
+                    <Bar dataKey="compliantPct" fill="#10B981" radius={[4, 4, 0, 0]} name=">= 75% Compliant (%)" maxBarSize={24} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
           )}
 

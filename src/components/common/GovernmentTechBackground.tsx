@@ -146,8 +146,8 @@ export const GovernmentTechBackground: React.FC = () => {
         }}
       />
 
-      {/* Decorative Top-Left Branded Curved Swoosh from Mockup */}
-      <svg className="absolute top-0 left-0 w-44 sm:w-72 h-24 sm:h-36 pointer-events-none z-0" viewBox="0 0 280 150" fill="none">
+      {/* Decorative Top-Left Branded Curved Swoosh from Mockup (Desktop only to prevent mobile clipping) */}
+      <svg className="hidden sm:block absolute top-0 left-0 w-44 sm:w-72 h-24 sm:h-36 pointer-events-none z-0" viewBox="0 0 280 150" fill="none">
         <path d="M0 0 L220 0 C170 35 110 80 0 130 Z" fill="url(#bg-tl-grad)" opacity="0.9" />
         <path d="M0 0 L150 0 C110 25 70 60 0 95 Z" fill="#FF6500" opacity="0.4" />
         <defs>
@@ -158,8 +158,8 @@ export const GovernmentTechBackground: React.FC = () => {
         </defs>
       </svg>
 
-      {/* Decorative Top-Right Branded Curved Accent */}
-      <svg className="absolute top-0 right-0 w-32 sm:w-56 h-20 sm:h-32 pointer-events-none z-0" viewBox="0 0 220 130" fill="none">
+      {/* Decorative Top-Right Branded Curved Accent (Desktop only to prevent mobile clipping) */}
+      <svg className="hidden sm:block absolute top-0 right-0 w-32 sm:w-56 h-20 sm:h-32 pointer-events-none z-0" viewBox="0 0 220 130" fill="none">
         <path d="M220 0 L70 0 C110 30 160 65 220 90 Z" fill="url(#bg-tr-grad)" opacity="0.85" />
         <defs>
           <linearGradient id="bg-tr-grad" x1="1" y1="0" x2="0" y2="1">

@@ -110,8 +110,74 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
 
   // Dedicated Streamlined Header for Native Android App matching exact reference UI
   if (isApk) {
+    if (isAuthenticated) {
+      // Authenticated APK Dashboard Header: Hamburger menu + Brand Mark + Role Badge + Quick Sign Out
+      return (
+        <header className="sticky top-0 z-40 w-full pt-2.5 pb-2 px-3 sm:px-6 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0] shadow-2xs">
+          <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-2 sm:gap-3">
+            {/* Left: Hamburger Menu Button + Brand Mark */}
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  if (onMenuToggle) {
+                    onMenuToggle();
+                  } else {
+                    setMobileDrawerOpen(!mobileDrawerOpen);
+                  }
+                }}
+                className="p-1.5 sm:p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors active:scale-95 cursor-pointer"
+                title="Toggle Dashboard Navigation Menu"
+                aria-label="Toggle Dashboard Navigation Menu"
+              >
+                <Menu className="w-6 h-6 text-[#0B1F46]" />
+              </button>
+
+              <Link to="/dashboard" className="flex items-center gap-2 group">
+                <img
+                  src="/brand/ap-vidyaconnect-mark.png"
+                  alt="AP VidyaConnect"
+                  className="h-8 sm:h-9 w-auto object-contain select-none"
+                />
+                <div className="hidden xs:block text-left">
+                  <span className="block text-xs font-black text-[#0B1F46] leading-none">
+                    AP VidyaConnect
+                  </span>
+                  <span className="block text-[9.5px] font-bold text-[#FF6500] uppercase tracking-wider mt-0.5">
+                    {currentRole === 'college_admin' || currentRole === 'institution_admin' || currentRole === 'faculty_coordinator'
+                      ? (currentInstitution?.code || 'Institution Portal')
+                      : currentRole === 'company_admin' || currentRole === 'mentor'
+                      ? (currentCompany?.name?.substring(0, 16) || 'Industry Portal')
+                      : currentRole === 'student'
+                      ? 'Student Portal'
+                      : 'State Portal'}
+                  </span>
+                </div>
+              </Link>
+            </div>
+
+            {/* Right: Quick Dashboard Shortcuts & Sign Out */}
+            <div className="flex items-center gap-1.5 sm:gap-2.5">
+              <NotificationDropdown />
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold transition-all active:scale-95"
+                title="Sign Out"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden xs:inline">Sign Out</span>
+              </button>
+            </div>
+          </div>
+        </header>
+      );
+    }
+
+    // Unauthenticated APK Header matching exact user reference mockup
     return (
-      <header className="sticky top-0 z-40 w-full pt-3 pb-2.5 px-4 sm:px-6 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0]/70 shadow-2xs">
+      <header className="sticky top-0 z-40 w-full pt-3 pb-2.5 px-3.5 sm:px-6 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0]/70 shadow-2xs">
         <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-3">
           {/* AP VidyaConnect Colorful Brand Mark */}
           <Link to="/" className="flex items-center gap-2 group">
@@ -123,7 +189,7 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
           </Link>
 
           {/* Navigation Items: About, Login, Register */}
-          <nav className="flex items-center gap-3 sm:gap-5">
+          <nav className="flex items-center gap-2 sm:gap-4">
             <Link
               to="/about"
               className="text-xs sm:text-sm font-semibold text-[#0B1F46] hover:text-[#FF6500] px-2 py-1 transition-colors"
@@ -131,38 +197,20 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
               About
             </Link>
 
-            {isAuthenticated ? (
-              <>
-                <Link
-                  to="/dashboard"
-                  className="text-xs sm:text-sm font-semibold text-[#0B1F46] hover:text-[#FF6500] px-2 py-1 transition-colors"
-                >
-                  Dashboard
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="px-3.5 py-1.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs sm:text-sm font-bold transition-all"
-                >
-                  Sign Out
-                </button>
-              </>
-            ) : (
-              <>
-                <Link
-                  to="/login"
-                  className="text-xs sm:text-sm font-semibold text-[#0B1F46] hover:text-[#FF6500] px-2 py-1 transition-colors"
-                >
-                  Login
-                </Link>
-                <Link
-                  to="/register"
-                  className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-full bg-gradient-to-r from-[#FF6500] to-[#F07421] hover:from-[#E65A00] hover:to-[#D96315] text-white text-xs sm:text-sm font-bold shadow-sm hover:shadow transition-all active:scale-95 whitespace-nowrap"
-                >
-                  <User className="w-3.5 h-3.5" />
-                  <span>Register</span>
-                </Link>
-              </>
-            )}
+            <Link
+              to="/login"
+              className="text-xs sm:text-sm font-semibold text-[#0B1F46] hover:text-[#FF6500] px-2 py-1 transition-colors"
+            >
+              Login
+            </Link>
+
+            <Link
+              to="/register"
+              className="inline-flex items-center gap-1.5 px-3.5 sm:px-5 py-2 rounded-full bg-gradient-to-r from-[#FF6500] to-[#F07421] hover:from-[#E65A00] hover:to-[#D96315] text-white text-xs sm:text-sm font-bold shadow-sm hover:shadow transition-all active:scale-95 whitespace-nowrap"
+            >
+              <User className="w-3.5 h-3.5" />
+              <span>Register</span>
+            </Link>
           </nav>
         </div>
       </header>

@@ -1112,7 +1112,7 @@ How can I assist your educational or corporate journey today?`,
                   touchAction: 'none'
                 }
           }
-          className={`fixed ${!triggerPos ? 'bottom-3 right-3 sm:bottom-6 sm:right-6' : ''} z-50 flex items-end gap-2.5 print:hidden select-none cursor-grab active:cursor-grabbing transition-transform ${
+          className={`fixed ${!triggerPos ? 'bottom-16 right-3 sm:bottom-6 sm:right-6' : ''} z-50 flex items-end gap-2.5 print:hidden select-none cursor-grab active:cursor-grabbing transition-transform ${
             isDraggingTrigger ? 'scale-105 opacity-90 duration-0' : 'hover:scale-102 duration-200'
           }`}
           title="Drag anywhere to move • Tap/Click to open VidyaBot 3D AI"
