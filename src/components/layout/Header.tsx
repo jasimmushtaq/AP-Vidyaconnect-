@@ -5,6 +5,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Capacitor } from '@capacitor/core';
 import { BrandLogo } from '../common/BrandLogo';
 import { useAuth } from '../../context/AuthContext';
 import { NotificationDropdown } from '../notifications/NotificationDropdown';
@@ -96,6 +97,77 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
     '/contact',
     '/terms'
   ].some(path => location.pathname === path);
+
+  const isApk =
+    typeof window !== 'undefined' &&
+    (Capacitor.isNativePlatform() ||
+      Capacitor.getPlatform() === 'android' ||
+      Capacitor.getPlatform() === 'ios' ||
+      !!(window as any).Capacitor?.isNativePlatform?.() ||
+      document.documentElement.classList.contains('plt-mobile') ||
+      document.documentElement.classList.contains('plt-capacitor') ||
+      window.location.search.includes('platform=apk'));
+
+  // Dedicated Streamlined Header for Native Android App
+  // Header contains ONLY: PixelWind Technologies Logo, About, Login, Register
+  if (isApk) {
+    return (
+      <header className="sticky top-0 z-40 w-full pt-2 pb-1.5 px-3 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0] shadow-2xs">
+        <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-2">
+          {/* PixelWind Technologies Logo */}
+          <Link to="/" className="flex items-center gap-2">
+            <img
+              src="/brand/pixelwind-logo.png"
+              alt="PixelWind Technologies"
+              className="h-7 sm:h-8 w-auto object-contain select-none"
+            />
+          </Link>
+
+          {/* Navigation Items ONLY: About, Login, Register (or Dashboard, Sign Out if logged in) */}
+          <nav className="flex items-center gap-1.5 sm:gap-3">
+            <Link
+              to="/about"
+              className="text-xs sm:text-sm font-bold text-[#0B1F46] hover:text-[#FF6500] px-2.5 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+            >
+              About
+            </Link>
+
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="text-xs sm:text-sm font-bold text-[#0B1F46] hover:text-[#FF6500] px-2.5 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                >
+                  Dashboard
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs sm:text-sm font-bold transition-all"
+                >
+                  Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link
+                  to="/login"
+                  className="text-xs sm:text-sm font-bold text-[#0B1F46] hover:text-[#FF6500] px-2.5 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="px-3.5 sm:px-4 py-1.5 rounded-full bg-[#FF6500] hover:bg-[#E65A00] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-all active:scale-95 whitespace-nowrap"
+                >
+                  Register
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-40 w-full pt-2 sm:pt-2.5 pb-1 px-2.5 sm:px-6 lg:px-8 bg-transparent">

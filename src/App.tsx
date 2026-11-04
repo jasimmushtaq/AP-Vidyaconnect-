@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
+import { initNativeApp } from './services/nativeService';
 import { AuthProvider } from './context/AuthContext';
 import { ModalProvider } from './context/ModalContext';
 import { NotificationProvider } from './context/NotificationContext';
@@ -81,6 +82,11 @@ export function App() {
 
   const [isSplashComplete, setIsSplashComplete] = useState<boolean>(() => !showSplash);
   const [isAppVisible, setIsAppVisible] = useState<boolean>(() => !showSplash);
+
+  // Initialize native Android integrations (Status bar, hardware back button, network)
+  useEffect(() => {
+    initNativeApp();
+  }, []);
 
   // Global event listener to replay splash animation on demand (e.g., from dev tools or chatbot)
   useEffect(() => {

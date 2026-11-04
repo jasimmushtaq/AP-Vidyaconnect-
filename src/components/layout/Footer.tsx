@@ -53,9 +53,19 @@ export const Footer: React.FC = () => {
     }
   }, []);
 
-  // When running inside the Android APK, completely hide the website footer
+  // When running inside the Android APK, render a clean native mobile footer
   if (isApk) {
-    return null;
+    return (
+      <footer className="w-full py-4 px-4 bg-[#0B1F46] text-white border-t border-blue-900/40 select-none">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5 text-xs text-blue-100">
+          <span>Powered by</span>
+          <span className="font-bold text-white flex items-center gap-1.5">
+            <span className="text-[#FF6500]">✦</span>
+            <span>PixelWind Technologies</span>
+          </span>
+        </div>
+      </footer>
+    );
   }
 
   return (

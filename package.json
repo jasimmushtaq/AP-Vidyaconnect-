@@ -8,12 +8,17 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "cap:sync": "npm run build && npx cap sync android",
-    "build:apk": "npm run cap:sync && powershell -Command \"cd android; .\\gradlew.bat assembleDebug; cd ..; Copy-Item android\\app\\build\\outputs\\apk\\debug\\app-debug.apk -Destination ap-vidyaconnect.apk -Force\""
+    "build:apk": "npm run cap:sync && powershell -Command \"cd android; .\\gradlew.bat assembleDebug; cd ..; Copy-Item android\\app\\build\\outputs\\apk\\debug\\app-debug.apk -Destination PixelWind-Technologies.apk -Force\""
   },
   "dependencies": {
     "@capacitor/android": "^8.5.2",
+    "@capacitor/app": "^8.1.2",
     "@capacitor/cli": "^8.5.2",
     "@capacitor/core": "^8.5.2",
+    "@capacitor/keyboard": "^8.0.6",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
     "@hookform/resolvers": "^3.3.4",
     "@supabase/supabase-js": "^2.116.0",
     "@tanstack/react-query": "^5.28.4",
