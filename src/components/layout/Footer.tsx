@@ -165,20 +165,6 @@ export const Footer: React.FC = () => {
             <p className="text-xs sm:text-[12.5px] text-[#C5D9F8] leading-relaxed max-w-[290px]">
               Centralized digital platform bridging Government Colleges, Students, and Industries for transparent, auditable, and performance-evaluated internships.
             </p>
-
-            {/* Official Higher Education Portal Outlined Pill CTA */}
-            <div className="pt-2">
-              <a
-                href="https://apsche.ap.gov.in"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full border border-[#10B981] bg-[#10B981]/10 hover:bg-[#10B981]/20 text-[#A7F3D0] hover:text-white text-xs font-semibold shadow-[0_0_15px_rgba(16,185,129,0.15)] transition-all group w-fit cursor-pointer"
-              >
-                <ShieldCheck className="w-4 h-4 text-[#10B981] shrink-0" />
-                <span>Official Higher Education Portal</span>
-                <ChevronRight className="w-3.5 h-3.5 text-[#10B981] group-hover:translate-x-0.5 transition-transform" />
-              </a>
-            </div>
           </div>
 
           {/* -------------------------------------------------------------------- */}
