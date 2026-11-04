@@ -54,95 +54,91 @@ export const HomePage: React.FC = () => {
   return (
     <div className="w-full pb-16">
       {/* ======================================================================== */}
-      {/* 1. HERO SECTION (Art-Directed Academic Composition — Zero Human Photos) */}
+      {/* 1. HERO SECTION (Art-Directed Academic Composition — Seamless Full-Bleed) */}
       {/* ======================================================================== */}
       <div className="w-full px-2.5 sm:px-6 lg:px-8 pt-2 sm:pt-3">
-        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#E2E8F0] bg-white shadow-[0_8px_30px_rgba(11,31,70,0.05)]">
+        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#E2E8F0] bg-white shadow-[0_8px_30px_rgba(11,31,70,0.05)] min-h-[380px] lg:min-h-[440px] flex flex-col lg:flex-row items-center justify-between">
           
-          {/* Subtle Ambient Sunset Glow behind Books on Right (Desktop) */}
-          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-gradient-to-tr from-[#FED7AA]/35 via-[#FDBA74]/15 to-transparent blur-3xl pointer-events-none hidden lg:block" />
-
-          {/* Mobile-Only Academic Books & Graduation Cap Composition (No People) */}
-          <div className="lg:hidden w-full h-[190px] sm:h-[240px] relative overflow-hidden bg-gradient-to-r from-white via-[#FFF8F2] to-[#F4F7FC] border-b border-[#E2E8F0] flex items-center justify-center p-2">
+          {/* Mobile-Only Full-Bleed 3D Academic Artwork Banner (No People, No Blurry Boxes) */}
+          <div className="lg:hidden w-full h-[210px] sm:h-[260px] relative overflow-hidden bg-gradient-to-r from-[#DDEAF8] to-[#EBF3FC] border-b border-[#E2E8F0] shrink-0">
             <img
-              src="/images/hero-books-gradcap-blended.png"
+              src="/images/hero-academic-composition.jpg"
               alt="Academic Foundation & Graduation Cap"
-              className="w-full h-full object-contain object-center select-none"
+              className="w-full h-full object-cover object-center select-none"
             />
           </div>
 
-          {/* Desktop Two-Column Hero Grid */}
-          <div className="w-full grid grid-cols-1 lg:grid-cols-12 items-center min-h-[380px] lg:min-h-[430px] px-4 sm:px-8 lg:px-12 py-6 lg:py-8 relative z-10">
-            {/* Left Column: Heading, Outlined Pill & Two Side-by-Side CTAs */}
-            <div className="w-full lg:col-span-7 space-y-4 sm:space-y-5 text-left">
-              {/* Premium Category Pill Badge */}
-              <div className="inline-flex items-center gap-2 bg-[#FFF9F3] border border-[#FF6500]/30 text-[#0B1F46] px-3.5 py-1 rounded-full text-xs font-bold shadow-2xs">
-                <Sparkles className="w-3.5 h-3.5 text-[#FF6500] shrink-0" />
-                <span className="tracking-tight text-[11.5px] sm:text-xs font-bold text-[#0B1F46]">
-                  Next-Gen Campus-to-Career Internship Ecosystem
-                </span>
-              </div>
+          {/* Desktop Right-Side Full-Bleed 3D Academic Artwork (Seamlessly Flush to Card Borders) */}
+          <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[56%] xl:w-[52%] h-full pointer-events-none select-none z-0 overflow-hidden">
+            <img
+              src="/images/hero-books-gradcap-blended.png"
+              alt="Stack of Academic Books with Graduation Cap, Diploma and Better Skills Calligraphy"
+              className="w-full h-full object-cover object-left"
+            />
+            {/* Seamless Leftward Fade Overlay - Dissolves Sky & Floor into Card White Background */}
+            <div className="absolute inset-y-0 left-0 w-32 xl:w-44 bg-gradient-to-r from-white via-white/80 to-transparent pointer-events-none" />
+          </div>
 
-              {/* Main Bold Heading with Orange Swoosh on 'Industry' */}
-              <h1 className="text-3xl sm:text-4xl lg:text-[50px] font-black text-[#0B1F46] tracking-tight leading-[1.14]">
-                Connecting Education<br />
-                with{' '}
-                <span className="relative inline-block text-[#FF6500]">
-                  Industry
-                  {/* Decorative Curved Swoosh Accent */}
-                  <svg
-                    className="absolute -top-1 sm:-top-2 -right-4 sm:-right-8 w-24 sm:w-36 h-4 sm:h-6 text-[#FF6500] pointer-events-none"
-                    viewBox="0 0 120 20"
-                    fill="none"
-                  >
-                    <path
-                      d="M4 16 C 40 4, 85 4, 116 14"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      strokeLinecap="round"
-                    />
-                  </svg>
-                </span>
-              </h1>
-
-              {/* Supporting Description */}
-              <p className="text-xs sm:text-[14px] text-[#475569] max-w-[560px] font-normal leading-relaxed">
-                The centralized, two-sided institutional collaboration platform enabling formal proposal reviews, auditable batch creation, verified attendance, and government-recognized internship certifications.
-              </p>
-
-              {/* Two Primary Side-by-Side CTA Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-                <Link
-                  to="/register?type=institution"
-                  className="h-[46px] px-5 rounded-full bg-[#0B1F46] hover:bg-[#14336F] text-white font-bold text-xs sm:text-[13.5px] shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-between sm:justify-center gap-2.5 group"
-                >
-                  <div className="flex items-center gap-2">
-                    <School className="w-4 h-4 text-[#FF6500]" />
-                    <span>Register Institution</span>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-white/80 group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-
-                <Link
-                  to="/register?type=company"
-                  className="h-[46px] px-5 rounded-full bg-[#FF6500] hover:bg-[#E65A00] text-white font-bold text-xs sm:text-[13.5px] shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-between sm:justify-center gap-2.5 group"
-                >
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-4 h-4 text-white" />
-                    <span>Register Company</span>
-                  </div>
-                  <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
-                </Link>
-              </div>
+          {/* Left Column: Heading, Outlined Pill & Two Side-by-Side CTAs */}
+          <div className="relative z-10 w-full lg:w-[50%] xl:w-[52%] px-5 sm:px-8 lg:px-12 py-7 sm:py-9 lg:py-10 space-y-4 sm:space-y-5 text-left">
+            {/* Premium Category Pill Badge */}
+            <div className="inline-flex items-center gap-2 bg-[#FFF9F3] border border-[#FF6500]/30 text-[#0B1F46] px-3.5 py-1 rounded-full text-xs font-bold shadow-2xs">
+              <Sparkles className="w-3.5 h-3.5 text-[#FF6500] shrink-0" />
+              <span className="tracking-tight text-[11.5px] sm:text-xs font-bold text-[#0B1F46]">
+                Next-Gen Campus-to-Career Internship Ecosystem
+              </span>
             </div>
 
-            {/* Right Column: Realistic Academic Composition (Books + Mortarboard + Diploma & Pencils) */}
-            <div className="hidden lg:flex lg:col-span-5 relative items-center justify-end h-full min-h-[380px]">
-              <img
-                src="/images/hero-books-gradcap-blended.png"
-                alt="Stack of Academic Books with Graduation Cap, Diploma and Better Skills Calligraphy"
-                className="relative z-10 w-full max-w-[580px] h-auto max-h-[380px] object-contain object-right select-none drop-shadow-sm"
-              />
+            {/* Main Bold Heading with Orange Swoosh on 'Industry' */}
+            <h1 className="text-3xl sm:text-4xl lg:text-[48px] xl:text-[52px] font-black text-[#0B1F46] tracking-tight leading-[1.12]">
+              Connecting Education<br />
+              with{' '}
+              <span className="relative inline-block text-[#FF6500]">
+                Industry
+                {/* Decorative Curved Swoosh Accent */}
+                <svg
+                  className="absolute -top-1 sm:-top-2 -right-4 sm:-right-8 w-24 sm:w-36 h-4 sm:h-6 text-[#FF6500] pointer-events-none"
+                  viewBox="0 0 120 20"
+                  fill="none"
+                >
+                  <path
+                    d="M4 16 C 40 4, 85 4, 116 14"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                  />
+                </svg>
+              </span>
+            </h1>
+
+            {/* Supporting Description */}
+            <p className="text-xs sm:text-[14px] text-[#475569] max-w-[540px] font-normal leading-relaxed">
+              The centralized, two-sided institutional collaboration platform enabling formal proposal reviews, auditable batch creation, verified attendance, and government-recognized internship certifications.
+            </p>
+
+            {/* Two Primary Side-by-Side CTA Buttons */}
+            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <Link
+                to="/register?type=institution"
+                className="h-[46px] px-5 rounded-full bg-[#0B1F46] hover:bg-[#14336F] text-white font-bold text-xs sm:text-[13.5px] shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-between sm:justify-center gap-2.5 group whitespace-nowrap"
+              >
+                <div className="flex items-center gap-2">
+                  <School className="w-4 h-4 text-[#FF6500]" />
+                  <span>Register Institution</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+              </Link>
+
+              <Link
+                to="/register?type=company"
+                className="h-[46px] px-5 rounded-full bg-[#FF6500] hover:bg-[#E65A00] text-white font-bold text-xs sm:text-[13.5px] shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-between sm:justify-center gap-2.5 group whitespace-nowrap"
+              >
+                <div className="flex items-center gap-2">
+                  <Building2 className="w-4 h-4 text-white" />
+                  <span>Register Company</span>
+                </div>
+                <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
+              </Link>
             </div>
           </div>
         </section>
