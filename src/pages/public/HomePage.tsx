@@ -25,7 +25,9 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  Handshake
+  Handshake,
+  ShieldCheck,
+  Briefcase
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
@@ -221,6 +223,98 @@ export const HomePage: React.FC = () => {
           </div>
         </section>
       </div>
+
+      {/* ======================================================================== */}
+      {/* 2. WHY CHOOSE US — A SMARTER WAY TO BUILD FUTURE-READY TALENT             */}
+      {/* ======================================================================== */}
+      <section className="w-full max-w-[1480px] mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-14 pb-4">
+        {/* Decorative Section Header */}
+        <div className="text-center max-w-2xl mx-auto space-y-3 relative">
+          <div className="flex items-center justify-center gap-3 text-xs sm:text-[13px] font-black uppercase tracking-widest text-[#FF6500]">
+            <span className="w-8 sm:w-12 h-[1.5px] bg-[#FF6500]/40" />
+            <span>WHY CHOOSE US</span>
+            <span className="w-8 sm:w-12 h-[1.5px] bg-[#FF6500]/40" />
+          </div>
+
+          <h2 className="text-2xl sm:text-3xl lg:text-[38px] font-black text-[#0B1F46] tracking-tight leading-[1.2]">
+            A Smarter Way to Build<br className="hidden sm:inline" /> Future-Ready Talent
+          </h2>
+
+          <p className="text-xs sm:text-sm text-[#475569] leading-relaxed max-w-xl mx-auto font-normal">
+            We bring together institutions and companies on a single platform to create meaningful internship opportunities and bridge the gap between education and industry.
+          </p>
+        </div>
+
+        {/* 4 Feature Cards Grid with Decorative Dot Matrices */}
+        <div className="relative mt-8 sm:mt-10">
+          {/* Left Decorative Dot Matrix */}
+          <div className="hidden lg:block absolute -left-4 top-1/2 -translate-y-1/2 pointer-events-none select-none opacity-40">
+            <svg width="48" height="64" fill="none">
+              <pattern id="dot-grid-left" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r="1.5" fill="#38BDF8" />
+              </pattern>
+              <rect width="100%" height="100%" fill="url(#dot-grid-left)" />
+            </svg>
+          </div>
+
+          {/* Right Decorative Dot Matrix */}
+          <div className="hidden lg:block absolute -right-4 top-1/2 -translate-y-1/2 pointer-events-none select-none opacity-40">
+            <svg width="48" height="64" fill="none">
+              <pattern id="dot-grid-right" x="0" y="0" width="12" height="12" patternUnits="userSpaceOnUse">
+                <circle cx="2" cy="2" r="1.5" fill="#FF8533" />
+              </pattern>
+              <rect width="100%" height="100%" fill="url(#dot-grid-right)" />
+            </svg>
+          </div>
+
+          {/* 4 Cards Grid matching exact reference mockup */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
+            {/* Card 1: Verified & Secure */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#E2E8F0] p-6 sm:p-7 shadow-[0_4px_20px_rgba(11,31,70,0.04)] hover:shadow-md transition-all flex flex-col items-center text-center group">
+              <div className="w-14 h-14 rounded-full bg-[#FFF4EC] border border-[#FED7AA] flex items-center justify-center text-[#FF6500] mb-4 group-hover:scale-105 transition-transform shadow-2xs">
+                <ShieldCheck className="w-7 h-7" />
+              </div>
+              <h3 className="text-base font-bold text-[#0B1F46] tracking-tight">Verified & Secure</h3>
+              <p className="text-xs text-[#64748B] mt-2 leading-relaxed">
+                Government-recognized certifications ensure trust and authenticity.
+              </p>
+            </div>
+
+            {/* Card 2: For Students */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#E2E8F0] p-6 sm:p-7 shadow-[0_4px_20px_rgba(11,31,70,0.04)] hover:shadow-md transition-all flex flex-col items-center text-center group">
+              <div className="w-14 h-14 rounded-full bg-[#EFF6FF] border border-[#BFDBFE] flex items-center justify-center text-[#2563EB] mb-4 group-hover:scale-105 transition-transform shadow-2xs">
+                <GraduationCap className="w-7 h-7" />
+              </div>
+              <h3 className="text-base font-bold text-[#0B1F46] tracking-tight">For Students</h3>
+              <p className="text-xs text-[#64748B] mt-2 leading-relaxed">
+                Gain real-world experience and build your career.
+              </p>
+            </div>
+
+            {/* Card 3: For Institutions */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#E2E8F0] p-6 sm:p-7 shadow-[0_4px_20px_rgba(11,31,70,0.04)] hover:shadow-md transition-all flex flex-col items-center text-center group">
+              <div className="w-14 h-14 rounded-full bg-[#ECFDF5] border border-[#A7F3D0] flex items-center justify-center text-[#10B981] mb-4 group-hover:scale-105 transition-transform shadow-2xs">
+                <School className="w-7 h-7" />
+              </div>
+              <h3 className="text-base font-bold text-[#0B1F46] tracking-tight">For Institutions</h3>
+              <p className="text-xs text-[#64748B] mt-2 leading-relaxed">
+                Streamlined internship management and better outcomes.
+              </p>
+            </div>
+
+            {/* Card 4: For Companies */}
+            <div className="bg-white rounded-2xl sm:rounded-3xl border border-[#E2E8F0] p-6 sm:p-7 shadow-[0_4px_20px_rgba(11,31,70,0.04)] hover:shadow-md transition-all flex flex-col items-center text-center group">
+              <div className="w-14 h-14 rounded-full bg-[#FAF5FF] border border-[#E9D5FF] flex items-center justify-center text-[#9333EA] mb-4 group-hover:scale-105 transition-transform shadow-2xs">
+                <Briefcase className="w-7 h-7" />
+              </div>
+              <h3 className="text-base font-bold text-[#0B1F46] tracking-tight">For Companies</h3>
+              <p className="text-xs text-[#64748B] mt-2 leading-relaxed">
+                Access skilled and verified talent for your growth.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       {/* Website Full Ecosystem Directories & Pillars (Hidden in Native Mobile APK View) */}
       {!isApk && (

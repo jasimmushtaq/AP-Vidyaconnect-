@@ -1,6 +1,6 @@
 {
   "appId": "com.pixelwind.technologies",
-  "appName": "PixelWind Technologies",
+  "appName": "AP VidyaConnect",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"

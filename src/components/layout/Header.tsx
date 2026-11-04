@@ -108,22 +108,25 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
       document.documentElement.classList.contains('plt-capacitor') ||
       window.location.search.includes('platform=apk'));
 
-  // Dedicated Streamlined Header for Native Android App
-  // Header contains ONLY: PixelWind Technologies Logo, About, Login, Register
+  // Dedicated Streamlined Header for Native Android App matching exact reference UI
   if (isApk) {
     return (
-      <header className="sticky top-0 z-40 w-full pt-2 pb-1.5 px-3 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0] shadow-2xs">
-        <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-2">
-          {/* AP VidyaConnect Official Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <BrandLogo className="h-7 sm:h-8 w-auto object-contain" />
+      <header className="sticky top-0 z-40 w-full pt-3 pb-2.5 px-4 sm:px-6 bg-white/95 backdrop-blur-md border-b border-[#E2E8F0]/70 shadow-2xs">
+        <div className="w-full max-w-7xl mx-auto flex items-center justify-between gap-3">
+          {/* AP VidyaConnect Colorful Brand Mark */}
+          <Link to="/" className="flex items-center gap-2 group">
+            <img
+              src="/brand/ap-vidyaconnect-mark.png"
+              alt="AP VidyaConnect"
+              className="h-10 sm:h-11 w-auto object-contain select-none transition-transform group-hover:scale-105"
+            />
           </Link>
 
-          {/* Navigation Items ONLY: About, Login, Register (or Dashboard, Sign Out if logged in) */}
-          <nav className="flex items-center gap-1.5 sm:gap-3">
+          {/* Navigation Items: About, Login, Register */}
+          <nav className="flex items-center gap-3 sm:gap-5">
             <Link
               to="/about"
-              className="text-xs sm:text-sm font-bold text-[#0B1F46] hover:text-[#FF6500] px-2.5 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+              className="text-xs sm:text-sm font-semibold text-[#0B1F46] hover:text-[#FF6500] px-2 py-1 transition-colors"
             >
               About
             </Link>
@@ -132,13 +135,13 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
               <>
                 <Link
                   to="/dashboard"
-                  className="text-xs sm:text-sm font-bold text-[#0B1F46] hover:text-[#FF6500] px-2.5 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                  className="text-xs sm:text-sm font-semibold text-[#0B1F46] hover:text-[#FF6500] px-2 py-1 transition-colors"
                 >
                   Dashboard
                 </Link>
                 <button
                   onClick={handleLogout}
-                  className="px-3 py-1.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs sm:text-sm font-bold transition-all"
+                  className="px-3.5 py-1.5 rounded-full bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs sm:text-sm font-bold transition-all"
                 >
                   Sign Out
                 </button>
@@ -147,15 +150,16 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
               <>
                 <Link
                   to="/login"
-                  className="text-xs sm:text-sm font-bold text-[#0B1F46] hover:text-[#FF6500] px-2.5 py-1.5 rounded-full hover:bg-slate-50 transition-colors"
+                  className="text-xs sm:text-sm font-semibold text-[#0B1F46] hover:text-[#FF6500] px-2 py-1 transition-colors"
                 >
                   Login
                 </Link>
                 <Link
                   to="/register"
-                  className="px-3.5 sm:px-4 py-1.5 rounded-full bg-[#FF6500] hover:bg-[#E65A00] text-white text-xs sm:text-sm font-extrabold shadow-sm transition-all active:scale-95 whitespace-nowrap"
+                  className="inline-flex items-center gap-1.5 px-4 sm:px-5 py-2 rounded-full bg-gradient-to-r from-[#FF6500] to-[#F07421] hover:from-[#E65A00] hover:to-[#D96315] text-white text-xs sm:text-sm font-bold shadow-sm hover:shadow transition-all active:scale-95 whitespace-nowrap"
                 >
-                  Register
+                  <User className="w-3.5 h-3.5" />
+                  <span>Register</span>
                 </Link>
               </>
             )}

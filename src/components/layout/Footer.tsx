@@ -53,16 +53,35 @@ export const Footer: React.FC = () => {
     }
   }, []);
 
-  // When running inside the Android APK, render a clean native mobile footer
+  // When running inside the Android APK, render the exact reference footer
   if (isApk) {
     return (
-      <footer className="w-full py-4 px-4 bg-[#0B1F46] text-white border-t border-blue-900/40 select-none">
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-1.5 text-xs text-blue-100">
-          <span>Powered by</span>
-          <span className="font-bold text-white flex items-center gap-1.5">
-            <span className="text-[#FF6500]">✦</span>
+      <footer className="w-full relative overflow-hidden bg-[#0B1F46] text-white pt-8 pb-10 select-none">
+        {/* Subtle Wave Accents at bottom matching reference design */}
+        <div className="absolute inset-x-0 bottom-0 pointer-events-none select-none z-0">
+          <svg viewBox="0 0 1200 120" preserveAspectRatio="none" className="w-full h-14 sm:h-20 opacity-90" fill="none">
+            {/* Deep blue accent curve */}
+            <path
+              d="M0,40 C300,100 800,0 1200,60 L1200,120 L0,120 Z"
+              fill="#061633"
+            />
+            {/* Vibrant Orange curved swoosh */}
+            <path
+              d="M0,80 C350,130 750,40 1200,85 L1200,120 L0,120 Z"
+              fill="#FF6500"
+            />
+          </svg>
+        </div>
+
+        <div className="relative z-10 max-w-md mx-auto flex flex-col items-center justify-center text-center space-y-1.5 px-4">
+          <p className="text-[11px] sm:text-xs text-slate-300 font-medium">Powered by</p>
+          <div className="flex items-center justify-center gap-1.5 text-sm sm:text-base font-bold text-white tracking-wide">
+            <span className="text-[#FF6500] text-sm">✦</span>
             <span>PixelWind Technologies</span>
-          </span>
+          </div>
+          <p className="text-[10px] sm:text-[11px] text-[#93C5FD]/80 tracking-wider font-medium">
+            Innovate &bull; Connect &bull; Empower
+          </p>
         </div>
       </footer>
     );
