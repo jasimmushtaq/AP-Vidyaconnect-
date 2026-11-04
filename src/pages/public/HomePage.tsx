@@ -93,15 +93,11 @@ export const HomePage: React.FC = () => {
           <div className="w-full grid grid-cols-1 lg:grid-cols-12 items-center min-h-[380px] lg:min-h-[430px] px-4 sm:px-8 lg:px-12 py-6 lg:py-8 relative z-10">
             {/* Left Column: Heading, Outlined Pill & Two Side-by-Side CTAs */}
             <div className="w-full lg:col-span-7 space-y-4 sm:space-y-5 text-left">
-              {/* State Council Pill Badge with AP Govt Emblem */}
-              <div className="inline-flex items-center gap-2 bg-white border border-[#E2E8F0] text-[#10264A] px-3 py-1 rounded-full text-xs font-semibold shadow-2xs">
-                <img
-                  src="/brand/ap-govt-emblem.svg"
-                  alt="Govt of Andhra Pradesh Emblem"
-                  className="w-4 h-4 object-contain shrink-0"
-                />
-                <span className="tracking-tight text-[11px] sm:text-xs font-semibold text-[#10264A]">
-                  Andhra Pradesh State Council of Higher Education (APSCHE) • Govt of AP
+              {/* Premium Category Pill Badge */}
+              <div className="inline-flex items-center gap-2 bg-[#FFF9F3] border border-[#FF6500]/30 text-[#0B1F46] px-3.5 py-1 rounded-full text-xs font-bold shadow-2xs">
+                <Sparkles className="w-3.5 h-3.5 text-[#FF6500] shrink-0" />
+                <span className="tracking-tight text-[11.5px] sm:text-xs font-bold text-[#0B1F46]">
+                  Next-Gen Campus-to-Career Internship Ecosystem
                 </span>
               </div>
 
