@@ -81,9 +81,9 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
   ].some(path => location.pathname === path);
 
   return (
-    <header className="bg-white border-b border-[#E3E6EB] sticky top-0 z-30 shadow-2xs">
-      <div className="w-full max-w-[1540px] mx-auto px-2.5 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-[64px] sm:h-[76px] gap-1.5 sm:gap-2">
+    <header className="sticky top-0 z-40 w-full pt-2 sm:pt-2.5 pb-1 px-2.5 sm:px-6 lg:px-8 bg-transparent">
+      <div className="w-full max-w-[1480px] mx-auto bg-white/95 backdrop-blur-md rounded-2xl lg:rounded-full border border-[#E2E8F0] shadow-[0_4px_24px_rgba(11,31,70,0.06)] px-3 sm:px-6 py-1.5 sm:py-2">
+        <div className="flex items-center justify-between gap-2 sm:gap-4">
           {/* Left: Brand Logo Lockup & Pixel Wind Technology Logo */}
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button
@@ -97,16 +97,16 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
               <Menu className="w-5 h-5" />
             </button>
 
-            <Link to="/" className="flex items-center gap-1.5 sm:gap-3 group">
-              <BrandLogo className="h-7 sm:h-9.5 w-auto" />
+            <Link to="/" className="flex items-center gap-2 sm:gap-3 group">
+              <BrandLogo className="h-7 sm:h-9 w-auto" />
 
-              <div className="h-5 sm:h-7 w-[1px] bg-[#D1D5DB] shrink-0" />
+              <div className="h-5 sm:h-6 w-[1px] bg-[#D1D5DB] shrink-0" />
 
               <div className="flex items-center shrink-0">
                 <img
                   src="/brand/pixelwind-logo.png"
                   alt="Pixel Wind Technology"
-                  className="h-5 sm:h-8 w-auto object-contain transition-transform duration-300 group-hover:scale-105 select-none shrink-0"
+                  className="h-5 sm:h-7 w-auto object-contain transition-transform duration-300 group-hover:scale-105 select-none shrink-0"
                   title="Pixel Wind Technology"
                 />
               </div>
@@ -114,7 +114,7 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
           </div>
 
           {/* Center: Navigation Bar */}
-          <nav className="hidden xl:flex items-center space-x-1.5 lg:space-x-2.5">
+          <nav className="hidden xl:flex items-center space-x-1 lg:space-x-2">
             {/* 1. Explore Dropdown Menu */}
             <div className="relative" ref={exploreRef}>
               <button
@@ -123,24 +123,24 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
                   setShowExploreMenu(!showExploreMenu);
                   setShowProfileMenu(false);
                 }}
-                className={`relative px-3.5 py-6 text-[14.5px] font-bold tracking-tight transition-colors flex items-center gap-1.5 ${
-                  isExploreActive || showExploreMenu ? 'text-[#0B2A5B]' : 'text-gray-600 hover:text-[#0B2A5B]'
+                className={`relative px-3 py-2 text-[14px] font-bold tracking-tight transition-colors flex items-center gap-1.5 rounded-full hover:bg-slate-50 ${
+                  isExploreActive || showExploreMenu ? 'text-[#0B1F46]' : 'text-[#10264A] hover:text-[#1456C0]'
                 }`}
               >
-                <Compass className="w-4.5 h-4.5 text-[#F07421]" />
+                <Compass className="w-4 h-4 text-[#FF6500]" />
                 <span>Explore</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showExploreMenu ? 'rotate-180 text-[#0B2A5B]' : 'text-gray-400'}`} />
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showExploreMenu ? 'rotate-180 text-[#0B1F46]' : 'text-gray-400'}`} />
                 {isExploreActive && (
-                  <span className="absolute bottom-0 left-3.5 right-3.5 h-[3px] bg-[#16844A] rounded-full" />
+                  <span className="absolute bottom-0 left-3.5 right-3.5 h-[2.5px] bg-[#FF6500] rounded-full" />
                 )}
               </button>
 
               {/* Explore Mega Dropdown */}
               {showExploreMenu && (
-                <div className="absolute left-0 mt-0 w-[420px] bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute left-0 mt-2 w-[420px] bg-white rounded-2xl shadow-2xl border border-gray-200 p-3 z-50 animate-in fade-in slide-in-from-top-2">
                   <div className="px-3 py-2 border-b border-gray-100 flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#0E2350] flex items-center gap-1.5">
-                      <Sparkles className="w-3.5 h-3.5 text-[#F07421]" />
+                      <Sparkles className="w-3.5 h-3.5 text-[#FF6500]" />
                       Explore AP VidyaConnect
                     </span>
                     <span className="text-[10px] font-semibold text-gray-400">Higher Education Gateway</span>
@@ -164,9 +164,9 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
                       onClick={() => setShowExploreMenu(false)}
                       className="p-2.5 rounded-xl hover:bg-[#FFF3EA] transition-colors flex items-start gap-2.5 text-left group"
                     >
-                      <Layers className="w-4 h-4 text-[#F07421] shrink-0 mt-0.5" />
+                      <Layers className="w-4 h-4 text-[#FF6500] shrink-0 mt-0.5" />
                       <div>
-                        <p className="text-xs font-bold text-[#0E2350] group-hover:text-[#F07421]">How It Works</p>
+                        <p className="text-xs font-bold text-[#0E2350] group-hover:text-[#FF6500]">How It Works</p>
                         <p className="text-[10px] text-gray-500 leading-tight">5-Step Lifecycle Guide</p>
                       </div>
                     </Link>
@@ -250,7 +250,7 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
                       onClick={() => setShowExploreMenu(false)}
                       className="p-2 bg-gray-50 hover:bg-[#EEF2FA] rounded-lg text-center font-bold text-[#0E2350] transition-colors flex items-center justify-center gap-1"
                     >
-                      <Phone className="w-3.5 h-3.5 text-[#F07421]" />
+                      <Phone className="w-3.5 h-3.5 text-[#FF6500]" />
                       <span>Contact Nodal Desk</span>
                     </Link>
                     <Link
@@ -266,64 +266,64 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
               )}
             </div>
 
-            {/* 2. Opportunities (with Hot Badge) */}
+            {/* 2. Opportunities (with OPEN Badge) */}
             <Link
               to="/opportunities"
-              className={`relative px-3.5 py-6 text-[14.5px] font-bold tracking-tight transition-colors flex items-center gap-1.5 ${
-                location.pathname.startsWith('/opportunities') ? 'text-[#0B2A5B]' : 'text-gray-600 hover:text-[#0B2A5B]'
+              className={`relative px-3 py-2 text-[14px] font-bold tracking-tight transition-colors flex items-center gap-1.5 rounded-full hover:bg-slate-50 ${
+                location.pathname.startsWith('/opportunities') ? 'text-[#0B1F46]' : 'text-[#10264A] hover:text-[#1456C0]'
               }`}
             >
               <span>Opportunities</span>
-              <span className="px-1.5 py-0.5 bg-[#FF7A00] text-white rounded text-[10px] font-black uppercase shadow-2xs leading-none">
-                Open
+              <span className="px-1.5 py-0.5 bg-[#FF6500] text-white rounded text-[9.5px] font-black uppercase shadow-2xs leading-none">
+                OPEN
               </span>
               {location.pathname.startsWith('/opportunities') && (
-                <span className="absolute bottom-0 left-3.5 right-3.5 h-[3px] bg-[#16844A] rounded-full" />
+                <span className="absolute bottom-0 left-3.5 right-3.5 h-[2.5px] bg-[#FF6500] rounded-full" />
               )}
             </Link>
 
             {/* 3. Industry Partners */}
             <Link
               to="/partners"
-              className={`relative px-3.5 py-6 text-[14.5px] font-bold tracking-tight transition-colors ${
-                location.pathname.startsWith('/partners') ? 'text-[#0B2A5B]' : 'text-gray-600 hover:text-[#0B2A5B]'
+              className={`relative px-3 py-2 text-[14px] font-bold tracking-tight transition-colors rounded-full hover:bg-slate-50 ${
+                location.pathname.startsWith('/partners') ? 'text-[#0B1F46]' : 'text-[#10264A] hover:text-[#1456C0]'
               }`}
             >
               <span>Industry Partners</span>
               {location.pathname.startsWith('/partners') && (
-                <span className="absolute bottom-0 left-3.5 right-3.5 h-[3px] bg-[#16844A] rounded-full" />
+                <span className="absolute bottom-0 left-3.5 right-3.5 h-[2.5px] bg-[#FF6500] rounded-full" />
               )}
             </Link>
 
             {/* 4. Institutional Network */}
             <Link
               to="/institutions"
-              className={`relative px-3.5 py-6 text-[14.5px] font-bold tracking-tight transition-colors ${
-                location.pathname.startsWith('/institutions') ? 'text-[#0B2A5B]' : 'text-gray-600 hover:text-[#0B2A5B]'
+              className={`relative px-3 py-2 text-[14px] font-bold tracking-tight transition-colors rounded-full hover:bg-slate-50 ${
+                location.pathname.startsWith('/institutions') ? 'text-[#0B1F46]' : 'text-[#10264A] hover:text-[#1456C0]'
               }`}
             >
               <span>Institutional Network</span>
               {location.pathname.startsWith('/institutions') && (
-                <span className="absolute bottom-0 left-3.5 right-3.5 h-[3px] bg-[#16844A] rounded-full" />
+                <span className="absolute bottom-0 left-3.5 right-3.5 h-[2.5px] bg-[#FF6500] rounded-full" />
               )}
             </Link>
 
             {/* 5. Contact Us */}
             <Link
               to="/contact"
-              className={`relative px-3.5 py-6 text-[14.5px] font-bold tracking-tight transition-colors ${
-                location.pathname.startsWith('/contact') ? 'text-[#0B2A5B]' : 'text-gray-600 hover:text-[#0B2A5B]'
+              className={`relative px-3 py-2 text-[14px] font-bold tracking-tight transition-colors rounded-full hover:bg-slate-50 ${
+                location.pathname.startsWith('/contact') ? 'text-[#0B1F46]' : 'text-[#10264A] hover:text-[#1456C0]'
               }`}
             >
               <span>Contact Us</span>
               {location.pathname.startsWith('/contact') && (
-                <span className="absolute bottom-0 left-3.5 right-3.5 h-[3px] bg-[#16844A] rounded-full" />
+                <span className="absolute bottom-0 left-3.5 right-3.5 h-[2.5px] bg-[#FF6500] rounded-full" />
               )}
             </Link>
           </nav>
 
           {/* Right: Notifications / Profile or Sign In / Register */}
-          <div className="flex items-center gap-3.5 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Realtime Notification Center Dropdown — Authenticated Sessions Only */}
             {isAuthenticated && currentUser && (
               <>
@@ -340,15 +340,15 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
                     setShowProfileMenu(!showProfileMenu);
                     setShowExploreMenu(false);
                   }}
-                  className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-left"
+                  className="flex items-center gap-2 p-1.5 rounded-full hover:bg-gray-100 transition-colors text-left"
                 >
                   <img
                     src={currentUser.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100'}
                     alt={currentUser.full_name}
-                    className="w-9 h-9 rounded-full object-cover border border-gray-300 shadow-2xs"
+                    className="w-8 sm:w-9 h-8 sm:h-9 rounded-full object-cover border border-gray-300 shadow-2xs"
                   />
                   <div className="hidden sm:flex flex-col text-left leading-tight">
-                    <p className="text-xs font-bold text-[#0B2A5B] leading-none">
+                    <p className="text-xs font-bold text-[#0B1F46] leading-none">
                       {currentUser.full_name.includes('Dr.') ? 'Dr.' : currentUser.full_name.split(' ')[0]}
                     </p>
                     <p className="text-[10px] text-gray-500 font-medium capitalize mt-0.5">
@@ -422,18 +422,19 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
                 )}
               </div>
             ) : (
-              <div className="flex items-center gap-2 sm:gap-3.5">
+              <div className="flex items-center gap-1.5 sm:gap-2.5">
                 <Link
                   to="/login"
-                  className="text-xs sm:text-[14.5px] font-bold text-gray-700 hover:text-[#0E2350] transition-colors py-1 px-1 sm:py-1.5"
+                  className="text-xs sm:text-[14px] font-bold text-[#10264A] hover:text-[#1456C0] transition-colors py-1.5 px-2.5 sm:px-3 rounded-full hover:bg-slate-50"
                 >
                   Sign In
                 </Link>
                 <Link
                   to="/register"
-                  className="px-3 sm:px-6 py-1.5 sm:py-2.5 rounded-lg sm:rounded-xl bg-[#0E2350] hover:bg-[#14336F] text-white text-xs sm:text-[14.5px] font-extrabold shadow-sm hover:shadow-md transition-all active:scale-95 tracking-wide whitespace-nowrap"
+                  className="px-4 sm:px-5.5 py-1.5 sm:py-2 rounded-full bg-gradient-to-r from-[#FF6500] to-[#E9272E] hover:from-[#E65A00] hover:to-[#D41E25] text-white text-xs sm:text-[13.5px] font-extrabold shadow-sm hover:shadow-md transition-all active:scale-95 tracking-tight flex items-center gap-1.5 whitespace-nowrap"
                 >
-                  Register
+                  <span>Register</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
             )}

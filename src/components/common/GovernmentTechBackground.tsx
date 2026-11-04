@@ -39,14 +39,12 @@ export const GovernmentTechBackground: React.FC = () => {
       color: string;
     }> = [];
 
-    // "OLD HAT" Color Palette RGBs
+    // Clean Navy & AP Theme Color Palette RGBs
     const colors = [
-      '228, 175, 203', // #E4AFCB (Pastel Rose)
-      '226, 197, 139', // #E2C58B (Warm Gold)
-      '126, 219, 220', // #7EDBDC (Turquoise)
-      '184, 203, 184', // #B8CBB8 (Sage Green)
-      '194, 206, 156', // #C2CE9C (Olive Lime)
-      '14, 35, 80',    // Navy accent
+      '20, 86, 192',   // #1456C0 (Secondary Blue)
+      '22, 139, 250',  // #168BFA (Bright Blue)
+      '255, 101, 0',   // #FF6500 (CTA Orange)
+      '11, 31, 70',    // #0B1F46 (Primary Navy)
     ];
 
     for (let i = 0; i < nodeCount; i++) {
@@ -132,33 +130,51 @@ export const GovernmentTechBackground: React.FC = () => {
       aria-hidden="true"
       className="fixed inset-0 pointer-events-none -z-10 overflow-hidden select-none"
     >
-      {/* 1. Base Layer: OLD HAT Rich Ambient Multi-Stop Mesh Gradient */}
+      {/* 1. Base Layer: Clean #F4F7FC with Subtle Soft Blue Ambient Gradients */}
       <div
         className="absolute inset-0"
         style={{
-          backgroundColor: '#B8CBB8',
+          backgroundColor: '#F4F7FC',
           backgroundImage: `
-            radial-gradient(circle at 10% 8%, rgba(228, 175, 203, 0.85) 0%, transparent 48%),
-            radial-gradient(circle at 92% 8%, rgba(126, 219, 220, 0.85) 0%, transparent 48%),
-            radial-gradient(circle at 50% 32%, rgba(226, 197, 139, 0.75) 0%, transparent 52%),
-            radial-gradient(circle at 88% 62%, rgba(194, 206, 156, 0.8) 0%, transparent 50%),
-            radial-gradient(circle at 8% 88%, rgba(228, 175, 203, 0.7) 0%, transparent 48%),
-            radial-gradient(circle at 75% 92%, rgba(226, 197, 139, 0.75) 0%, transparent 50%),
-            radial-gradient(circle at 35% 75%, rgba(184, 203, 184, 0.85) 0%, transparent 55%)
+            radial-gradient(circle at 10% 8%, rgba(22, 139, 250, 0.05) 0%, transparent 48%),
+            radial-gradient(circle at 92% 8%, rgba(20, 86, 192, 0.04) 0%, transparent 48%),
+            radial-gradient(circle at 50% 32%, rgba(255, 101, 0, 0.02) 0%, transparent 52%),
+            radial-gradient(circle at 88% 62%, rgba(22, 139, 250, 0.03) 0%, transparent 50%),
+            radial-gradient(circle at 8% 88%, rgba(11, 31, 70, 0.03) 0%, transparent 48%)
           `,
           backgroundBlendMode: 'normal'
         }}
       />
 
-      {/* 2. Soft Luminous White Veil (Clean & Zero GPU lag) */}
-      <div className="absolute inset-0 bg-white/55" />
+      {/* Decorative Top-Left Branded Curved Swoosh from Mockup */}
+      <svg className="absolute top-0 left-0 w-44 sm:w-72 h-24 sm:h-36 pointer-events-none z-0" viewBox="0 0 280 150" fill="none">
+        <path d="M0 0 L220 0 C170 35 110 80 0 130 Z" fill="url(#bg-tl-grad)" opacity="0.9" />
+        <path d="M0 0 L150 0 C110 25 70 60 0 95 Z" fill="#FF6500" opacity="0.4" />
+        <defs>
+          <linearGradient id="bg-tl-grad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stopColor="#FF6500" />
+            <stop offset="100%" stopColor="#E9272E" />
+          </linearGradient>
+        </defs>
+      </svg>
 
-      {/* 3. Subtle Dot Matrix Tech Pattern */}
+      {/* Decorative Top-Right Branded Curved Accent */}
+      <svg className="absolute top-0 right-0 w-32 sm:w-56 h-20 sm:h-32 pointer-events-none z-0" viewBox="0 0 220 130" fill="none">
+        <path d="M220 0 L70 0 C110 30 160 65 220 90 Z" fill="url(#bg-tr-grad)" opacity="0.85" />
+        <defs>
+          <linearGradient id="bg-tr-grad" x1="1" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#E9272E" />
+            <stop offset="100%" stopColor="#FF6500" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      {/* 2. Subtle Dot Matrix Tech Pattern */}
       <div
-        className="absolute inset-0 opacity-[0.2]"
+        className="absolute inset-0 opacity-[0.18]"
         style={{
-          backgroundImage: `radial-gradient(rgba(14, 35, 80, 0.12) 1px, transparent 1px)`,
-          backgroundSize: '32px 32px'
+          backgroundImage: `radial-gradient(rgba(11, 31, 70, 0.12) 1px, transparent 1px)`,
+          backgroundSize: '28px 28px'
         }}
       />
 

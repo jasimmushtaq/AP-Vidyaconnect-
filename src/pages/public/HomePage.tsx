@@ -1,10 +1,11 @@
 // ============================================================================
-// AP VIDYACONNECT — HOME LANDING PAGE
+// AP VIDYACONNECT — HOME LANDING PAGE (PREMIUM REDESIGN)
+// Fully Aligned with Mockup: No Human Photos, Floating Architecture,
+// Modern Typography, Clean Statistics Bar & APSCHE Initiative Showcase
 // ============================================================================
 
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { BrandLogo } from '../../components/common/BrandLogo';
 import { db } from '../../services/dbStore';
 import { useAuth } from '../../context/AuthContext';
 import { PartnerCard } from '../../components/common/PartnerCard';
@@ -14,19 +15,13 @@ import {
   Building2,
   School,
   GraduationCap,
-  ShieldCheck,
   ArrowRight,
   CheckCircle2,
-  FileCheck2,
   Users,
-  Award,
-  Clock,
-  Sparkles,
-  TrendingUp,
-  FileText,
   MapPin,
-  Settings,
-  Plus
+  TrendingUp,
+  Sparkles,
+  Settings
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
@@ -57,116 +52,94 @@ export const HomePage: React.FC = () => {
   const activeBatchesCount = batches.length;
 
   return (
-    <div className="w-full pb-10">
-      {/* 1. HERO SECTION (Curved Cornered Banner Card with minimal side gap) */}
-      <div className="w-full px-2 sm:px-4 pt-2 sm:pt-3">
-        {/* Mobile-Only Dedicated Visual Banner: Graduate overlooking City Campus with Calligraphy */}
-        <div className="sm:hidden mb-2 rounded-2xl overflow-hidden relative shadow-sm border border-slate-200/80 h-[195px] w-full bg-[#0B2A5B]">
-          <img
-            src="/images/hero-graduate-sunset.jpg"
-            alt="Graduate in Cap and Gown overlooking Campus"
-            className="w-full h-full object-cover object-[62%_25%] select-none"
-          />
-          {/* Subtle Directional Gradient for contrast */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/20 pointer-events-none" />
-
-          {/* Better Skills Brighter Future Calligraphy on Mobile */}
-          <div className="absolute top-3 right-3 text-right select-none z-10 pointer-events-none">
-            <span
-              className="block text-[22px] font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-none tracking-tight -rotate-6"
-              style={{ fontFamily: "'Caveat', cursive" }}
-            >
-              Better Skills
-            </span>
-            <span
-              className="block text-[22px] font-bold text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-none tracking-tight -rotate-6 mt-1"
-              style={{ fontFamily: "'Caveat', cursive" }}
-            >
-              Brighter Future
-            </span>
-            {/* Curved Swoosh under calligraphy */}
-            <svg className="w-24 h-2.5 text-white ml-auto mt-0.5 -rotate-6 drop-shadow" viewBox="0 0 140 12" fill="none">
-              <path d="M2 3C40 10 95 11 138 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </div>
-        </div>
-
-        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80 min-h-[320px] sm:min-h-[345px] lg:h-[360px] py-5 sm:py-4 flex items-center bg-[#EAF5F7]">
+    <div className="w-full pb-16">
+      {/* ======================================================================== */}
+      {/* 1. HERO SECTION (Art-Directed Academic Composition — Zero Human Photos) */}
+      {/* ======================================================================== */}
+      <div className="w-full px-2.5 sm:px-6 lg:px-8 pt-2 sm:pt-3">
+        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#E2E8F0] bg-white shadow-[0_8px_30px_rgba(11,31,70,0.05)]">
           
-          {/* Full-width Panoramic Campus & Graduate Background Image (Desktop) */}
-          <div className="absolute inset-0 w-full h-full pointer-events-none z-0 hidden sm:block">
+          {/* Subtle Ambient Sunset Glow behind Books on Right (Desktop) */}
+          <div className="absolute right-0 top-1/2 -translate-y-1/2 w-[420px] h-[420px] rounded-full bg-gradient-to-tr from-[#FED7AA]/35 via-[#FDBA74]/15 to-transparent blur-3xl pointer-events-none hidden lg:block" />
+
+          {/* Mobile-Only Academic Books & Graduation Cap Composition (No People) */}
+          <div className="lg:hidden w-full h-[180px] sm:h-[230px] relative overflow-hidden bg-gradient-to-r from-white via-[#FFF8F2] to-[#F4F7FC] border-b border-[#E2E8F0] flex items-center justify-center">
             <img
-              src="/images/hero-graduate-sunset.jpg"
-              alt="Graduate in Cap and Gown overlooking Campus"
-              className="w-full h-full object-cover object-[85%_25%] sm:object-[center_25%] opacity-100 select-none transition-opacity"
+              src="/images/hero-books-gradcap-blended.png"
+              alt="Academic Foundation & Graduation Cap"
+              className="w-full h-full object-contain object-right-bottom select-none"
             />
+            {/* Mobile Calligraphy Overlay */}
+            <div className="absolute top-2.5 right-3 text-right select-none pointer-events-none">
+              <span
+                className="block text-lg sm:text-xl font-bold text-[#0B1F46] leading-none tracking-tight -rotate-6"
+                style={{ fontFamily: "'Caveat', cursive" }}
+              >
+                Better Skills
+              </span>
+              <span
+                className="block text-lg sm:text-xl font-bold text-[#0B1F46] leading-none tracking-tight -rotate-6 mt-0.5"
+                style={{ fontFamily: "'Caveat', cursive" }}
+              >
+                Brighter Future
+              </span>
+              <svg className="w-20 h-2 text-[#FF6500] ml-auto -rotate-6" viewBox="0 0 100 10" fill="none">
+                <path d="M2 3C30 9 70 9 98 2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </div>
           </div>
 
-          {/* Directional Soft Gradient Overlay for Text Readability */}
-          <div className="absolute inset-0 pointer-events-none z-0 bg-gradient-to-b from-white/95 via-[#FFFDF8]/90 to-[#EAF5F7]/95 sm:bg-gradient-to-r sm:from-[#E6F4F3]/98 sm:via-[#FFFDF8]/90 sm:to-[#FFFDF8]/30 sm:to-[65%]" />
-
-          {/* Soft mint/cyan curved wave shape at bottom-left */}
-          <div className="absolute left-0 bottom-0 top-0 w-1/3 pointer-events-none z-0 hidden sm:block">
-            <svg className="w-full h-full" viewBox="0 0 500 360" preserveAspectRatio="none">
-              <path
-                d="M0,230 C120,260 180,300 260,285 C340,270 400,320 480,360 L0,360 Z"
-                fill="rgba(168, 226, 219, 0.45)"
-              />
-              <path
-                d="M0,275 C100,295 160,330 240,320 C320,310 360,345 420,360 L0,360 Z"
-                fill="rgba(142, 215, 206, 0.3)"
-              />
-            </svg>
-          </div>
-
-          {/* Better Skills Brighter Future Calligraphy Text in open sky (Desktop Top-Right) */}
-          <div className="absolute top-4 right-5 sm:top-5 sm:right-8 lg:top-6 lg:right-14 text-right select-none z-20 pointer-events-none hidden sm:block">
-            <span
-              className="block text-xl sm:text-2xl lg:text-[28px] font-bold text-[#0B2A5B] leading-none tracking-tight drop-shadow-sm -rotate-6"
-              style={{ fontFamily: "'Caveat', cursive" }}
-            >
-              Better Skills
-            </span>
-            <span
-              className="block text-xl sm:text-2xl lg:text-[28px] font-bold text-[#0B2A5B] leading-none tracking-tight drop-shadow-sm -rotate-6 mt-1"
-              style={{ fontFamily: "'Caveat', cursive" }}
-            >
-              Brighter Future
-            </span>
-            {/* Soft decorative curved swoosh */}
-            <svg className="w-24 sm:w-30 h-2.5 text-[#0B2A5B]/85 ml-auto mt-0.5 -rotate-6" viewBox="0 0 140 12" fill="none">
-              <path d="M2 3C40 10 95 11 138 2" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
-            </svg>
-          </div>
-
-          {/* Hero Left Content Container */}
-          <div className="w-full px-4 sm:px-8 lg:px-12 py-2 relative z-10">
-            <div className="w-full sm:w-[65%] lg:w-[56%] text-left space-y-3 sm:space-y-3">
-              {/* Framework Pill Badge */}
-              <div className="inline-flex items-center gap-1.5 bg-[#FFF9F3] border border-[#FF7A00]/50 text-[#0B2A5B] px-2.5 sm:px-3 py-1 sm:py-0.5 rounded-full text-[10px] sm:text-[11.5px] font-bold shadow-2xs">
-                <span className="text-[#FF7A00] font-bold">✦</span>
-                <span className="tracking-tight">National Internship Transformation Framework • Govt of India</span>
+          {/* Desktop Two-Column Hero Grid */}
+          <div className="w-full grid grid-cols-1 lg:grid-cols-12 items-center min-h-[380px] lg:min-h-[430px] px-4 sm:px-8 lg:px-12 py-6 lg:py-8 relative z-10">
+            {/* Left Column: Heading, Outlined Pill & Two Side-by-Side CTAs */}
+            <div className="w-full lg:col-span-7 space-y-4 sm:space-y-5 text-left">
+              {/* National Framework Pill Badge with Govt Emblem */}
+              <div className="inline-flex items-center gap-2 bg-white border border-[#E2E8F0] text-[#10264A] px-3 py-1 rounded-full text-xs font-semibold shadow-2xs">
+                <img
+                  src="/brand/ap-govt-emblem.svg"
+                  alt="Govt of India / AP Emblem"
+                  className="w-4 h-4 object-contain shrink-0"
+                />
+                <span className="tracking-tight text-[11px] sm:text-xs font-semibold text-[#10264A]">
+                  National Internship Transformation Framework • Govt of India
+                </span>
               </div>
 
-              {/* Main Bold Heading */}
-              <h1 className="text-2xl sm:text-4xl lg:text-[45px] font-black text-[#0B2A5B] tracking-tight leading-[1.15] sm:leading-[1.07]">
-                Connecting Education <br className="hidden sm:inline" />
-                with Industry
+              {/* Main Bold Heading with Orange Swoosh on 'Industry' */}
+              <h1 className="text-3xl sm:text-4xl lg:text-[50px] font-black text-[#0B1F46] tracking-tight leading-[1.14]">
+                Connecting Education<br />
+                with{' '}
+                <span className="relative inline-block text-[#FF6500]">
+                  Industry
+                  {/* Decorative Curved Swoosh Accent */}
+                  <svg
+                    className="absolute -top-1 sm:-top-2 -right-4 sm:-right-8 w-24 sm:w-36 h-4 sm:h-6 text-[#FF6500] pointer-events-none"
+                    viewBox="0 0 120 20"
+                    fill="none"
+                  >
+                    <path
+                      d="M4 16 C 40 4, 85 4, 116 14"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                    />
+                  </svg>
+                </span>
               </h1>
 
               {/* Supporting Description */}
-              <p className="text-xs sm:text-[13.5px] text-[#1E293B] max-w-[580px] font-medium sm:font-normal leading-relaxed">
+              <p className="text-xs sm:text-[14px] text-[#475569] max-w-[560px] font-normal leading-relaxed">
                 The centralized, two-sided institutional collaboration platform enabling formal proposal reviews, auditable batch creation, verified attendance, and government-recognized internship certifications.
               </p>
 
               {/* Two Primary Side-by-Side CTA Buttons */}
-              <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
+              <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
                 <Link
                   to="/register?type=institution"
-                  className="w-full sm:w-[205px] h-[46px] sm:h-[44px] rounded-[10px] bg-[#0B2A5B] hover:bg-[#14336F] text-white font-bold text-xs sm:text-[13px] shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-98 transition-all flex items-center justify-between px-4 group"
+                  className="h-[46px] px-5 rounded-full bg-[#0B1F46] hover:bg-[#14336F] text-white font-bold text-xs sm:text-[13.5px] shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-between sm:justify-center gap-2.5 group"
                 >
                   <div className="flex items-center gap-2">
-                    <School className="w-4 h-4 text-[#FF7A00]" />
+                    <School className="w-4 h-4 text-[#FF6500]" />
                     <span>Register Institution</span>
                   </div>
                   <ArrowRight className="w-3.5 h-3.5 text-white/80 group-hover:translate-x-0.5 transition-transform" />
@@ -174,7 +147,7 @@ export const HomePage: React.FC = () => {
 
                 <Link
                   to="/register?type=company"
-                  className="w-full sm:w-[205px] h-[46px] sm:h-[44px] rounded-[10px] bg-[#FF7A00] hover:bg-[#E66E00] text-white font-bold text-xs sm:text-[13px] shadow-md hover:shadow-lg hover:-translate-y-0.5 active:scale-98 transition-all flex items-center justify-between px-4 group"
+                  className="h-[46px] px-5 rounded-full bg-[#FF6500] hover:bg-[#E65A00] text-white font-bold text-xs sm:text-[13.5px] shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-between sm:justify-center gap-2.5 group"
                 >
                   <div className="flex items-center gap-2">
                     <Building2 className="w-4 h-4 text-white" />
@@ -184,65 +157,215 @@ export const HomePage: React.FC = () => {
                 </Link>
               </div>
             </div>
+
+            {/* Right Column: Realistic Academic Composition (Books + Mortarboard + University Facade) */}
+            <div className="hidden lg:flex lg:col-span-5 relative items-center justify-end h-full min-h-[380px]">
+              <img
+                src="/images/hero-books-gradcap-blended.png"
+                alt="Stack of Academic Books with Graduation Cap & Campus Architecture"
+                className="relative z-10 w-full max-w-[540px] h-auto max-h-[360px] object-contain object-right select-none drop-shadow-sm"
+              />
+            </div>
           </div>
         </section>
       </div>
 
-      {/* 1.1 PROMOTIONAL ANNOUNCEMENT BANNER CAROUSEL (Curved Corners with minimal side gap) */}
-      <div className="w-full px-2 sm:px-4 mt-2.5 sm:mt-3">
-        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200/80 block">
+      {/* ======================================================================== */}
+      {/* 2. IMPACT STATISTICS BAR (White Rounded Panel with Indian Tiranga Swash) */}
+      {/* ======================================================================== */}
+      <div className="w-full px-2.5 sm:px-6 lg:px-8 mt-3 sm:mt-4">
+        <div className="w-full bg-white rounded-2xl lg:rounded-full border border-[#E2E8F0] shadow-[0_4px_20px_rgba(11,31,70,0.04)] px-4 sm:px-8 py-3.5 sm:py-4">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:flex lg:items-center lg:justify-between gap-4 sm:gap-6">
+            {/* Metric 1: 25K+ Internships */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#0B1F46] text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Users className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xl sm:text-2xl font-black text-[#0B1F46] leading-none">25K+</div>
+                <div className="text-xs text-[#475569] font-medium mt-0.5">Internships</div>
+              </div>
+            </div>
+
+            <div className="h-9 w-[1px] bg-[#E2E8F0] hidden lg:block" />
+
+            {/* Metric 2: 26 Districts */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#E9272E] text-white flex items-center justify-center shrink-0 shadow-sm">
+                <MapPin className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xl sm:text-2xl font-black text-[#0B1F46] leading-none">26</div>
+                <div className="text-xs text-[#475569] font-medium mt-0.5">Districts</div>
+              </div>
+            </div>
+
+            <div className="h-9 w-[1px] bg-[#E2E8F0] hidden lg:block" />
+
+            {/* Metric 3: 100+ Industry Partners */}
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-[#10B981] text-white flex items-center justify-center shrink-0 shadow-sm">
+                <Building2 className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="text-xl sm:text-2xl font-black text-[#0B1F46] leading-none">100+</div>
+                <div className="text-xs text-[#475569] font-medium mt-0.5">Industry Partners</div>
+              </div>
+            </div>
+
+            <div className="h-9 w-[1px] bg-[#E2E8F0] hidden lg:block" />
+
+            {/* Metric 4: Building a Skilled & Self-Reliant India + Tiranga Wave */}
+            <div className="col-span-2 sm:col-span-2 lg:col-span-auto flex items-center justify-between sm:justify-start gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFF3EA] to-[#FFE0C7] text-[#FF6500] flex items-center justify-center shrink-0 border border-[#FED7AA]">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-sm font-bold text-[#0B1F46] leading-tight">
+                    Building a Skilled
+                  </div>
+                  <div className="text-[11px] sm:text-xs text-[#475569] font-medium">
+                    and Self-Reliant India
+                  </div>
+                </div>
+              </div>
+
+              {/* Artistic Tiranga (Saffron, White, Green) Ribbon Wave SVG */}
+              <svg className="w-16 sm:w-20 h-6 shrink-0" viewBox="0 0 80 24" fill="none">
+                <path d="M 2 12 C 24 4, 48 20, 78 8" stroke="#FF9933" strokeWidth="2.5" strokeLinecap="round" />
+                <path d="M 2 15 C 24 7, 48 23, 78 11" stroke="#CBD5E1" strokeWidth="1.5" strokeLinecap="round" />
+                <path d="M 2 18 C 24 10, 48 26, 78 14" stroke="#138808" strokeWidth="2.5" strokeLinecap="round" />
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================================== */}
+      {/* 3. APSCHE NODAL INITIATIVE SECTION (Midnight Navy with Architectural Art) */}
+      {/* ======================================================================== */}
+      <div className="w-full px-2.5 sm:px-6 lg:px-8 mt-3 sm:mt-4">
+        <section className="w-full bg-[#0B1F46] rounded-2xl sm:rounded-3xl border border-[#14336F] text-white p-6 sm:p-8 lg:p-10 relative overflow-hidden shadow-xl">
+          {/* Subtle Ambient Radial Glow */}
+          <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#168BFA]/10 rounded-full blur-3xl pointer-events-none" />
+
+          {/* Bottom Architectural Institutional Line Drawing SVG */}
+          <svg
+            className="absolute bottom-0 right-0 w-full sm:w-2/3 h-28 sm:h-36 pointer-events-none opacity-20 text-[#60A5FA]"
+            viewBox="0 0 800 120"
+            fill="none"
+          >
+            {/* Andhra University / Classical Colonnades & Towers */}
+            <path d="M 0 120 L 0 95 L 40 95 L 40 120 M 40 95 L 80 70 L 120 95 L 120 120 M 60 95 L 60 120 M 100 95 L 100 120" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M 140 120 L 140 85 L 160 85 L 160 70 L 170 60 L 180 70 L 180 85 L 200 85 L 200 120" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M 220 120 L 220 75 L 360 75 L 360 120 M 240 75 L 240 120 M 260 75 L 260 120 M 280 75 L 280 120 M 300 75 L 300 120 M 320 75 L 320 120 M 340 75 L 340 120" stroke="currentColor" strokeWidth="1" />
+            <path d="M 215 75 L 290 45 L 365 75 Z" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M 400 120 L 400 65 C 400 45, 450 45, 450 65 L 450 120 M 415 65 L 415 120 M 435 65 L 435 120" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M 425 45 L 425 30 M 420 30 L 430 30" stroke="currentColor" strokeWidth="1.2" />
+            <path d="M 480 120 L 480 80 L 620 80 L 620 120 M 500 80 L 500 120 M 530 80 L 530 120 M 560 80 L 560 120 M 590 80 L 590 120" stroke="currentColor" strokeWidth="1" />
+            <path d="M 640 120 L 640 60 L 720 60 L 720 120 M 660 60 L 660 120 M 680 60 L 680 120 M 700 60 L 700 120" stroke="currentColor" strokeWidth="1" />
+            <path d="M 720 120 L 720 85 L 800 85 L 800 120" stroke="currentColor" strokeWidth="1" />
+            <line x1="0" y1="120" x2="800" y2="120" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+
+          {/* Main Initiative Content Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-center relative z-10">
+            {/* Left Side: Badge, Heading, Subtitle & 3 Orange Check Benefits */}
+            <div className="lg:col-span-7 space-y-3">
+              {/* APSCHE Nodal Initiative Badge */}
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/15 text-[11px] font-bold tracking-wider uppercase">
+                <span className="w-2 h-2 rounded-full bg-[#E9272E] animate-pulse" />
+                <span>APSCHE NODAL INITIATIVE</span>
+              </div>
+
+              {/* Heading */}
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white leading-tight">
+                Andhra Pradesh Youth{' '}
+                <span className="text-[#FF6500]">Skill Accelerator</span>
+              </h2>
+
+              {/* Subtitle */}
+              <p className="text-xs sm:text-sm text-[#DCE5F5] font-semibold">
+                Direct Academic Credit Transfer to University Portals
+              </p>
+
+              {/* Three Benefits with Orange Checkmarks */}
+              <ul className="pt-2 space-y-2.5 text-xs sm:text-[13px] text-white/90">
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-[#FF6500] shrink-0 mt-0.5" />
+                  <span>Over 25,000+ subsidized technical internships across 26 AP districts</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-[#FF6500] shrink-0 mt-0.5" />
+                  <span>Direct ABC (Academic Bank of Credits) integration with APSCHE guidelines</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <CheckCircle2 className="w-4 h-4 text-[#FF6500] shrink-0 mt-0.5" />
+                  <span>Pre-Placement Offers (PPOs) backed by verified industry mentors</span>
+                </li>
+              </ul>
+            </div>
+
+            {/* Right Side: 3 Metric Cards + View Details CTA */}
+            <div className="lg:col-span-5 flex flex-col items-start lg:items-end gap-5">
+              <div className="grid grid-cols-3 gap-2.5 sm:gap-4 w-full">
+                <div className="p-3 sm:p-4 rounded-xl bg-white/5 border border-white/10 text-center backdrop-blur-xs">
+                  <GraduationCap className="w-5 h-5 sm:w-6 sm:h-6 text-white/90 mx-auto mb-1.5" />
+                  <p className="text-[11px] sm:text-xs font-bold text-white">Internships</p>
+                </div>
+
+                <div className="p-3 sm:p-4 rounded-xl bg-white/5 border border-white/10 text-center backdrop-blur-xs">
+                  <School className="w-5 h-5 sm:w-6 sm:h-6 text-white/90 mx-auto mb-1.5" />
+                  <p className="text-[11px] sm:text-xs font-bold text-white">26 Districts</p>
+                </div>
+
+                <div className="p-3 sm:p-4 rounded-xl bg-white/5 border border-white/10 text-center backdrop-blur-xs">
+                  <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white/90 mx-auto mb-1.5" />
+                  <p className="text-[11px] sm:text-xs font-bold text-white">Industry Partners</p>
+                </div>
+              </div>
+
+              {/* View Details Button */}
+              <Link
+                to="/about"
+                className="px-6 py-2.5 rounded-full border border-white/80 hover:bg-white hover:text-[#0B1F46] text-white transition-all text-xs sm:text-[13px] font-bold flex items-center gap-2 shadow-sm"
+              >
+                <span>View Details</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      {/* ======================================================================== */}
+      {/* 4. PROMOTIONAL ANNOUNCEMENT BANNER CAROUSEL (Existing Component Preserved) */}
+      {/* ======================================================================== */}
+      <div className="w-full px-2.5 sm:px-6 lg:px-8 mt-3 sm:mt-4">
+        <section className="w-full relative overflow-hidden rounded-2xl sm:rounded-3xl shadow-sm border border-[#E2E8F0] block">
           <PromotionalBannerCarousel />
         </section>
       </div>
 
-      {/* REST OF HOMEPAGE CONTENT SECTIONS */}
-      <div className="space-y-8 sm:space-y-12 pt-5 sm:pt-8">
-        {/* 2. PLATFORM METRICS */}
-        <div className="w-full px-2 sm:px-4">
-          <section className="w-full bg-[#0E2350] text-white py-8 sm:py-12 rounded-2xl sm:rounded-3xl shadow-sm border border-[#14336F] overflow-hidden">
-            <div className="w-full px-3 sm:px-8 lg:px-12">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6 text-center">
-                <div className="p-3.5 sm:p-4 bg-[#102A60] rounded-xl sm:rounded-2xl border border-[#14336F]">
-                  <School className="w-6 h-6 sm:w-8 sm:h-8 text-[#F07421] mx-auto mb-1.5" />
-                  <p className="text-2xl sm:text-4xl font-extrabold text-white">{registeredCollegesCount}+</p>
-                  <p className="text-[11px] sm:text-xs text-[#DCE5F5] font-semibold mt-0.5">Government Colleges Registered</p>
-                </div>
-
-                <div className="p-3.5 sm:p-4 bg-[#102A60] rounded-xl sm:rounded-2xl border border-[#14336F]">
-                  <Building2 className="w-6 h-6 sm:w-8 sm:h-8 text-[#1C8A3C] mx-auto mb-1.5" />
-                  <p className="text-2xl sm:text-4xl font-extrabold text-white">{verifiedCompaniesCount}+</p>
-                  <p className="text-[11px] sm:text-xs text-[#DCE5F5] font-semibold mt-0.5">Verified Corporate Partners</p>
-                </div>
-
-                <div className="p-3.5 sm:p-4 bg-[#102A60] rounded-xl sm:rounded-2xl border border-[#14336F]">
-                  <Users className="w-6 h-6 sm:w-8 sm:h-8 text-[#FFE5D3] mx-auto mb-1.5" />
-                  <p className="text-2xl sm:text-4xl font-extrabold text-white">{activeInternsCount.toLocaleString()}+</p>
-                  <p className="text-[11px] sm:text-xs text-[#DCE5F5] font-semibold mt-0.5">Students Digitally Placed</p>
-                </div>
-
-                <div className="p-3.5 sm:p-4 bg-[#102A60] rounded-xl sm:rounded-2xl border border-[#14336F]">
-                  <TrendingUp className="w-6 h-6 sm:w-8 sm:h-8 text-[#F07421] mx-auto mb-1.5" />
-                  <p className="text-2xl sm:text-4xl font-extrabold text-white">{activeBatchesCount.toLocaleString()}+</p>
-                  <p className="text-[11px] sm:text-xs text-[#DCE5F5] font-semibold mt-0.5">Active Internship Cohorts</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {/* 2.1 OUR INDUSTRY PARTNERS (DATABASE DRIVEN) */}
-        <div className="w-full px-2 sm:px-4">
+      {/* ======================================================================== */}
+      {/* 5. REST OF HOMEPAGE CONTENT (Dynamic Database Directories & Pillars)   */}
+      {/* ======================================================================== */}
+      <div className="space-y-8 sm:space-y-12 pt-6 sm:pt-10">
+        
+        {/* 5.1 OUR INDUSTRY PARTNERS (DATABASE DRIVEN) */}
+        <div className="w-full px-2.5 sm:px-6 lg:px-8">
           <section className="w-full space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E3E6EB] pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E2E8F0] pb-4">
               <div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#F07421] mb-1">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#FF6500] mb-1">
                   <Building2 className="w-3.5 h-3.5" />
                   <span>Verified Corporate Collaboration</span>
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0E2350] tracking-tight">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F46] tracking-tight">
                   Our Industry Partners
                 </h2>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-2xl leading-relaxed">
+                <p className="text-xs sm:text-sm text-[#475569] mt-1 max-w-2xl leading-relaxed">
                   Companies collaborating with educational institutions to create structured internship opportunities across Andhra Pradesh.
                 </p>
               </div>
@@ -251,16 +374,16 @@ export const HomePage: React.FC = () => {
                 {currentUser?.role === 'super_admin' && (
                   <Link
                     to="/admin/companies"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0E2350] text-[#FFE5D3] hover:bg-[#1A3670] rounded-lg text-xs font-bold shadow-sm transition"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0B1F46] text-[#FFE5D3] hover:bg-[#14336F] rounded-lg text-xs font-bold shadow-sm transition"
                   >
-                    <Settings className="w-3.5 h-3.5 text-[#F07421]" />
-                    <span>Admin: Manage Partners (Add / Edit / Delete)</span>
+                    <Settings className="w-3.5 h-3.5 text-[#FF6500]" />
+                    <span>Admin: Manage Partners</span>
                   </Link>
                 )}
 
                 <Link
                   to="/partners"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#2A4E96] hover:text-[#0E2350] hover:underline shrink-0"
+                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1456C0] hover:text-[#0B1F46] hover:underline shrink-0"
                 >
                   <span>View All Partners ({verifiedCompanies.length})</span>
                   <ArrowRight className="w-4 h-4" />
@@ -270,11 +393,11 @@ export const HomePage: React.FC = () => {
 
             {/* Dynamic Partner Grid */}
             {verifiedCompanies.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-[#E3E6EB] p-10 text-center max-w-md mx-auto space-y-3 shadow-sm">
-                <div className="w-12 h-12 bg-[#EEF2FA] rounded-xl flex items-center justify-center mx-auto text-[#0E2350]">
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-10 text-center max-w-md mx-auto space-y-3 shadow-sm">
+                <div className="w-12 h-12 bg-[#F4F7FC] rounded-xl flex items-center justify-center mx-auto text-[#0B1F46]">
                   <Building2 className="w-6 h-6" />
                 </div>
-                <h3 className="text-sm font-bold text-[#0E2350]">No verified industry partners yet.</h3>
+                <h3 className="text-sm font-bold text-[#0B1F46]">No verified industry partners yet.</h3>
                 <p className="text-xs text-gray-500 leading-relaxed">
                   Verified companies will appear here as they join the AP VidyaConnect network.
                 </p>
@@ -289,26 +412,26 @@ export const HomePage: React.FC = () => {
           </section>
         </div>
 
-        {/* 2.2 OUR INSTITUTIONAL NETWORK (DATABASE DRIVEN) */}
-        <div className="w-full px-2 sm:px-4">
+        {/* 5.2 OUR INSTITUTIONAL NETWORK (DATABASE DRIVEN) */}
+        <div className="w-full px-2.5 sm:px-6 lg:px-8">
           <section className="w-full space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E3E6EB] pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E2E8F0] pb-4">
               <div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#1C8A3C] mb-1">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#10B981] mb-1">
                   <School className="w-3.5 h-3.5" />
                   <span>State Higher Education Network</span>
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0E2350] tracking-tight">
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F46] tracking-tight">
                   Our Institutional Network
                 </h2>
-                <p className="text-xs sm:text-sm text-gray-600 mt-1 max-w-2xl leading-relaxed">
+                <p className="text-xs sm:text-sm text-[#475569] mt-1 max-w-2xl leading-relaxed">
                   Verified Government Degree Colleges, Polytechnics, and Autonomous Universities participating in centralized internship governance.
                 </p>
               </div>
 
               <Link
-                to="/for-institutions"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1C8A3C] hover:text-emerald-900 hover:underline shrink-0"
+                to="/institutions"
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#10B981] hover:text-emerald-900 hover:underline shrink-0"
               >
                 <span>Explore Institution Ecosystem ({verifiedInstitutions.length})</span>
                 <ArrowRight className="w-4 h-4" />
@@ -317,11 +440,11 @@ export const HomePage: React.FC = () => {
 
             {/* Dynamic Institution Grid */}
             {verifiedInstitutions.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-[#E3E6EB] p-10 text-center max-w-md mx-auto space-y-3 shadow-sm">
-                <div className="w-12 h-12 bg-[#EEF2FA] rounded-xl flex items-center justify-center mx-auto text-[#0E2350]">
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-10 text-center max-w-md mx-auto space-y-3 shadow-sm">
+                <div className="w-12 h-12 bg-[#F4F7FC] rounded-xl flex items-center justify-center mx-auto text-[#0B1F46]">
                   <School className="w-6 h-6" />
                 </div>
-                <h3 className="text-sm font-bold text-[#0E2350]">No verified institutions yet.</h3>
+                <h3 className="text-sm font-bold text-[#0B1F46]">No verified institutions yet.</h3>
                 <p className="text-xs text-gray-500 leading-relaxed">
                   Participating government colleges and polytechnics will appear here upon verification.
                 </p>
@@ -336,113 +459,113 @@ export const HomePage: React.FC = () => {
           </section>
         </div>
 
-        {/* 3. THREE ACTORS VALUE PILLARS */}
-        <div className="w-full px-2 sm:px-4">
+        {/* 5.3 THREE ACTORS VALUE PILLARS */}
+        <div className="w-full px-2.5 sm:px-6 lg:px-8">
           <section className="w-full">
             <div className="text-center max-w-3xl mx-auto mb-10">
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0E2350]">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F46]">
                 Empowering Every Stakeholder in the Internship Lifecycle
               </h2>
-              <p className="text-sm text-gray-600 mt-2">
+              <p className="text-sm text-[#475569] mt-2">
                 Built specifically for academic rigor, industry productivity, and student career advancement.
               </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
               {/* Institution Card */}
-              <div className="bg-white rounded-2xl border border-[#E3E6EB] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
                 <div>
-                  <div className="w-12 h-12 rounded-lg bg-[#EEF2FA] flex items-center justify-center mb-4 text-[#0E2350]">
+                  <div className="w-12 h-12 rounded-xl bg-[#EEF2FA] flex items-center justify-center mb-4 text-[#0B1F46]">
                     <School className="w-6 h-6" />
                   </div>
-                  <h3 className="text-lg font-bold text-[#0E2350]">For Colleges & Institutions</h3>
-                  <p className="text-xs text-gray-600 mt-2 leading-relaxed">
+                  <h3 className="text-lg font-bold text-[#0B1F46]">For Colleges & Institutions</h3>
+                  <p className="text-xs text-[#475569] mt-2 leading-relaxed">
                     Seamlessly bulk-import students, discover verified corporate partners, formulate multi-student proposals, track live batch attendance, and monitor state accreditation metrics.
                   </p>
-                  <ul className="mt-4 space-y-2 text-xs text-gray-700 font-medium">
+                  <ul className="mt-4 space-y-2 text-xs text-[#10264A] font-medium">
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
                       CSV Bulk Student Ingestion & Validations
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
                       Two-Sided Proposal Negotiation Stepper
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
                       Realtime Attendance & Evaluation Sync
                     </li>
                   </ul>
                 </div>
                 <Link
                   to="/for-institutions"
-                  className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-[#2A4E96] hover:text-[#0E2350]"
+                  className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-[#1456C0] hover:text-[#0B1F46]"
                 >
                   Institution Guide & Onboarding <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
               {/* Company Card */}
-              <div className="bg-white rounded-2xl border border-[#E3E6EB] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
                 <div>
-                  <div className="w-12 h-12 rounded-lg bg-[#FFF3EA] flex items-center justify-center mb-4 text-[#F07421]">
+                  <div className="w-12 h-12 rounded-xl bg-[#FFF3EA] flex items-center justify-center mb-4 text-[#FF6500]">
                     <Building2 className="w-6 h-6" />
                   </div>
-                  <h3 className="text-lg font-bold text-[#0E2350]">For Companies & Industry</h3>
-                  <p className="text-xs text-gray-600 mt-2 leading-relaxed">
+                  <h3 className="text-lg font-bold text-[#0B1F46]">For Companies & Industry</h3>
+                  <p className="text-xs text-[#475569] mt-2 leading-relaxed">
                     Review tailored proposals from premier colleges, allocate verified seats, assign technical supervisors, track milestones, and recruit pre-evaluated talent with zero overhead.
                   </p>
-                  <ul className="mt-4 space-y-2 text-xs text-gray-700 font-medium">
+                  <ul className="mt-4 space-y-2 text-xs text-[#10264A] font-medium">
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
                       Direct Proposal Review & Counter-Offers
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
                       Intern Task Pipelines & Code Reviews
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
                       Multi-Factor Performance Evaluation Form
                     </li>
                   </ul>
                 </div>
                 <Link
                   to="/for-companies"
-                  className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-[#F07421] hover:text-[#D96214]"
+                  className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-[#FF6500] hover:text-[#E65A00]"
                 >
                   Industry Partner Portal <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
               {/* Student Card */}
-              <div className="bg-white rounded-2xl border border-[#E3E6EB] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
+              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between">
                 <div>
-                  <div className="w-12 h-12 rounded-lg bg-[#EAF6EE] flex items-center justify-center mb-4 text-[#1C8A3C]">
+                  <div className="w-12 h-12 rounded-xl bg-[#EAF6EE] flex items-center justify-center mb-4 text-[#10B981]">
                     <GraduationCap className="w-6 h-6" />
                   </div>
-                  <h3 className="text-lg font-bold text-[#0E2350]">For Students & Interns</h3>
-                  <p className="text-xs text-gray-600 mt-2 leading-relaxed">
+                  <h3 className="text-lg font-bold text-[#0B1F46]">For Students & Interns</h3>
+                  <p className="text-xs text-[#475569] mt-2 leading-relaxed">
                     Receive verified college placements with direct automated batch enrollment, log daily GPS attendance, submit milestone deliverables, and receive structured supervisor appraisals.
                   </p>
-                  <ul className="mt-4 space-y-2 text-xs text-gray-700 font-medium">
+                  <ul className="mt-4 space-y-2 text-xs text-[#10264A] font-medium">
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
                       Direct Automated Cohort Enrollment
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
                       Deliverable & GitHub Link Submission
                     </li>
                     <li className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-[#1C8A3C]" />
+                      <CheckCircle2 className="w-4 h-4 text-[#10B981]" />
                       Verified Academic Credit Transfer
                     </li>
                   </ul>
                 </div>
                 <Link
                   to="/for-students"
-                  className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-[#1C8A3C] hover:text-emerald-800"
+                  className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-[#10B981] hover:text-emerald-800"
                 >
                   Student Portal & Guidelines <ArrowRight className="w-3.5 h-3.5" />
                 </Link>
@@ -451,12 +574,12 @@ export const HomePage: React.FC = () => {
           </section>
         </div>
 
-        {/* 4. OPPORTUNITIES & PARTNERSHIP BANNER */}
-        <div className="w-full px-2 sm:px-4">
+        {/* 5.4 OPPORTUNITIES & PARTNERSHIP BANNER */}
+        <div className="w-full px-2.5 sm:px-6 lg:px-8">
           <section className="w-full">
-            <div className="bg-gradient-to-r from-[#0E2350] to-[#14336F] rounded-2xl sm:rounded-3xl p-8 sm:p-10 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl border border-[#14336F]">
+            <div className="bg-gradient-to-r from-[#0B1F46] via-[#10264A] to-[#14336F] rounded-2xl sm:rounded-3xl p-8 sm:p-10 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl border border-[#14336F]">
               <div className="space-y-2 max-w-xl">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-[#F07421]">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-[#FF6500]">
                   INDUSTRY TALENT NETWORK
                 </span>
                 <h3 className="text-2xl sm:text-3xl font-bold">
@@ -469,10 +592,10 @@ export const HomePage: React.FC = () => {
 
               <Link
                 to="/opportunities"
-                className="px-6 py-3 rounded-lg bg-white hover:bg-gray-100 text-[#0E2350] font-bold text-sm shadow-md transition-all shrink-0 flex items-center gap-2"
+                className="px-6 py-3 rounded-full bg-white hover:bg-gray-100 text-[#0B1F46] font-bold text-sm shadow-md transition-all shrink-0 flex items-center gap-2"
               >
-                <Sparkles className="w-4 h-4 text-[#F07421]" />
-                Browse Opportunities Now
+                <Sparkles className="w-4 h-4 text-[#FF6500]" />
+                <span>Browse Opportunities Now</span>
               </Link>
             </div>
           </section>
