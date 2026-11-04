@@ -99,55 +99,58 @@ export const HomePage: React.FC = () => {
       {/* 1. HERO SECTION (Art-Directed Academic Composition — Seamless Full-Bleed) */}
       {/* ======================================================================== */}
       <div className="w-full px-2.5 sm:px-6 lg:px-8 pt-2 sm:pt-3">
-        <section className="w-full max-w-[1480px] mx-auto relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#E2E8F0] bg-gradient-to-r from-[#F0F7FF] via-[#F8FBFF] to-white shadow-[0_8px_30px_rgba(11,31,70,0.05)] min-h-[380px] lg:min-h-[420px] xl:min-h-[440px] flex flex-col lg:flex-row items-center justify-between">
+        <section className="w-full max-w-[1480px] mx-auto relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#CBD5E1]/80 bg-[#EAF2FD] shadow-[0_8px_30px_rgba(11,31,70,0.06)] min-h-[380px] lg:min-h-[430px] xl:min-h-[450px] flex flex-col lg:flex-row items-center justify-between">
           
           {/* Top-Left Ambient Orange Glow Accent matching reference branding */}
           <div className="absolute -top-16 -left-16 w-52 h-52 bg-gradient-to-br from-[#FF6500]/20 via-[#FFA040]/10 to-transparent rounded-full blur-2xl pointer-events-none" />
 
-          {/* Mobile-Only Full Academic Artwork Banner (Complete Composition — Zero Cutoffs) */}
-          <div className="lg:hidden w-full h-[220px] sm:h-[260px] relative overflow-hidden bg-gradient-to-b from-[#8EBCFD]/20 via-white to-[#EBF3FC] border-b border-[#E2E8F0] flex items-center justify-center p-2 shrink-0">
+          {/* Desktop Full-Bleed Panoramic Artwork matching Reference Mockup (cap, books, diploma, calligraphy & wave) */}
+          <div 
+            className="hidden lg:block absolute inset-0 w-full h-full pointer-events-none select-none z-0"
+            style={{
+              backgroundImage: `url('/images/hero-banner-clean-bg@2x.png')`,
+              backgroundPosition: 'right center',
+              backgroundRepeat: 'no-repeat',
+              backgroundSize: 'cover'
+            }}
+          />
+
+          {/* Mobile/Tablet Dedicated Academic Composition Artwork Banner */}
+          <div className="lg:hidden w-full h-[220px] sm:h-[270px] relative overflow-hidden bg-gradient-to-b from-[#A5CDFE]/30 via-white to-[#EAF2FD] border-b border-[#E2E8F0] flex items-center justify-center p-3 shrink-0">
             <img
-              src="/images/hero-books-gradcap-blended.png"
-              alt="Academic Foundation & Graduation Cap with Better Skills Brighter Future"
+              src="/images/hero-artwork-mobile.png"
+              alt="Better Skills Brighter Future - Academic Foundation & Graduation Cap"
               className="w-full h-full object-contain object-center select-none"
             />
           </div>
 
-          {/* Desktop Right-Side 3D Academic Artwork (Proportionally Balanced — No Text Overlap, Full Calligraphy Visible) */}
-          <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[58%] xl:w-[54%] 2xl:w-[50%] h-full pointer-events-none select-none z-0 overflow-hidden">
-            <img
-              src="/images/hero-books-gradcap-blended.png"
-              alt="Stack of Academic Books with Graduation Cap, Diploma, Pencils and Better Skills Calligraphy"
-              className="w-full h-full object-cover object-right"
-            />
-          </div>
-
           {/* Left Column: Heading, Outlined Pill & Two Side-by-Side CTAs */}
-          <div className="relative z-10 w-full lg:w-[46%] xl:w-[44%] max-w-[520px] px-5 sm:px-8 lg:px-12 py-7 sm:py-9 lg:py-10 space-y-4 sm:space-y-5 text-left">
+          <div className="relative z-10 w-full lg:w-[48%] xl:w-[44%] max-w-[540px] px-5 sm:px-8 lg:px-12 py-7 sm:py-9 lg:py-10 space-y-4 sm:space-y-5 text-left">
             {/* Premium Category Pill Badge */}
-            <div className="inline-flex items-center gap-2 bg-[#FFF9F3] border border-[#FF6500]/30 text-[#0B1F46] px-3.5 py-1 rounded-full text-xs font-bold shadow-2xs">
+            <div className="inline-flex items-center gap-2 bg-[#FFF6EE] border border-[#FF6500]/40 text-[#0B1F46] px-3.5 py-1.5 rounded-full text-xs font-bold shadow-2xs">
               <Sparkles className="w-3.5 h-3.5 text-[#FF6500] shrink-0" />
               <span className="tracking-tight text-[11.5px] sm:text-xs font-bold text-[#0B1F46]">
                 Next-Gen Campus-to-Career Internship Ecosystem
               </span>
             </div>
 
-            {/* Main Bold Heading with Orange Swoosh on 'Industry' */}
-            <h1 className="text-3xl sm:text-4xl lg:text-[44px] xl:text-[50px] font-black text-[#0B1F46] tracking-tight leading-[1.12]">
-              Connecting Education<br />
+            {/* Main Bold Heading matching 3-line format of reference mockup */}
+            <h1 className="text-3xl sm:text-4xl lg:text-[44px] xl:text-[48px] font-black text-[#0B1F46] tracking-tight leading-[1.12]">
+              Connecting<br />
+              Education<br />
               with{' '}
               <span className="relative inline-block text-[#FF6500]">
                 Industry
-                {/* Decorative Curved Swoosh Accent */}
+                {/* Decorative Curved Arc Swoosh matching reference mockup */}
                 <svg
-                  className="absolute -top-1 sm:-top-2 -right-4 sm:-right-8 w-24 sm:w-36 h-4 sm:h-6 text-[#FF6500] pointer-events-none"
-                  viewBox="0 0 120 20"
+                  className="absolute -top-1 sm:-top-2 -left-1 sm:-left-2 w-[112%] h-4 sm:h-5 text-[#FF6500] pointer-events-none"
+                  viewBox="0 0 120 18"
                   fill="none"
                 >
                   <path
-                    d="M4 16 C 40 4, 85 4, 116 14"
+                    d="M3 14 C 35 2, 85 2, 117 14"
                     stroke="currentColor"
-                    strokeWidth="2.5"
+                    strokeWidth="2.8"
                     strokeLinecap="round"
                   />
                 </svg>
@@ -155,7 +158,7 @@ export const HomePage: React.FC = () => {
             </h1>
 
             {/* Supporting Description */}
-            <p className="text-xs sm:text-[14px] text-[#475569] max-w-[520px] font-normal leading-relaxed">
+            <p className="text-xs sm:text-[13.5px] text-[#475569] max-w-[490px] font-normal leading-relaxed">
               The centralized, two-sided institutional collaboration platform enabling formal proposal reviews, auditable batch creation, verified attendance, and government-recognized internship certifications.
             </p>
 
