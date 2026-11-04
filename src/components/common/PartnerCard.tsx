@@ -239,6 +239,14 @@ export const PartnerCard: React.FC<PartnerCardProps> = ({ company, featured = fa
           : 'bg-white border-[#EBECEF] shadow-[0_2px_10px_rgba(0,0,0,0.03)]'
       } p-5 sm:p-6 flex flex-col items-center justify-between text-center min-h-[210px] sm:min-h-[225px] hover:shadow-[0_12px_28px_rgba(0,0,0,0.08)] hover:-translate-y-1.5 hover:border-[#F07421]/40 transition-all duration-300 cursor-pointer overflow-hidden`}
     >
+      {/* Featured Badge matching reference mockup */}
+      {featured && (
+        <div className="absolute top-2.5 left-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#FF6500] text-white shadow-2xs z-10">
+          <span>★</span>
+          <span>Featured</span>
+        </div>
+      )}
+
       {/* Top: Seamless Logo / Emblem Floating Container */}
       <div className="h-14 sm:h-16 w-full flex items-center justify-center mb-2 px-1">
         {renderEmblem()}

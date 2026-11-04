@@ -21,7 +21,10 @@ import {
   MapPin,
   TrendingUp,
   Sparkles,
-  Settings
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Handshake
 } from 'lucide-react';
 
 export const HomePage: React.FC = () => {
@@ -43,8 +46,47 @@ export const HomePage: React.FC = () => {
 
   const verifiedCompanies = companies.filter((c) => c.verification_status === 'verified');
   const verifiedInstitutions = institutions.filter((i) => i.verification_status === 'verified');
-  const displayedCompanies = verifiedCompanies.slice(0, 12);
-  const displayedInstitutions = verifiedInstitutions.slice(0, 6);
+
+  // Carousel Pagination State for Industry Partners & Institutional Network
+  const [partnerCarouselIndex, setPartnerCarouselIndex] = useState(0);
+  const [instCarouselIndex, setInstCarouselIndex] = useState(0);
+
+  const CARDS_PER_VIEW = 6;
+  const partnerTotalPages = Math.max(3, Math.ceil(verifiedCompanies.length / CARDS_PER_VIEW));
+  const currentPartnerSlice = verifiedCompanies.slice(
+    partnerCarouselIndex * CARDS_PER_VIEW,
+    (partnerCarouselIndex + 1) * CARDS_PER_VIEW
+  );
+  const displayedPartnerCards = currentPartnerSlice.length >= 6
+    ? currentPartnerSlice
+    : (verifiedCompanies.length > 0
+        ? [...currentPartnerSlice, ...verifiedCompanies.filter(c => !currentPartnerSlice.some(s => s.id === c.id))].slice(0, 6)
+        : []);
+
+  const instTotalPages = Math.max(3, Math.ceil(verifiedInstitutions.length / CARDS_PER_VIEW));
+  const currentInstSlice = verifiedInstitutions.slice(
+    instCarouselIndex * CARDS_PER_VIEW,
+    (instCarouselIndex + 1) * CARDS_PER_VIEW
+  );
+  const displayedInstCards = currentInstSlice.length >= 6
+    ? currentInstSlice
+    : (verifiedInstitutions.length > 0
+        ? [...currentInstSlice, ...verifiedInstitutions.filter(i => !currentInstSlice.some(s => s.id === i.id))].slice(0, 6)
+        : []);
+
+  const prevPartnerPage = () => {
+    setPartnerCarouselIndex((prev) => (prev - 1 + partnerTotalPages) % partnerTotalPages);
+  };
+  const nextPartnerPage = () => {
+    setPartnerCarouselIndex((prev) => (prev + 1) % partnerTotalPages);
+  };
+
+  const prevInstPage = () => {
+    setInstCarouselIndex((prev) => (prev - 1 + instTotalPages) % instTotalPages);
+  };
+  const nextInstPage = () => {
+    setInstCarouselIndex((prev) => (prev + 1) % instTotalPages);
+  };
 
   const registeredCollegesCount = verifiedInstitutions.length;
   const verifiedCompaniesCount = verifiedCompanies.length;
@@ -242,17 +284,95 @@ export const HomePage: React.FC = () => {
       {/* ======================================================================== */}
       <div className="space-y-8 sm:space-y-12 pt-6 sm:pt-10">
         
-        {/* 5.1 OUR INDUSTRY PARTNERS (DATABASE DRIVEN) */}
+        {/* 5.1 OUR INDUSTRY PARTNERS (DATABASE DRIVEN WITH SKY-BLUE & CLOUDS BACKGROUND) */}
         <div className="w-full px-2.5 sm:px-6 lg:px-8">
-          <section className="w-full space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E2E8F0] pb-4">
+          <section className="w-full relative overflow-hidden rounded-3xl border border-[#E2E8F0] bg-gradient-to-b from-[#EBF5FE] via-[#F4F9FE] to-white shadow-[0_8px_30px_rgba(11,31,70,0.04)] px-5 sm:px-8 py-7 sm:py-8 space-y-6">
+            
+            {/* Background Sky-Blue Horizon, Soft Clouds & Abstract Saffron Waves (Zero Buildings) */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-0">
+              {/* Soft White Cloud 1 (Upper Right) */}
+              <svg className="absolute -top-4 right-16 sm:right-44 w-72 sm:w-96 h-28 opacity-75" viewBox="0 0 240 80" fill="none">
+                <path
+                  d="M40 60 A22 22 0 0 1 65 32 A32 32 0 0 1 120 28 A38 38 0 0 1 180 38 A24 24 0 0 1 210 60 Z"
+                  fill="white"
+                  fillOpacity="0.8"
+                />
+              </svg>
+              {/* Soft White Cloud 2 (Upper Left/Center) */}
+              <svg className="absolute top-2 left-20 sm:left-64 w-60 sm:w-80 h-24 opacity-60" viewBox="0 0 200 70" fill="none">
+                <path
+                  d="M30 52 A18 18 0 0 1 52 28 A26 26 0 0 1 98 24 A32 32 0 0 1 150 32 A20 20 0 0 1 175 52 Z"
+                  fill="white"
+                  fillOpacity="0.75"
+                />
+              </svg>
+
+              {/* Left Corner Fluid Orange & Saffron Abstract Waves */}
+              <svg
+                className="absolute -left-6 -top-4 w-56 sm:w-72 h-64 sm:h-80 opacity-45"
+                viewBox="0 0 280 280"
+                fill="none"
+              >
+                <path
+                  d="M-20 0 C 70 30, 95 120, 50 195 C 15 250, -20 270, -40 280 L -40 0 Z"
+                  fill="url(#ind-orange-wave-1)"
+                />
+                <path
+                  d="M-10 0 C 110 50, 130 150, 80 230 L -30 230 L -30 0 Z"
+                  fill="url(#ind-orange-wave-2)"
+                  opacity="0.6"
+                />
+                <defs>
+                  <linearGradient id="ind-orange-wave-1" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FF6500" stopOpacity="0.85" />
+                    <stop offset="60%" stopColor="#FED7AA" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+                  </linearGradient>
+                  <linearGradient id="ind-orange-wave-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#FF8533" stopOpacity="0.75" />
+                    <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.05" />
+                  </linearGradient>
+                </defs>
+              </svg>
+
+              {/* Right Corner Fluid Orange Abstract Waves */}
+              <svg
+                className="absolute -right-6 -top-4 w-60 sm:w-80 h-64 sm:h-80 opacity-45"
+                viewBox="0 0 300 280"
+                fill="none"
+              >
+                <path
+                  d="M320 0 C 230 40, 195 140, 245 230 C 275 270, 310 280, 330 280 L 330 0 Z"
+                  fill="url(#ind-orange-wave-3)"
+                />
+                <path
+                  d="M310 20 C 210 80, 185 170, 230 250 L 320 250 L 320 20 Z"
+                  fill="url(#ind-orange-wave-4)"
+                  opacity="0.5"
+                />
+                <defs>
+                  <linearGradient id="ind-orange-wave-3" x1="100%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#FF6500" stopOpacity="0.85" />
+                    <stop offset="60%" stopColor="#FED7AA" stopOpacity="0.35" />
+                    <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0" />
+                  </linearGradient>
+                  <linearGradient id="ind-orange-wave-4" x1="100%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stopColor="#FFA055" stopOpacity="0.65" />
+                    <stop offset="100%" stopColor="#FFFFFF" stopOpacity="0.05" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+
+            {/* Header Content */}
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E2E8F0]/80 pb-4">
               <div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#FF6500] mb-1">
-                  <Building2 className="w-3.5 h-3.5" />
-                  <span>Verified Corporate Collaboration</span>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#FFF4EC] border border-[#FF6500]/30 text-[#FF6500] mb-2 shadow-2xs">
+                  <Handshake className="w-3.5 h-3.5 text-[#FF6500]" />
+                  <span>VERIFIED CORPORATE COLLABORATION</span>
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F46] tracking-tight">
-                  Our Industry Partners
+                  Our <span className="text-[#FF6500]">Industry</span> Partners
                 </h2>
                 <p className="text-xs sm:text-sm text-[#475569] mt-1 max-w-2xl leading-relaxed">
                   Companies collaborating with educational institutions to create structured internship opportunities across Andhra Pradesh.
@@ -263,7 +383,7 @@ export const HomePage: React.FC = () => {
                 {currentUser?.role === 'super_admin' && (
                   <Link
                     to="/admin/companies"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0B1F46] text-[#FFE5D3] hover:bg-[#14336F] rounded-lg text-xs font-bold shadow-sm transition"
+                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0B1F46] text-[#FFE5D3] hover:bg-[#14336F] rounded-full text-xs font-bold shadow-sm transition"
                   >
                     <Settings className="w-3.5 h-3.5 text-[#FF6500]" />
                     <span>Admin: Manage Partners</span>
@@ -272,17 +392,17 @@ export const HomePage: React.FC = () => {
 
                 <Link
                   to="/partners"
-                  className="inline-flex items-center gap-1.5 text-xs font-bold text-[#1456C0] hover:text-[#0B1F46] hover:underline shrink-0"
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[#CBD5E1] bg-white/90 hover:bg-white text-[#0B1F46] font-bold text-xs sm:text-sm shadow-sm hover:shadow hover:border-[#FF6500]/40 transition-all shrink-0 group"
                 >
                   <span>View All Partners ({verifiedCompanies.length})</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <ArrowRight className="w-4 h-4 text-[#FF6500] group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </div>
             </div>
 
-            {/* Dynamic Partner Grid */}
+            {/* Carousel / Dynamic Partner Cards */}
             {verifiedCompanies.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-10 text-center max-w-md mx-auto space-y-3 shadow-sm">
+              <div className="relative z-10 bg-white/90 rounded-2xl border border-[#E2E8F0] p-10 text-center max-w-md mx-auto space-y-3 shadow-sm">
                 <div className="w-12 h-12 bg-[#F4F7FC] rounded-xl flex items-center justify-center mx-auto text-[#0B1F46]">
                   <Building2 className="w-6 h-6" />
                 </div>
@@ -292,26 +412,117 @@ export const HomePage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {displayedCompanies.map((company, idx) => (
-                  <PartnerCard key={company.id} company={company} featured={idx === 0} />
-                ))}
+              <div className="relative">
+                {/* Left Carousel Navigation Arrow */}
+                <button
+                  type="button"
+                  onClick={prevPartnerPage}
+                  className="hidden sm:flex absolute -left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white border border-[#E2E8F0] shadow-md items-center justify-center text-[#0B1F46] hover:bg-[#F8FAFC] hover:shadow-lg active:scale-95 transition-all z-20 cursor-pointer"
+                  aria-label="Previous partners"
+                >
+                  <ChevronLeft className="w-5 h-5 text-[#0B1F46]" />
+                </button>
+
+                {/* Right Carousel Navigation Arrow */}
+                <button
+                  type="button"
+                  onClick={nextPartnerPage}
+                  className="hidden sm:flex absolute -right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white border border-[#E2E8F0] shadow-md items-center justify-center text-[#0B1F46] hover:bg-[#F8FAFC] hover:shadow-lg active:scale-95 transition-all z-20 cursor-pointer"
+                  aria-label="Next partners"
+                >
+                  <ChevronRight className="w-5 h-5 text-[#0B1F46]" />
+                </button>
+
+                {/* Cards Row (6 per view matching mockup) */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-10">
+                  {displayedPartnerCards.map((company, idx) => (
+                    <PartnerCard
+                      key={`${company.id}-${idx}`}
+                      company={company}
+                      featured={partnerCarouselIndex === 0 && idx === 0}
+                    />
+                  ))}
+                </div>
+
+                {/* Functional Carousel Pagination Indicators */}
+                <div className="flex items-center justify-center gap-1.5 pt-4 relative z-10">
+                  {Array.from({ length: partnerTotalPages }).map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setPartnerCarouselIndex(i)}
+                      className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                        partnerCarouselIndex === i
+                          ? 'w-6 bg-[#FF6500]'
+                          : 'w-2.5 bg-[#CBD5E1] hover:bg-[#94A3B8]'
+                      }`}
+                      aria-label={`Go to slide ${i + 1}`}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </section>
         </div>
 
-        {/* 5.2 OUR INSTITUTIONAL NETWORK (DATABASE DRIVEN) */}
+        {/* 5.2 OUR INSTITUTIONAL NETWORK (DATABASE DRIVEN WITH ABSTRACT GREEN WAVES) */}
         <div className="w-full px-2.5 sm:px-6 lg:px-8">
-          <section className="w-full space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E2E8F0] pb-4">
+          <section className="w-full relative overflow-hidden rounded-3xl border border-[#A7F3D0]/80 bg-gradient-to-b from-[#F0FDF4] via-[#F7FEFA] to-white shadow-[0_8px_30px_rgba(16,185,129,0.04)] px-5 sm:px-8 py-7 sm:py-8 space-y-6">
+            
+            {/* Background Elegant Abstract Green Wave Patterns (Zero Buildings) */}
+            <div className="absolute inset-0 pointer-events-none overflow-hidden select-none z-0">
+              <svg
+                className="absolute right-0 top-0 w-full sm:w-[85%] lg:w-[75%] h-full"
+                viewBox="0 0 1000 400"
+                preserveAspectRatio="none"
+                fill="none"
+              >
+                {/* Flowing Ribbon 1 - Deep soft mint */}
+                <path
+                  d="M180 0 C 420 70, 620 15, 820 60 C 920 85, 1000 50, 1000 50 L 1000 260 C 880 210, 720 245, 520 160 C 350 90, 230 40, 180 0 Z"
+                  fill="url(#inst-green-wave-1)"
+                />
+                {/* Flowing Ribbon 2 - Emerald accent wave */}
+                <path
+                  d="M320 0 C 520 100, 720 30, 890 85 L 1000 110 L 1000 290 C 860 235, 690 260, 470 180 C 370 140, 330 75, 320 0 Z"
+                  fill="url(#inst-green-wave-2)"
+                />
+                {/* Flowing Ribbon 3 - Delicate highlight stroke */}
+                <path
+                  d="M120 15 C 360 110, 600 25, 830 100 C 930 130, 1000 110, 1000 110"
+                  stroke="url(#inst-green-stroke)"
+                  strokeWidth="2.5"
+                  strokeOpacity="0.5"
+                />
+                <defs>
+                  <linearGradient id="inst-green-wave-1" x1="0%" y1="0%" x2="100%" y2="80%">
+                    <stop offset="0%" stopColor="#10B981" stopOpacity="0.07" />
+                    <stop offset="50%" stopColor="#34D399" stopOpacity="0.14" />
+                    <stop offset="100%" stopColor="#6EE7B7" stopOpacity="0.04" />
+                  </linearGradient>
+                  <linearGradient id="inst-green-wave-2" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#059669" stopOpacity="0.04" />
+                    <stop offset="60%" stopColor="#10B981" stopOpacity="0.12" />
+                    <stop offset="100%" stopColor="#A7F3D0" stopOpacity="0.02" />
+                  </linearGradient>
+                  <linearGradient id="inst-green-stroke" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#10B981" stopOpacity="0" />
+                    <stop offset="50%" stopColor="#10B981" stopOpacity="0.6" />
+                    <stop offset="100%" stopColor="#34D399" stopOpacity="0.1" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+
+            {/* Header Content */}
+            <div className="relative z-10 flex flex-col sm:flex-row sm:items-end justify-between gap-4 border-b border-[#E2E8F0]/80 pb-4">
               <div>
-                <div className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-[#10B981] mb-1">
-                  <School className="w-3.5 h-3.5" />
-                  <span>State Higher Education Network</span>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-[#ECFDF5] border border-[#10B981]/30 text-[#059669] mb-2 shadow-2xs">
+                  <School className="w-3.5 h-3.5 text-[#10B981]" />
+                  <span>STATE HIGHER EDUCATION NETWORK</span>
                 </div>
                 <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F46] tracking-tight">
-                  Our Institutional Network
+                  Our <span className="text-[#10B981]">Institutional</span> Network
                 </h2>
                 <p className="text-xs sm:text-sm text-[#475569] mt-1 max-w-2xl leading-relaxed">
                   Verified Government Degree Colleges, Polytechnics, and Autonomous Universities participating in centralized internship governance.
@@ -320,16 +531,16 @@ export const HomePage: React.FC = () => {
 
               <Link
                 to="/institutions"
-                className="inline-flex items-center gap-1.5 text-xs font-bold text-[#10B981] hover:text-emerald-900 hover:underline shrink-0"
+                className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[#10B981]/40 bg-white/90 hover:bg-white text-[#065F46] font-bold text-xs sm:text-sm shadow-sm hover:shadow hover:border-[#10B981] transition-all shrink-0 group"
               >
                 <span>Explore Institution Ecosystem ({verifiedInstitutions.length})</span>
-                <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 text-[#10B981] group-hover:translate-x-0.5 transition-transform" />
               </Link>
             </div>
 
-            {/* Dynamic Institution Grid */}
+            {/* Carousel / Dynamic Institution Cards */}
             {verifiedInstitutions.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-[#E2E8F0] p-10 text-center max-w-md mx-auto space-y-3 shadow-sm">
+              <div className="relative z-10 bg-white/90 rounded-2xl border border-[#E2E8F0] p-10 text-center max-w-md mx-auto space-y-3 shadow-sm">
                 <div className="w-12 h-12 bg-[#F4F7FC] rounded-xl flex items-center justify-center mx-auto text-[#0B1F46]">
                   <School className="w-6 h-6" />
                 </div>
@@ -339,10 +550,54 @@ export const HomePage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                {displayedInstitutions.map((inst, idx) => (
-                  <InstitutionCard key={inst.id} institution={inst} featured={idx === 0} />
-                ))}
+              <div className="relative">
+                {/* Left Carousel Navigation Arrow */}
+                <button
+                  type="button"
+                  onClick={prevInstPage}
+                  className="hidden sm:flex absolute -left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white border border-[#E2E8F0] shadow-md items-center justify-center text-[#0B1F46] hover:bg-[#F8FAFC] hover:shadow-lg active:scale-95 transition-all z-20 cursor-pointer"
+                  aria-label="Previous institutions"
+                >
+                  <ChevronLeft className="w-5 h-5 text-[#0B1F46]" />
+                </button>
+
+                {/* Right Carousel Navigation Arrow */}
+                <button
+                  type="button"
+                  onClick={nextInstPage}
+                  className="hidden sm:flex absolute -right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white border border-[#E2E8F0] shadow-md items-center justify-center text-[#0B1F46] hover:bg-[#F8FAFC] hover:shadow-lg active:scale-95 transition-all z-20 cursor-pointer"
+                  aria-label="Next institutions"
+                >
+                  <ChevronRight className="w-5 h-5 text-[#0B1F46]" />
+                </button>
+
+                {/* Cards Row (6 per view matching mockup) */}
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-10">
+                  {displayedInstCards.map((inst, idx) => (
+                    <InstitutionCard
+                      key={`${inst.id}-${idx}`}
+                      institution={inst}
+                      featured={instCarouselIndex === 0 && idx === 0}
+                    />
+                  ))}
+                </div>
+
+                {/* Functional Carousel Pagination Indicators */}
+                <div className="flex items-center justify-center gap-1.5 pt-4 relative z-10">
+                  {Array.from({ length: instTotalPages }).map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => setInstCarouselIndex(i)}
+                      className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
+                        instCarouselIndex === i
+                          ? 'w-6 bg-[#10B981]'
+                          : 'w-2.5 bg-[#CBD5E1] hover:bg-[#94A3B8]'
+                      }`}
+                      aria-label={`Go to slide ${i + 1}`}
+                    />
+                  ))}
+                </div>
               </div>
             )}
           </section>
@@ -352,10 +607,15 @@ export const HomePage: React.FC = () => {
         <div className="w-full px-2.5 sm:px-6 lg:px-8">
           <section className="w-full">
             <div className="text-center max-w-3xl mx-auto mb-10">
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F46]">
-                Empowering Every Stakeholder in the Internship Lifecycle
-              </h2>
-              <p className="text-sm text-[#475569] mt-2">
+              <div className="flex items-center justify-center gap-3 sm:gap-4 mb-2">
+                <div className="h-[1.5px] w-12 sm:w-20 bg-gradient-to-r from-transparent to-[#94A3B8]/60" />
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-[#0B1F46] tracking-tight">
+                  Empowering Every Stakeholder in the{' '}
+                  <span className="text-[#FF6500]">Internship Lifecycle</span>
+                </h2>
+                <div className="h-[1.5px] w-12 sm:w-20 bg-gradient-to-l from-transparent to-[#94A3B8]/60" />
+              </div>
+              <p className="text-xs sm:text-sm text-[#475569] mt-2 font-medium">
                 Built specifically for academic rigor, industry productivity, and student career advancement.
               </p>
             </div>
