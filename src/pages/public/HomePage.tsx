@@ -99,7 +99,7 @@ export const HomePage: React.FC = () => {
       {/* 1. HERO SECTION (Art-Directed Academic Composition — Seamless Full-Bleed) */}
       {/* ======================================================================== */}
       <div className="w-full px-2.5 sm:px-6 lg:px-8 pt-2 sm:pt-3">
-        <section className="w-full max-w-[1480px] mx-auto relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#CBD5E1]/80 bg-[#EAF2FD] shadow-[0_8px_30px_rgba(11,31,70,0.06)] min-h-[380px] lg:min-h-[430px] xl:min-h-[450px] flex flex-col lg:flex-row items-center justify-between">
+        <section className="w-full max-w-[1480px] mx-auto relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#CBD5E1]/80 bg-[#9BC7FA] shadow-[0_8px_30px_rgba(11,31,70,0.06)] min-h-[380px] lg:min-h-[440px] xl:min-h-[460px] flex flex-col lg:flex-row items-center justify-between">
           
           {/* Top-Left Ambient Orange Glow Accent matching reference branding */}
           <div className="absolute -top-16 -left-16 w-52 h-52 bg-gradient-to-br from-[#FF6500]/20 via-[#FFA040]/10 to-transparent rounded-full blur-2xl pointer-events-none" />
@@ -109,14 +109,14 @@ export const HomePage: React.FC = () => {
             className="hidden lg:block absolute inset-0 w-full h-full pointer-events-none select-none z-0"
             style={{
               backgroundImage: `url('/images/hero-banner-clean-bg@2x.png')`,
-              backgroundPosition: 'right center',
+              backgroundPosition: 'right bottom',
               backgroundRepeat: 'no-repeat',
               backgroundSize: 'cover'
             }}
           />
 
           {/* Mobile/Tablet Dedicated Academic Composition Artwork Banner */}
-          <div className="lg:hidden w-full h-[220px] sm:h-[270px] relative overflow-hidden bg-gradient-to-b from-[#A5CDFE]/30 via-white to-[#EAF2FD] border-b border-[#E2E8F0] flex items-center justify-center p-3 shrink-0">
+          <div className="lg:hidden w-full h-[240px] sm:h-[300px] relative overflow-hidden bg-[#9BC7FA] border-b border-[#CBD5E1] flex items-center justify-center shrink-0">
             <img
               src="/images/hero-artwork-mobile.png"
               alt="Better Skills Brighter Future - Academic Foundation & Graduation Cap"
@@ -125,7 +125,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Left Column: Heading, Outlined Pill & Two Side-by-Side CTAs */}
-          <div className="relative z-10 w-full lg:w-[48%] xl:w-[44%] max-w-[540px] px-5 sm:px-8 lg:px-12 py-7 sm:py-9 lg:py-10 space-y-4 sm:space-y-5 text-left">
+          <div className="relative z-10 w-full lg:w-[48%] xl:w-[42%] max-w-[520px] px-5 sm:px-8 lg:px-12 py-7 sm:py-9 lg:py-10 space-y-4 sm:space-y-5 text-left">
             {/* Premium Category Pill Badge */}
             <div className="inline-flex items-center gap-2 bg-[#FFF6EE] border border-[#FF6500]/40 text-[#0B1F46] px-3.5 py-1.5 rounded-full text-xs font-bold shadow-2xs">
               <Sparkles className="w-3.5 h-3.5 text-[#FF6500] shrink-0" />
