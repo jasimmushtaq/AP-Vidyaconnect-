@@ -47,6 +47,23 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
   const exploreRef = useRef<HTMLDivElement>(null);
   const profileRef = useRef<HTMLDivElement>(null);
 
+  // Auto-close mobile drawer on route navigation
+  useEffect(() => {
+    setMobileDrawerOpen(false);
+  }, [location.pathname]);
+
+  // Lock body scroll when mobile drawer is open
+  useEffect(() => {
+    if (mobileDrawerOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [mobileDrawerOpen]);
+
   // Close menus on outside click
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -88,25 +105,29 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
           <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
             <button
               onClick={() => {
-                if (onMenuToggle) onMenuToggle();
-                setMobileDrawerOpen(!mobileDrawerOpen);
+                if (onMenuToggle) {
+                  onMenuToggle();
+                } else {
+                  setMobileDrawerOpen(!mobileDrawerOpen);
+                }
               }}
               className="xl:hidden p-1.5 sm:p-2 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-              title="Toggle Menu"
+              title={mobileDrawerOpen ? "Close Menu" : "Toggle Menu"}
+              aria-label={mobileDrawerOpen ? "Close Menu" : "Toggle Menu"}
             >
-              <Menu className="w-5 h-5" />
+              {mobileDrawerOpen ? <X className="w-5 h-5 text-gray-800" /> : <Menu className="w-5 h-5 text-gray-800" />}
             </button>
 
-            <Link to="/" className="flex items-center gap-2 sm:gap-3 group">
-              <BrandLogo className="h-7 sm:h-9 w-auto" />
+            <Link to="/" className="flex items-center gap-1.5 sm:gap-3 group">
+              <BrandLogo className="h-6 sm:h-8 md:h-9 w-auto" />
 
-              <div className="h-5 sm:h-6 w-[1px] bg-[#D1D5DB] shrink-0" />
+              <div className="h-4 sm:h-6 w-[1px] bg-[#D1D5DB] shrink-0" />
 
               <div className="flex items-center shrink-0">
                 <img
                   src="/brand/pixelwind-logo.png"
                   alt="Pixel Wind Technology"
-                  className="h-5 sm:h-7 w-auto object-contain transition-transform duration-300 group-hover:scale-105 select-none shrink-0"
+                  className="h-4 sm:h-6 md:h-7 w-auto object-contain transition-transform duration-300 group-hover:scale-105 select-none shrink-0"
                   title="Pixel Wind Technology"
                 />
               </div>
@@ -442,75 +463,216 @@ export const Header: React.FC<{ onMenuToggle?: () => void }> = ({ onMenuToggle }
         </div>
       </div>
 
-      {/* Responsive Mobile Drawer Menu */}
+      {/* Responsive Mobile Drawer Menu (Modal Overlay & Full Slide Drawer) */}
       {mobileDrawerOpen && (
-        <div className="xl:hidden bg-white border-b border-gray-200 p-4 space-y-4 animate-in slide-in-from-top duration-200">
-          <div className="grid grid-cols-2 gap-2 text-xs font-bold">
-            <Link
-              to="/opportunities"
-              onClick={() => setMobileDrawerOpen(false)}
-              className="p-2.5 bg-orange-50 rounded-xl text-[#0E2350] flex items-center gap-2"
-            >
-              <Briefcase className="w-4 h-4 text-[#F07421]" />
-              Opportunities
-            </Link>
+        <div className="fixed inset-0 z-50 xl:hidden">
+          {/* Backdrop with Blur */}
+          <div
+            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity duration-300"
+            onClick={() => setMobileDrawerOpen(false)}
+          />
 
-            <Link
-              to="/partners"
-              onClick={() => setMobileDrawerOpen(false)}
-              className="p-2.5 bg-gray-50 rounded-xl text-[#0E2350] flex items-center gap-2"
-            >
-              <Building2 className="w-4 h-4 text-blue-600" />
-              Industry Partners
-            </Link>
+          {/* Slide-out Drawer Panel */}
+          <div className="fixed inset-y-0 left-0 w-[85%] max-w-[360px] bg-white shadow-2xl z-50 flex flex-col justify-between overflow-y-auto animate-in slide-in-from-left duration-200">
+            {/* Top Bar: Brand Logo & Close Button */}
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
+              <Link to="/" onClick={() => setMobileDrawerOpen(false)} className="flex items-center gap-2">
+                <BrandLogo className="h-7 w-auto" />
+              </Link>
+              <button
+                onClick={() => setMobileDrawerOpen(false)}
+                className="p-1.5 rounded-lg text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors cursor-pointer"
+                title="Close Menu"
+                aria-label="Close Menu"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-            <Link
-              to="/institutions"
-              onClick={() => setMobileDrawerOpen(false)}
-              className="p-2.5 bg-gray-50 rounded-xl text-[#0E2350] flex items-center gap-2"
-            >
-              <GraduationCap className="w-4 h-4 text-emerald-600" />
-              Institutional Network
-            </Link>
+            {/* Middle: Organized Navigation Links */}
+            <div className="p-4 space-y-4 flex-1">
+              {/* Quick Registration CTAs */}
+              <div className="space-y-2 pb-3 border-b border-gray-100">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block px-1">
+                  Quick Registration
+                </span>
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    to="/register?type=institution"
+                    onClick={() => setMobileDrawerOpen(false)}
+                    className="p-2.5 rounded-xl bg-[#0B1F46] hover:bg-[#14336F] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm text-center transition-colors"
+                  >
+                    <School className="w-3.5 h-3.5 text-[#FF6500]" />
+                    <span>Institution</span>
+                  </Link>
+                  <Link
+                    to="/register?type=company"
+                    onClick={() => setMobileDrawerOpen(false)}
+                    className="p-2.5 rounded-xl bg-[#FF6500] hover:bg-[#E65A00] text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm text-center transition-colors"
+                  >
+                    <Building2 className="w-3.5 h-3.5 text-white" />
+                    <span>Company</span>
+                  </Link>
+                </div>
+              </div>
 
-            <Link
-              to="/about"
-              onClick={() => setMobileDrawerOpen(false)}
-              className="p-2.5 bg-gray-50 rounded-xl text-[#0E2350] flex items-center gap-2"
-            >
-              <Info className="w-4 h-4 text-teal-600" />
-              About Platform
-            </Link>
+              {/* Main Directory Links */}
+              <div className="space-y-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block px-1 mb-1.5">
+                  Platform Directory
+                </span>
+                <Link
+                  to="/opportunities"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-orange-50 text-[#0E2350] flex items-center justify-between font-bold text-xs transition-colors"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Briefcase className="w-4 h-4 text-[#FF6500]" />
+                    <span>Opportunities</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 bg-[#FF6500] text-white rounded text-[9px] font-black uppercase shadow-2xs">
+                    OPEN
+                  </span>
+                </Link>
 
-            <Link
-              to="/contact"
-              onClick={() => setMobileDrawerOpen(false)}
-              className="p-2.5 bg-gray-50 rounded-xl text-[#0E2350] flex items-center gap-2"
-            >
-              <Phone className="w-4 h-4 text-[#F07421]" />
-              Contact Us
-            </Link>
+                <Link
+                  to="/partners"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-blue-50 text-[#0E2350] flex items-center gap-2.5 font-bold text-xs transition-colors"
+                >
+                  <Building2 className="w-4 h-4 text-blue-600" />
+                  <span>Industry Partners</span>
+                </Link>
 
-            <Link
-              to="/terms"
-              onClick={() => setMobileDrawerOpen(false)}
-              className="p-2.5 bg-gray-50 rounded-xl text-gray-700 col-span-2 flex items-center justify-center gap-2"
-            >
-              <Scale className="w-4 h-4 text-gray-500" />
-              Terms & Legal Regulatory Framework
-            </Link>
+                <Link
+                  to="/institutions"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-emerald-50 text-[#0E2350] flex items-center gap-2.5 font-bold text-xs transition-colors"
+                >
+                  <School className="w-4 h-4 text-emerald-600" />
+                  <span>Institutional Network</span>
+                </Link>
+              </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setMobileDrawerOpen(false);
-                (window as any).replayApkSplash?.();
-              }}
-              className="p-2.5 bg-blue-50/80 rounded-xl text-blue-800 col-span-2 flex items-center justify-center gap-2 font-semibold text-xs"
-            >
-              <Sparkles className="w-4 h-4 text-blue-600" />
-              Preview Mobile Launch Animation
-            </button>
+              {/* Guides & Portals */}
+              <div className="space-y-1 pt-2 border-t border-gray-100">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-400 block px-1 mb-1.5">
+                  Guides & Portals
+                </span>
+                <Link
+                  to="/how-it-works"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-gray-50 text-[#0E2350] flex items-center gap-2.5 font-semibold text-xs transition-colors"
+                >
+                  <Layers className="w-4 h-4 text-[#FF6500]" />
+                  <span>How It Works (7 Steps)</span>
+                </Link>
+
+                <Link
+                  to="/for-institutions"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-gray-50 text-[#0E2350] flex items-center gap-2.5 font-semibold text-xs transition-colors"
+                >
+                  <BookOpen className="w-4 h-4 text-blue-600" />
+                  <span>For Colleges & Institutions</span>
+                </Link>
+
+                <Link
+                  to="/for-companies"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-gray-50 text-[#0E2350] flex items-center gap-2.5 font-semibold text-xs transition-colors"
+                >
+                  <Briefcase className="w-4 h-4 text-amber-600" />
+                  <span>For Corporate Partners</span>
+                </Link>
+
+                <Link
+                  to="/for-students"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-gray-50 text-[#0E2350] flex items-center gap-2.5 font-semibold text-xs transition-colors"
+                >
+                  <GraduationCap className="w-4 h-4 text-emerald-600" />
+                  <span>For Students & Interns</span>
+                </Link>
+
+                <Link
+                  to="/about"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-gray-50 text-[#0E2350] flex items-center gap-2.5 font-semibold text-xs transition-colors"
+                >
+                  <Info className="w-4 h-4 text-teal-600" />
+                  <span>About Platform</span>
+                </Link>
+
+                <Link
+                  to="/faqs"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-gray-50 text-[#0E2350] flex items-center gap-2.5 font-semibold text-xs transition-colors"
+                >
+                  <HelpCircle className="w-4 h-4 text-gray-500" />
+                  <span>FAQs & Helpdesk</span>
+                </Link>
+
+                <Link
+                  to="/contact"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-gray-50 text-[#0E2350] flex items-center gap-2.5 font-semibold text-xs transition-colors"
+                >
+                  <Phone className="w-4 h-4 text-[#FF6500]" />
+                  <span>Contact Nodal Desk</span>
+                </Link>
+
+                <Link
+                  to="/terms"
+                  onClick={() => setMobileDrawerOpen(false)}
+                  className="p-2.5 rounded-xl hover:bg-gray-50 text-gray-600 flex items-center gap-2.5 font-medium text-xs transition-colors"
+                >
+                  <Scale className="w-4 h-4 text-gray-400" />
+                  <span>Terms & Policies</span>
+                </Link>
+              </div>
+            </div>
+
+            {/* Bottom Bar: Sign In / Register / Session Controls */}
+            <div className="p-4 border-t border-gray-100 bg-slate-50/80 space-y-2">
+              {!isAuthenticated ? (
+                <div className="grid grid-cols-2 gap-2">
+                  <Link
+                    to="/login"
+                    onClick={() => setMobileDrawerOpen(false)}
+                    className="p-2.5 rounded-xl bg-white border border-gray-200 text-[#0B1F46] text-xs font-bold text-center hover:bg-gray-100 shadow-2xs transition-colors"
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/register"
+                    onClick={() => setMobileDrawerOpen(false)}
+                    className="p-2.5 rounded-xl bg-gradient-to-r from-[#FF6500] to-[#E9272E] text-white text-xs font-bold text-center shadow-xs hover:opacity-95 transition-all"
+                  >
+                    Register
+                  </Link>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <Link
+                    to="/dashboard"
+                    onClick={() => setMobileDrawerOpen(false)}
+                    className="w-full p-2.5 rounded-xl bg-[#0B1F46] text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm"
+                  >
+                    <School className="w-4 h-4 text-[#FF6500]" />
+                    <span>Go to Portal Workspace</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="w-full p-2 rounded-xl bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>Sign Out</span>
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}

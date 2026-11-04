@@ -50,6 +50,8 @@ export const HomePage: React.FC = () => {
   // Carousel Pagination State for Industry Partners & Institutional Network
   const [partnerCarouselIndex, setPartnerCarouselIndex] = useState(0);
   const [instCarouselIndex, setInstCarouselIndex] = useState(0);
+  const [partnerTouchStart, setPartnerTouchStart] = useState<number | null>(null);
+  const [instTouchStart, setInstTouchStart] = useState<number | null>(null);
 
   const CARDS_PER_VIEW = 6;
   const partnerTotalPages = Math.max(3, Math.ceil(verifiedCompanies.length / CARDS_PER_VIEW));
@@ -88,6 +90,28 @@ export const HomePage: React.FC = () => {
     setInstCarouselIndex((prev) => (prev + 1) % instTotalPages);
   };
 
+  const handlePartnerTouchStart = (e: React.TouchEvent) => {
+    setPartnerTouchStart(e.targetTouches[0].clientX);
+  };
+  const handlePartnerTouchEnd = (e: React.TouchEvent) => {
+    if (partnerTouchStart === null) return;
+    const diff = partnerTouchStart - e.changedTouches[0].clientX;
+    if (diff > 45) nextPartnerPage();
+    else if (diff < -45) prevPartnerPage();
+    setPartnerTouchStart(null);
+  };
+
+  const handleInstTouchStart = (e: React.TouchEvent) => {
+    setInstTouchStart(e.targetTouches[0].clientX);
+  };
+  const handleInstTouchEnd = (e: React.TouchEvent) => {
+    if (instTouchStart === null) return;
+    const diff = instTouchStart - e.changedTouches[0].clientX;
+    if (diff > 45) nextInstPage();
+    else if (diff < -45) prevInstPage();
+    setInstTouchStart(null);
+  };
+
   const registeredCollegesCount = verifiedInstitutions.length;
   const verifiedCompaniesCount = verifiedCompanies.length;
   const activeInternsCount = students.length;
@@ -99,7 +123,7 @@ export const HomePage: React.FC = () => {
       {/* 1. HERO SECTION (Art-Directed Academic Composition — Seamless Full-Bleed) */}
       {/* ======================================================================== */}
       <div className="w-full px-2.5 sm:px-6 lg:px-8 pt-2 sm:pt-3">
-        <section className="w-full max-w-[1480px] mx-auto relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#CBD5E1]/80 shadow-[0_8px_30px_rgba(11,31,70,0.06)] min-h-[380px] lg:min-h-[440px] xl:min-h-[470px] lg:aspect-[1024/342] flex flex-col lg:flex-row items-center justify-between">
+        <section className="w-full max-w-[1480px] mx-auto relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#CBD5E1]/80 shadow-[0_8px_30px_rgba(11,31,70,0.06)] min-h-[380px] lg:min-h-[440px] xl:min-h-[470px] lg:aspect-[1024/342] flex flex-col lg:flex-row items-center justify-between bg-gradient-to-b from-[#F2F8FE] via-white to-[#EEF5FD] lg:bg-transparent">
           
           {/* Top-Left Ambient Orange Glow Accent matching reference branding */}
           <div className="absolute -top-16 -left-16 w-52 h-52 bg-gradient-to-br from-[#FF6500]/20 via-[#FFA040]/10 to-transparent rounded-full blur-2xl pointer-events-none z-0" />
@@ -116,26 +140,26 @@ export const HomePage: React.FC = () => {
           />
 
           {/* Mobile/Tablet Dedicated Academic Composition Artwork Banner */}
-          <div className="lg:hidden w-full h-[220px] sm:h-[280px] relative overflow-hidden bg-gradient-to-b from-[#A5CDFE]/30 via-white to-[#EAF2FD] border-b border-[#CBD5E1]/60 flex items-center justify-center p-2 shrink-0 z-0">
+          <div className="lg:hidden w-full h-[210px] xs:h-[240px] sm:h-[280px] relative overflow-hidden bg-gradient-to-b from-[#D9ECFE]/40 via-white to-[#EAF2FD] border-b border-[#CBD5E1]/60 flex items-center justify-center shrink-0 z-0">
             <img
               src="/images/hero-reference-clean@2x.png"
               alt="Better Skills Brighter Future - Academic Foundation & Graduation Cap"
-              className="w-full h-full object-cover object-right select-none"
+              className="w-full h-full object-cover object-[78%_center] select-none"
             />
           </div>
 
           {/* Left Column: Heading, Outlined Pill & Two Side-by-Side CTAs */}
-          <div className="relative z-10 w-full lg:w-[46%] xl:w-[42%] max-w-[500px] px-5 sm:px-8 lg:px-12 py-7 sm:py-9 lg:py-10 space-y-4 sm:space-y-5 text-left">
+          <div className="relative z-10 w-full lg:w-[46%] xl:w-[42%] max-w-[500px] px-4 xs:px-5 sm:px-8 lg:px-12 py-6 sm:py-9 lg:py-10 space-y-3.5 sm:space-y-5 text-left">
             {/* Premium Category Pill Badge */}
-            <div className="inline-flex items-center gap-2 bg-[#FFF6EE] border border-[#FF6500]/40 text-[#0B1F46] px-3.5 py-1.5 rounded-full text-xs font-bold shadow-2xs">
+            <div className="inline-flex items-center gap-1.5 sm:gap-2 bg-[#FFF6EE] border border-[#FF6500]/40 text-[#0B1F46] px-3 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-xs font-bold shadow-2xs">
               <Sparkles className="w-3.5 h-3.5 text-[#FF6500] shrink-0" />
-              <span className="tracking-tight text-[11.5px] sm:text-xs font-bold text-[#0B1F46]">
+              <span className="tracking-tight text-[11px] sm:text-xs font-bold text-[#0B1F46] leading-tight">
                 Next-Gen Campus-to-Career Internship Ecosystem
               </span>
             </div>
 
             {/* Main Bold Heading matching 3-line format of reference mockup */}
-            <h1 className="text-3xl sm:text-4xl lg:text-[44px] xl:text-[48px] font-black text-[#0B1F46] tracking-tight leading-[1.12]">
+            <h1 className="text-[28px] xs:text-3xl sm:text-4xl lg:text-[44px] xl:text-[48px] font-black text-[#0B1F46] tracking-tight leading-[1.12]">
               Connecting<br />
               Education<br />
               with{' '}
@@ -163,27 +187,23 @@ export const HomePage: React.FC = () => {
             </p>
 
             {/* Two Primary Side-by-Side CTA Buttons */}
-            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+            <div className="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
               <Link
                 to="/register?type=institution"
-                className="h-[46px] px-5 rounded-full bg-[#0B1F46] hover:bg-[#14336F] text-white font-bold text-xs sm:text-[13.5px] shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-between sm:justify-center gap-2.5 group whitespace-nowrap"
+                className="h-11 sm:h-[46px] px-5 rounded-full bg-[#0B1F46] hover:bg-[#14336F] text-white font-bold text-xs sm:text-[13.5px] shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2.5 group whitespace-nowrap"
               >
-                <div className="flex items-center gap-2">
-                  <School className="w-4 h-4 text-[#FF6500]" />
-                  <span>Register Institution</span>
-                </div>
-                <ArrowRight className="w-3.5 h-3.5 text-white/80 group-hover:translate-x-0.5 transition-transform" />
+                <School className="w-4 h-4 text-[#FF6500] shrink-0" />
+                <span>Register Institution</span>
+                <ArrowRight className="w-3.5 h-3.5 text-white/80 group-hover:translate-x-0.5 transition-transform shrink-0 ml-auto sm:ml-0" />
               </Link>
 
               <Link
                 to="/register?type=company"
-                className="h-[46px] px-5 rounded-full bg-[#FF6500] hover:bg-[#E65A00] text-white font-bold text-xs sm:text-[13.5px] shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-between sm:justify-center gap-2.5 group whitespace-nowrap"
+                className="h-11 sm:h-[46px] px-5 rounded-full bg-[#FF6500] hover:bg-[#E65A00] text-white font-bold text-xs sm:text-[13.5px] shadow-sm hover:shadow-md hover:-translate-y-0.5 active:scale-95 transition-all flex items-center justify-center gap-2.5 group whitespace-nowrap"
               >
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-white" />
-                  <span>Register Company</span>
-                </div>
-                <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform" />
+                <Building2 className="w-4 h-4 text-white shrink-0" />
+                <span>Register Company</span>
+                <ArrowRight className="w-3.5 h-3.5 text-white group-hover:translate-x-0.5 transition-transform shrink-0 ml-auto sm:ml-0" />
               </Link>
             </div>
           </div>
@@ -194,55 +214,51 @@ export const HomePage: React.FC = () => {
       {/* 2. IMPACT STATISTICS BAR (Real-Time Industry & Institutional Networks)   */}
       {/* ======================================================================== */}
       <div className="w-full px-2.5 sm:px-6 lg:px-8 mt-3 sm:mt-4">
-        <div className="w-full bg-white rounded-2xl lg:rounded-full border border-[#E2E8F0] shadow-[0_4px_20px_rgba(11,31,70,0.04)] px-5 sm:px-8 py-3.5 sm:py-4">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 sm:gap-6">
+        <div className="w-full bg-white rounded-2xl lg:rounded-full border border-[#E2E8F0] shadow-[0_4px_20px_rgba(11,31,70,0.04)] px-4 sm:px-8 py-3.5 sm:py-4">
+          <div className="grid grid-cols-2 lg:flex lg:items-center lg:justify-between gap-3 sm:gap-6">
             
             {/* Metric 1: Industry Networks (Real-Time Live Data) */}
             <Link
               to="/partners"
-              className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3 group hover:opacity-95 transition-all"
+              className="flex items-center gap-2.5 sm:gap-3 group hover:opacity-95 transition-all"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#10B981] text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                  <Building2 className="w-5 h-5" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#10B981] text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                <Building2 className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div>
+                <div className="text-lg sm:text-2xl font-black text-[#0B1F46] leading-none flex items-center gap-1.5 sm:gap-2">
+                  <span>{verifiedCompaniesCount || companies.length}</span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8.5px] sm:text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    LIVE
+                  </span>
                 </div>
-                <div>
-                  <div className="text-xl sm:text-2xl font-black text-[#0B1F46] leading-none flex items-center gap-2">
-                    <span>{verifiedCompaniesCount || companies.length}</span>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                      LIVE
-                    </span>
-                  </div>
-                  <div className="text-xs sm:text-[13px] text-[#475569] font-bold mt-0.5 group-hover:text-[#1456C0] transition-colors">
-                    Industry Networks
-                  </div>
+                <div className="text-[11px] sm:text-[13px] text-[#475569] font-bold mt-0.5 group-hover:text-[#1456C0] transition-colors leading-tight">
+                  Industry Networks
                 </div>
               </div>
             </Link>
 
-            <div className="h-9 w-[1px] bg-[#E2E8F0] hidden sm:block" />
+            <div className="h-9 w-[1px] bg-[#E2E8F0] hidden lg:block" />
 
             {/* Metric 2: Institutional Networks (Real-Time Live Data) */}
             <Link
               to="/institutions"
-              className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-3 group hover:opacity-95 transition-all"
+              className="flex items-center gap-2.5 sm:gap-3 group hover:opacity-95 transition-all"
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-[#0B1F46] text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
-                  <School className="w-5 h-5 text-[#FF6500]" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-[#0B1F46] text-white flex items-center justify-center shrink-0 shadow-sm group-hover:scale-105 transition-transform">
+                <School className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF6500]" />
+              </div>
+              <div>
+                <div className="text-lg sm:text-2xl font-black text-[#0B1F46] leading-none flex items-center gap-1.5 sm:gap-2">
+                  <span>{registeredCollegesCount || institutions.length}</span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8.5px] sm:text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
+                    LIVE
+                  </span>
                 </div>
-                <div>
-                  <div className="text-xl sm:text-2xl font-black text-[#0B1F46] leading-none flex items-center gap-2">
-                    <span>{registeredCollegesCount || institutions.length}</span>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold bg-blue-50 text-blue-700 border border-blue-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                      LIVE
-                    </span>
-                  </div>
-                  <div className="text-xs sm:text-[13px] text-[#475569] font-bold mt-0.5 group-hover:text-[#1456C0] transition-colors">
-                    Institutional Networks
-                  </div>
+                <div className="text-[11px] sm:text-[13px] text-[#475569] font-bold mt-0.5 group-hover:text-[#1456C0] transition-colors leading-tight">
+                  Institutional Networks
                 </div>
               </div>
             </Link>
@@ -250,23 +266,23 @@ export const HomePage: React.FC = () => {
             <div className="h-9 w-[1px] bg-[#E2E8F0] hidden lg:block" />
 
             {/* Metric 3: Building a Skilled & Self-Reliant India + Tiranga Wave */}
-            <div className="w-full sm:w-auto flex items-center justify-between sm:justify-start gap-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FFF3EA] to-[#FFE0C7] text-[#FF6500] flex items-center justify-center shrink-0 border border-[#FED7AA]">
-                  <TrendingUp className="w-5 h-5" />
+            <div className="col-span-2 lg:col-span-1 pt-2 lg:pt-0 border-t border-[#F1F5F9] lg:border-t-0 flex items-center justify-between sm:justify-start gap-3 sm:gap-4">
+              <div className="flex items-center gap-2.5 sm:gap-3">
+                <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-[#FFF3EA] to-[#FFE0C7] text-[#FF6500] flex items-center justify-center shrink-0 border border-[#FED7AA]">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
                 </div>
                 <div>
                   <div className="text-xs sm:text-sm font-bold text-[#0B1F46] leading-tight">
                     Building a Skilled
                   </div>
-                  <div className="text-[11px] sm:text-xs text-[#475569] font-medium">
+                  <div className="text-[10px] sm:text-xs text-[#475569] font-medium">
                     and Self-Reliant India
                   </div>
                 </div>
               </div>
 
-              {/* Artistic Tiranga (Saffron, White, Green) Ribbon Wave SVG */}
-              <svg className="w-16 sm:w-20 h-6 shrink-0" viewBox="0 0 80 24" fill="none">
+              {/* Artistic Tiranga Wave SVG */}
+              <svg className="w-14 sm:w-20 h-5 sm:h-6 shrink-0" viewBox="0 0 80 24" fill="none">
                 <path d="M 2 12 C 24 4, 48 20, 78 8" stroke="#FF9933" strokeWidth="2.5" strokeLinecap="round" />
                 <path d="M 2 15 C 24 7, 48 23, 78 11" stroke="#CBD5E1" strokeWidth="1.5" strokeLinecap="round" />
                 <path d="M 2 18 C 24 10, 48 26, 78 14" stroke="#138808" strokeWidth="2.5" strokeLinecap="round" />
@@ -383,23 +399,44 @@ export const HomePage: React.FC = () => {
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                {/* Mobile-friendly arrow navigation */}
+                <div className="flex sm:hidden items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={prevPartnerPage}
+                    className="w-8 h-8 rounded-full bg-white border border-[#CBD5E1] shadow-xs flex items-center justify-center text-[#0B1F46] active:scale-95 transition-all cursor-pointer"
+                    aria-label="Previous partners"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-[#0B1F46]" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={nextPartnerPage}
+                    className="w-8 h-8 rounded-full bg-white border border-[#CBD5E1] shadow-xs flex items-center justify-center text-[#0B1F46] active:scale-95 transition-all cursor-pointer"
+                    aria-label="Next partners"
+                  >
+                    <ChevronRight className="w-4 h-4 text-[#0B1F46]" />
+                  </button>
+                </div>
+
                 {currentUser?.role === 'super_admin' && (
                   <Link
                     to="/admin/companies"
-                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 bg-[#0B1F46] text-[#FFE5D3] hover:bg-[#14336F] rounded-full text-xs font-bold shadow-sm transition"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#0B1F46] text-[#FFE5D3] hover:bg-[#14336F] rounded-full text-xs font-bold shadow-sm transition"
                   >
                     <Settings className="w-3.5 h-3.5 text-[#FF6500]" />
-                    <span>Admin: Manage Partners</span>
+                    <span className="hidden sm:inline">Admin: Manage Partners</span>
+                    <span className="sm:hidden">Manage</span>
                   </Link>
                 )}
 
                 <Link
                   to="/partners"
-                  className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[#CBD5E1] bg-white/90 hover:bg-white text-[#0B1F46] font-bold text-xs sm:text-sm shadow-sm hover:shadow hover:border-[#FF6500]/40 transition-all shrink-0 group"
+                  className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 rounded-full border border-[#CBD5E1] bg-white/90 hover:bg-white text-[#0B1F46] font-bold text-xs sm:text-sm shadow-sm hover:shadow hover:border-[#FF6500]/40 transition-all shrink-0 group"
                 >
-                  <span>View All Partners ({verifiedCompanies.length})</span>
-                  <ArrowRight className="w-4 h-4 text-[#FF6500] group-hover:translate-x-0.5 transition-transform" />
+                  <span>View All ({verifiedCompanies.length})</span>
+                  <ArrowRight className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-[#FF6500] group-hover:translate-x-0.5 transition-transform" />
                 </Link>
               </div>
             </div>
@@ -416,7 +453,11 @@ export const HomePage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="relative">
+              <div
+                className="relative"
+                onTouchStart={handlePartnerTouchStart}
+                onTouchEnd={handlePartnerTouchEnd}
+              >
                 {/* Left Carousel Navigation Arrow */}
                 <button
                   type="button"
@@ -438,7 +479,7 @@ export const HomePage: React.FC = () => {
                 </button>
 
                 {/* Cards Row (6 per view matching mockup) */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-10">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4 relative z-10">
                   {displayedPartnerCards.map((company, idx) => (
                     <PartnerCard
                       key={`${company.id}-${idx}`}
@@ -532,13 +573,35 @@ export const HomePage: React.FC = () => {
                 </p>
               </div>
 
-              <Link
-                to="/institutions"
-                className="inline-flex items-center gap-2 px-5 py-2 rounded-full border border-[#10B981]/40 bg-white/90 hover:bg-white text-[#065F46] font-bold text-xs sm:text-sm shadow-sm hover:shadow hover:border-[#10B981] transition-all shrink-0 group"
-              >
-                <span>Explore Institution Ecosystem ({verifiedInstitutions.length})</span>
-                <ArrowRight className="w-4 h-4 text-[#10B981] group-hover:translate-x-0.5 transition-transform" />
-              </Link>
+              <div className="flex items-center gap-2">
+                {/* Mobile-friendly arrow navigation */}
+                <div className="flex sm:hidden items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={prevInstPage}
+                    className="w-8 h-8 rounded-full bg-white border border-[#A7F3D0] shadow-xs flex items-center justify-center text-[#065F46] active:scale-95 transition-all cursor-pointer"
+                    aria-label="Previous institutions"
+                  >
+                    <ChevronLeft className="w-4 h-4 text-[#065F46]" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={nextInstPage}
+                    className="w-8 h-8 rounded-full bg-white border border-[#A7F3D0] shadow-xs flex items-center justify-center text-[#065F46] active:scale-95 transition-all cursor-pointer"
+                    aria-label="Next institutions"
+                  >
+                    <ChevronRight className="w-4 h-4 text-[#065F46]" />
+                  </button>
+                </div>
+
+                <Link
+                  to="/institutions"
+                  className="inline-flex items-center gap-1.5 sm:gap-2 px-3.5 sm:px-5 py-2 rounded-full border border-[#10B981]/40 bg-white/90 hover:bg-white text-[#065F46] font-bold text-xs sm:text-sm shadow-sm hover:shadow hover:border-[#10B981] transition-all shrink-0 group"
+                >
+                  <span>Explore Ecosystem ({verifiedInstitutions.length})</span>
+                  <ArrowRight className="w-3.5 sm:w-4 h-3.5 sm:h-4 text-[#10B981] group-hover:translate-x-0.5 transition-transform" />
+                </Link>
+              </div>
             </div>
 
             {/* Carousel / Dynamic Institution Cards */}
@@ -553,7 +616,11 @@ export const HomePage: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="relative">
+              <div
+                className="relative"
+                onTouchStart={handleInstTouchStart}
+                onTouchEnd={handleInstTouchEnd}
+              >
                 {/* Left Carousel Navigation Arrow */}
                 <button
                   type="button"
@@ -575,7 +642,7 @@ export const HomePage: React.FC = () => {
                 </button>
 
                 {/* Cards Row (6 per view matching mockup) */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 relative z-10">
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 sm:gap-4 relative z-10">
                   {displayedInstCards.map((inst, idx) => (
                     <InstitutionCard
                       key={`${inst.id}-${idx}`}
@@ -868,12 +935,12 @@ export const HomePage: React.FC = () => {
         {/* 5.4 OPPORTUNITIES & PARTNERSHIP BANNER */}
         <div className="w-full px-2.5 sm:px-6 lg:px-8">
           <section className="w-full">
-            <div className="bg-gradient-to-r from-[#0B1F46] via-[#10264A] to-[#14336F] rounded-2xl sm:rounded-3xl p-8 sm:p-10 text-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-xl border border-[#14336F]">
+            <div className="bg-gradient-to-r from-[#0B1F46] via-[#10264A] to-[#14336F] rounded-2xl sm:rounded-3xl p-6 sm:p-10 text-white flex flex-col md:flex-row items-start md:items-center justify-between gap-5 sm:gap-6 shadow-xl border border-[#14336F]">
               <div className="space-y-2 max-w-xl">
                 <span className="text-[11px] font-bold uppercase tracking-widest text-[#FF6500]">
                   INDUSTRY TALENT NETWORK
                 </span>
-                <h3 className="text-2xl sm:text-3xl font-bold">
+                <h3 className="text-xl sm:text-3xl font-bold">
                   Explore Verified Corporate Internship Opportunities
                 </h3>
                 <p className="text-xs text-[#DCE5F5] leading-relaxed">
@@ -883,7 +950,7 @@ export const HomePage: React.FC = () => {
 
               <Link
                 to="/opportunities"
-                className="px-6 py-3 rounded-full bg-white hover:bg-gray-100 text-[#0B1F46] font-bold text-sm shadow-md transition-all shrink-0 flex items-center gap-2"
+                className="w-full md:w-auto justify-center px-6 py-3 rounded-full bg-white hover:bg-gray-100 text-[#0B1F46] font-bold text-xs sm:text-sm shadow-md transition-all shrink-0 flex items-center gap-2 text-center"
               >
                 <Sparkles className="w-4 h-4 text-[#FF6500]" />
                 <span>Browse Opportunities Now</span>

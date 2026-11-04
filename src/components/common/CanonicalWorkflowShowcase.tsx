@@ -169,7 +169,9 @@ export const CanonicalWorkflowShowcase: React.FC = () => {
                   <div
                     key={step.id}
                     onClick={() => setSelectedStepIndex(idx)}
-                    className="flex flex-col items-center text-center cursor-pointer group"
+                    className={`flex flex-col items-center text-center cursor-pointer group ${
+                      idx === 6 ? 'col-span-2 sm:col-span-1' : ''
+                    }`}
                   >
                     {/* Circle Node Disc */}
                     <div className="relative flex items-center justify-center mb-3">
@@ -206,7 +208,7 @@ export const CanonicalWorkflowShowcase: React.FC = () => {
                     </span>
 
                     {/* Short Sublabel */}
-                    <span className="text-[10px] text-gray-500 mt-0.5 font-medium max-w-[110px] leading-tight hidden sm:block">
+                    <span className="text-[9.5px] sm:text-[10px] text-gray-500 mt-0.5 font-medium max-w-[110px] leading-tight block">
                       {step.subLabel}
                     </span>
                   </div>

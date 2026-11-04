@@ -40,6 +40,23 @@ export const PromotionalBannerCarousel: React.FC = () => {
   const [currentIndex, setCurrentIndex] = useState<number>(0);
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [showAdminModal, setShowAdminModal] = useState<boolean>(false);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const deltaX = touchStartX - touchEndX;
+    if (deltaX > 45) {
+      handleNext();
+    } else if (deltaX < -45) {
+      handlePrev();
+    }
+    setTouchStartX(null);
+  };
 
   useEffect(() => {
     const unsub = db.subscribe(() => {
@@ -152,9 +169,11 @@ export const PromotionalBannerCarousel: React.FC = () => {
     <div
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
       className="w-full relative select-none block rounded-2xl sm:rounded-3xl overflow-hidden group shadow-xl"
     >
-      <section className="w-full bg-[#0B1F46] rounded-2xl sm:rounded-3xl border border-[#14336F] text-white p-6 sm:p-8 lg:p-10 relative overflow-hidden">
+      <section className="w-full bg-[#0B1F46] rounded-2xl sm:rounded-3xl border border-[#14336F] text-white p-5 sm:p-8 lg:p-10 relative overflow-hidden">
         
         {/* Subtle Ambient Radial Glow */}
         <div className="absolute top-0 right-1/4 w-96 h-96 bg-[#168BFA]/10 rounded-full blur-3xl pointer-events-none" />
@@ -282,13 +301,13 @@ export const PromotionalBannerCarousel: React.FC = () => {
             </div>
 
             {/* Bottom Controls Row: Slide Buttons (< and >) with Dots, and Action Button */}
-            <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 self-stretch lg:self-auto justify-between lg:justify-end">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto justify-between lg:justify-end">
               {/* Slide Buttons Control Pill */}
               {slides.length > 1 && (
-                <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md px-2 py-1 rounded-full border border-white/20 shadow-sm">
+                <div className="flex items-center justify-center gap-1 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/20 shadow-sm mx-auto sm:mx-0">
                   <button
                     onClick={handlePrev}
-                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white text-white hover:text-[#0B1F46] flex items-center justify-center transition-all shadow-xs active:scale-95"
+                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white text-white hover:text-[#0B1F46] flex items-center justify-center transition-all shadow-xs active:scale-95 cursor-pointer"
                     title="Previous Slide"
                     aria-label="Previous Slide"
                   >
@@ -296,14 +315,14 @@ export const PromotionalBannerCarousel: React.FC = () => {
                   </button>
 
                   {/* Dot Indicators */}
-                  <div className="flex items-center gap-1 px-1.5">
+                  <div className="flex items-center gap-1.5 px-2">
                     {slides.map((_, idx) => (
                       <button
                         key={idx}
                         onClick={() => setCurrentIndex(idx)}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                        className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
                           currentIndex === idx
-                            ? 'w-4 sm:w-5 bg-[#FF6500] shadow-sm'
+                            ? 'w-5 bg-[#FF6500] shadow-sm'
                             : 'w-1.5 bg-white/40 hover:bg-white'
                         }`}
                         title={`Slide ${idx + 1}`}
@@ -314,7 +333,7 @@ export const PromotionalBannerCarousel: React.FC = () => {
 
                   <button
                     onClick={handleNext}
-                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white text-white hover:text-[#0B1F46] flex items-center justify-center transition-all shadow-xs active:scale-95"
+                    className="w-7 h-7 rounded-full bg-white/10 hover:bg-white text-white hover:text-[#0B1F46] flex items-center justify-center transition-all shadow-xs active:scale-95 cursor-pointer"
                     title="Next Slide"
                     aria-label="Next Slide"
                   >
@@ -326,10 +345,10 @@ export const PromotionalBannerCarousel: React.FC = () => {
               {/* Action Button */}
               <Link
                 to={currentSlide.linkUrl}
-                className="px-6 py-2.5 rounded-full border border-white/80 hover:bg-white hover:text-[#0B1F46] text-white transition-all text-xs sm:text-[13px] font-bold flex items-center gap-2 shadow-sm whitespace-nowrap"
+                className="w-full sm:w-auto justify-center px-6 py-2.5 rounded-full border border-white/80 hover:bg-white hover:text-[#0B1F46] text-white transition-all text-xs sm:text-[13px] font-bold flex items-center gap-2 shadow-sm whitespace-nowrap text-center"
               >
                 <span>{currentSlide.linkLabel}</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <ArrowRight className="w-3.5 h-3.5 shrink-0" />
               </Link>
             </div>
           </div>

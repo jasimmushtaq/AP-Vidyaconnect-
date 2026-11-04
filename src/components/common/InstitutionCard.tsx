@@ -103,31 +103,31 @@ export const InstitutionCard: React.FC<InstitutionCardProps> = ({ institution, f
         featured
           ? 'bg-[#F0FDF4] border-[#BBF7D0] shadow-[0_4px_16px_rgba(16,185,129,0.06)]'
           : 'bg-white border-[#EBECEF] shadow-[0_2px_10px_rgba(0,0,0,0.03)]'
-      } p-5 sm:p-6 flex flex-col items-center justify-between text-center min-h-[210px] sm:min-h-[225px] hover:shadow-[0_12px_28px_rgba(0,0,0,0.08)] hover:-translate-y-1.5 hover:border-[#1C8A3C]/40 transition-all duration-300 cursor-pointer overflow-hidden`}
+      } p-3.5 sm:p-6 flex flex-col items-center justify-between text-center min-h-[195px] sm:min-h-[225px] hover:shadow-[0_12px_28px_rgba(0,0,0,0.08)] hover:-translate-y-1.5 hover:border-[#1C8A3C]/40 transition-all duration-300 cursor-pointer overflow-hidden`}
     >
       {/* Verified Badge matching reference mockup */}
       {featured && (
-        <div className="absolute top-2.5 right-2.5 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-bold bg-[#10B981] text-white shadow-2xs z-10">
+        <div className="absolute top-2 right-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[8.5px] sm:text-[9px] font-bold bg-[#10B981] text-white shadow-2xs z-10">
           <span>Verified</span>
           <span>✓</span>
         </div>
       )}
 
       {/* Top: Seamless Logo / Emblem Floating Container */}
-      <div className="h-14 sm:h-16 w-full flex items-center justify-center mb-2 px-1">
+      <div className="h-12 sm:h-16 w-full flex items-center justify-center mb-1.5 sm:mb-2 px-1">
         {renderEmblem()}
       </div>
 
       {/* Middle: Title & District/State Subtitle */}
-      <div className="space-y-1 w-full px-1">
+      <div className="space-y-1 w-full px-0.5 sm:px-1">
         <h3
-          className="text-xs sm:text-[13px] font-bold text-[#1E293B] group-hover:text-[#0E2350] leading-snug line-clamp-2"
+          className="text-[11.5px] sm:text-[13px] font-bold text-[#1E293B] group-hover:text-[#0E2350] leading-snug line-clamp-2"
           title={`Cohort at ${cleanName}`}
         >
           {cleanName}
         </h3>
         <p
-          className="text-[11px] text-[#64748B] font-medium line-clamp-1"
+          className="text-[10px] sm:text-[11px] text-[#64748B] font-medium line-clamp-1"
           title={subtitle}
         >
           {subtitle}
@@ -135,8 +135,8 @@ export const InstitutionCard: React.FC<InstitutionCardProps> = ({ institution, f
       </div>
 
       {/* Bottom: OPEN ↗ Action */}
-      <div className="pt-3 w-full flex items-center justify-center">
-        <span className="text-[11px] font-bold tracking-widest text-[#5B50A0] group-hover:text-[#3730A3] uppercase flex items-center gap-1 transition-colors group-hover:underline">
+      <div className="pt-2 sm:pt-3 w-full flex items-center justify-center">
+        <span className="text-[10px] sm:text-[11px] font-bold tracking-widest text-[#5B50A0] group-hover:text-[#3730A3] uppercase flex items-center gap-1 transition-colors group-hover:underline">
           OPEN <span className="text-xs font-mono font-normal">↗</span>
         </span>
       </div>

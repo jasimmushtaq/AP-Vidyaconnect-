@@ -411,10 +411,10 @@ export const Footer: React.FC = () => {
             {/* Email Pill */}
             <a
               href="mailto:pixelwindtechnologies@gmail.com"
-              className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-white/20 bg-white/5 hover:bg-white/15 text-xs text-white transition-all shadow-2xs group cursor-pointer"
+              className="inline-flex items-center gap-2 px-3 sm:px-3.5 py-1.5 rounded-full border border-white/20 bg-white/5 hover:bg-white/15 text-[11px] sm:text-xs text-white transition-all shadow-2xs group cursor-pointer max-w-full truncate"
             >
-              <Mail className="w-3.5 h-3.5 text-[#10B981]" />
-              <span>pixelwindtechnologies@gmail.com</span>
+              <Mail className="w-3.5 h-3.5 text-[#10B981] shrink-0" />
+              <span className="truncate">pixelwindtechnologies@gmail.com</span>
             </a>
           </div>
         </div>
