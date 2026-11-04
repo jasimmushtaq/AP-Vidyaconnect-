@@ -99,19 +99,22 @@ export const HomePage: React.FC = () => {
       {/* 1. HERO SECTION (Art-Directed Academic Composition — Seamless Full-Bleed) */}
       {/* ======================================================================== */}
       <div className="w-full px-2.5 sm:px-6 lg:px-8 pt-2 sm:pt-3">
-        <section className="w-full max-w-[1480px] mx-auto relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#E2E8F0] shadow-[0_8px_30px_rgba(11,31,70,0.05)] min-h-[380px] lg:min-h-[440px] flex flex-col lg:flex-row items-center justify-between">
+        <section className="w-full max-w-[1480px] mx-auto relative overflow-hidden rounded-2xl sm:rounded-3xl border border-[#E2E8F0] bg-gradient-to-r from-[#F0F7FF] via-[#F8FBFF] to-white shadow-[0_8px_30px_rgba(11,31,70,0.05)] min-h-[380px] lg:min-h-[420px] xl:min-h-[440px] flex flex-col lg:flex-row items-center justify-between">
           
+          {/* Top-Left Ambient Orange Glow Accent matching reference branding */}
+          <div className="absolute -top-16 -left-16 w-52 h-52 bg-gradient-to-br from-[#FF6500]/20 via-[#FFA040]/10 to-transparent rounded-full blur-2xl pointer-events-none" />
+
           {/* Mobile-Only Full Academic Artwork Banner (Complete Composition — Zero Cutoffs) */}
           <div className="lg:hidden w-full h-[220px] sm:h-[260px] relative overflow-hidden bg-gradient-to-b from-[#8EBCFD]/20 via-white to-[#EBF3FC] border-b border-[#E2E8F0] flex items-center justify-center p-2 shrink-0">
             <img
               src="/images/hero-books-gradcap-blended.png"
               alt="Academic Foundation & Graduation Cap with Better Skills Brighter Future"
-              className="w-full h-full object-contain object-right select-none"
+              className="w-full h-full object-contain object-center select-none"
             />
           </div>
 
-          {/* Desktop Full-Bleed 100% Seamless Artwork Background — Entire Card Completely Filled */}
-          <div className="hidden lg:block absolute inset-0 w-full h-full pointer-events-none select-none z-0 overflow-hidden">
+          {/* Desktop Right-Side 3D Academic Artwork (Proportionally Balanced — No Text Overlap, Full Calligraphy Visible) */}
+          <div className="hidden lg:block absolute right-0 top-0 bottom-0 w-[58%] xl:w-[54%] 2xl:w-[50%] h-full pointer-events-none select-none z-0 overflow-hidden">
             <img
               src="/images/hero-books-gradcap-blended.png"
               alt="Stack of Academic Books with Graduation Cap, Diploma, Pencils and Better Skills Calligraphy"
@@ -120,7 +123,7 @@ export const HomePage: React.FC = () => {
           </div>
 
           {/* Left Column: Heading, Outlined Pill & Two Side-by-Side CTAs */}
-          <div className="relative z-10 w-full lg:w-[48%] xl:w-[46%] max-w-[560px] px-5 sm:px-8 lg:px-12 py-7 sm:py-9 lg:py-10 space-y-4 sm:space-y-5 text-left">
+          <div className="relative z-10 w-full lg:w-[46%] xl:w-[44%] max-w-[520px] px-5 sm:px-8 lg:px-12 py-7 sm:py-9 lg:py-10 space-y-4 sm:space-y-5 text-left">
             {/* Premium Category Pill Badge */}
             <div className="inline-flex items-center gap-2 bg-[#FFF9F3] border border-[#FF6500]/30 text-[#0B1F46] px-3.5 py-1 rounded-full text-xs font-bold shadow-2xs">
               <Sparkles className="w-3.5 h-3.5 text-[#FF6500] shrink-0" />
