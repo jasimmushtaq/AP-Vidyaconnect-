@@ -91,6 +91,14 @@ function save<T>(key: string, data: T) {
     localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(data));
   } catch (e) {
     console.error(`Failed to save ${key} to storage`, e);
+    try {
+      const compactJson = JSON.stringify(data, (_k, v) =>
+        typeof v === 'string' && v.startsWith('data:') && v.length > 65536
+          ? 'local-doc://oversized-attachment'
+          : v
+      );
+      localStorage.setItem(STORAGE_PREFIX + key, compactJson);
+    } catch {}
   }
 }
 

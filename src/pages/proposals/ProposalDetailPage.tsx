@@ -132,7 +132,7 @@ export const ProposalDetailPage: React.FC = () => {
     });
 
     const fetchDirectFromSupabase = async () => {
-      if (!id || !isMounted) return;
+      if (!id || !isMounted || cloudSync.isCloudQuotaBlocked()) return;
       const clean = decodeURIComponent(id).trim();
 
       try {

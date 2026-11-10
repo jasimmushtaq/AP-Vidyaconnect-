@@ -727,6 +727,18 @@ export const VidyaConnectChatbot: React.FC = () => {
   const recognitionRef = useRef<any>(null);
   const synthRef = useRef<SpeechSynthesis | null>(null);
 
+  const clampTriggerPos = (x: number, y: number, elemWidth = 80, elemHeight = 80) => {
+    const minX = 10;
+    const minY = 76;
+    const bottomSafe = window.innerWidth < 1024 ? 76 : 16;
+    const maxX = Math.max(minX, window.innerWidth - elemWidth - 10);
+    const maxY = Math.max(minY, window.innerHeight - elemHeight - bottomSafe);
+    return {
+      x: Math.min(Math.max(minX, x), maxX),
+      y: Math.min(Math.max(minY, y), maxY)
+    };
+  };
+
   // Draggable Floating Trigger Position
   const [triggerPos, setTriggerPos] = useState<{ x: number; y: number } | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -735,12 +747,8 @@ export const VidyaConnectChatbot: React.FC = () => {
       if (saved) {
         const parsed = JSON.parse(saved);
         if (typeof parsed.x === 'number' && typeof parsed.y === 'number') {
-          const maxX = Math.max(10, window.innerWidth - 140);
-          const maxY = Math.max(10, window.innerHeight - 100);
-          return {
-            x: Math.min(Math.max(10, parsed.x), maxX),
-            y: Math.min(Math.max(10, parsed.y), maxY)
-          };
+          const estWidth = window.innerWidth < 640 ? 64 : 220;
+          return clampTriggerPos(parsed.x, parsed.y, estWidth, 80);
         }
       }
     } catch {}
@@ -756,20 +764,17 @@ export const VidyaConnectChatbot: React.FC = () => {
     const handleResize = () => {
       setTriggerPos(prev => {
         if (!prev) return null;
-        const elemWidth = triggerRef.current?.offsetWidth || 220;
+        const elemWidth = triggerRef.current?.offsetWidth || (window.innerWidth < 640 ? 64 : 220);
         const elemHeight = triggerRef.current?.offsetHeight || 80;
-        const maxX = Math.max(10, window.innerWidth - elemWidth - 10);
-        const maxY = Math.max(10, window.innerHeight - elemHeight - 10);
-        if (prev.x > maxX || prev.y > maxY) {
-          return {
-            x: Math.min(prev.x, maxX),
-            y: Math.min(prev.y, maxY)
-          };
+        const clamped = clampTriggerPos(prev.x, prev.y, elemWidth, elemHeight);
+        if (clamped.x !== prev.x || clamped.y !== prev.y) {
+          return clamped;
         }
         return prev;
       });
     };
 
+    handleResize();
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
@@ -805,16 +810,13 @@ export const VidyaConnectChatbot: React.FC = () => {
 
     if (hasMovedRef.current) {
       const elem = triggerRef.current;
-      const elemWidth = elem?.offsetWidth || 220;
+      const elemWidth = elem?.offsetWidth || (window.innerWidth < 640 ? 64 : 220);
       const elemHeight = elem?.offsetHeight || 80;
 
       const rawX = dragStartRef.current.startX + dx;
       const rawY = dragStartRef.current.startY + dy;
 
-      const clampedX = Math.max(10, Math.min(window.innerWidth - elemWidth - 10, rawX));
-      const clampedY = Math.max(10, Math.min(window.innerHeight - elemHeight - 10, rawY));
-
-      setTriggerPos({ x: clampedX, y: clampedY });
+      setTriggerPos(clampTriggerPos(rawX, rawY, elemWidth, elemHeight));
     }
   };
 

@@ -45,7 +45,7 @@ export async function uploadToCloudinary(
   }
 ): Promise<CloudinaryUploadResult> {
   const folder = options?.folder || 'platform/uploads';
-  const resourceType = options?.resourceType || 'image';
+  const resourceType = options?.resourceType || 'auto';
 
   try {
     const formData = new FormData();

@@ -28,8 +28,8 @@ interface AuthContextType {
   currentStudent?: Student;
   requirePasswordChange: boolean;
   loginWithEmail: (email: string, password?: string) => Promise<{ success: boolean; message?: string; user?: Profile; role?: UserRole; requirePasswordChange?: boolean }>;
-  registerInstitutionAdmin: (instData: Partial<Institution>, adminData: { fullName: string; email: string; phone: string; password?: string }) => Promise<{ success: boolean; institution?: Institution; user?: Profile; error?: string }>;
-  registerCompanyAdmin: (compData: Partial<Company>, adminData: { fullName: string; email: string; phone: string; password?: string }) => Promise<{ success: boolean; company?: Company; user?: Profile; error?: string }>;
+  registerInstitutionAdmin: (instData: Partial<Institution>, adminData: { fullName: string; email: string; phone: string; password?: string }) => Promise<{ success: boolean; institution?: Institution; user?: Profile; error?: string; localOnly?: boolean; cloudWarning?: string }>;
+  registerCompanyAdmin: (compData: Partial<Company>, adminData: { fullName: string; email: string; phone: string; password?: string }) => Promise<{ success: boolean; company?: Company; user?: Profile; error?: string; localOnly?: boolean; cloudWarning?: string }>;
   switchRole: (role: UserRole) => void;
   setUser: (user: Profile) => void;
   updateProfile: (data: Partial<Profile>) => void;
@@ -224,7 +224,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // If account not found locally, fetch fresh data from Supabase (e.g. registered in another browser moments ago)
     if (!match) {
       try {
-        await cloudSync.syncFromCloud();
+        await cloudSync.syncFromCloud(true);
       } catch (err) {
         console.warn('Live cloud sync attempt warning:', err);
       }
@@ -258,7 +258,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (!isPasswordValid) {
         // Live cloud sync in case password was changed/set in another browser
         try {
-          await cloudSync.syncFromCloud();
+          await cloudSync.syncFromCloud(true);
         } catch (err) {
           console.warn('Cloud sync error on password re-check:', err);
         }
@@ -324,7 +324,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const registerInstitutionAdmin = async (
     instData: Partial<Institution>,
     adminData: { fullName: string; email: string; phone: string; password?: string }
-  ): Promise<{ success: boolean; institution?: Institution; user?: Profile; error?: string }> => {
+  ): Promise<{ success: boolean; institution?: Institution; user?: Profile; error?: string; localOnly?: boolean; cloudWarning?: string }> => {
     // Backend validation guard
     const emailRes = validateEmail(adminData.email);
     if (!emailRes.isValid) {
@@ -451,13 +451,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     db.auditLogs.unshift(auditEntry);
     db.persist('audit_logs');
 
-    return { success: true, institution: newInst, user: newProfile };
+    return {
+      success: true,
+      institution: newInst,
+      user: newProfile,
+      localOnly: cloudRes.localOnly,
+      cloudWarning: cloudRes.cloudWarning
+    };
   };
 
   const registerCompanyAdmin = async (
     compData: Partial<Company>,
     adminData: { fullName: string; email: string; phone: string; password?: string }
-  ): Promise<{ success: boolean; company?: Company; user?: Profile; error?: string }> => {
+  ): Promise<{ success: boolean; company?: Company; user?: Profile; error?: string; localOnly?: boolean; cloudWarning?: string }> => {
     // Backend validation guard
     const emailRes = validateEmail(adminData.email);
     if (!emailRes.isValid) {
@@ -582,7 +588,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     db.auditLogs.unshift(auditEntry);
     db.persist('audit_logs');
 
-    return { success: true, company: newComp, user: newProfile };
+    return {
+      success: true,
+      company: newComp,
+      user: newProfile,
+      localOnly: cloudRes.localOnly,
+      cloudWarning: cloudRes.cloudWarning
+    };
   };
 
   const switchRole = (role: UserRole) => {

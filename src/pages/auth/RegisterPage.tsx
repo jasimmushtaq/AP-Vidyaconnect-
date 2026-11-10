@@ -93,6 +93,7 @@ export const RegisterPage: React.FC = () => {
   const [submittedEntityName, setSubmittedEntityName] = useState('');
   const [submittedEntityCode, setSubmittedEntityCode] = useState('');
   const [submittedAdminEmail, setSubmittedAdminEmail] = useState('');
+  const [cloudNotice, setCloudNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formError, setFormError] = useState<string | null>(null);
@@ -519,6 +520,7 @@ export const RegisterPage: React.FC = () => {
       setSubmittedEntityName(res.institution.name);
       setSubmittedEntityCode(res.institution.code);
       setSubmittedAdminEmail(res.user.email);
+      setCloudNotice(res.cloudWarning || null);
       setSubmitted(true);
     } catch (err: any) {
       setFormError(err?.message || 'Registration failed. Please check your network connection.');
@@ -576,6 +578,7 @@ export const RegisterPage: React.FC = () => {
       setSubmittedEntityName(res.company.name);
       setSubmittedEntityCode(res.company.cin);
       setSubmittedAdminEmail(res.user.email);
+      setCloudNotice(res.cloudWarning || null);
       setSubmitted(true);
     } catch (err: any) {
       setFormError(err?.message || 'Registration failed. Please check your network connection.');
@@ -632,6 +635,18 @@ export const RegisterPage: React.FC = () => {
               Your account and compliance documents have been submitted to the AP VidyaConnect State Verification Queue. You can sign in immediately using your registered email and password to access your dedicated workspace. State Super Admin will audit statutory credentials.
             </p>
           </div>
+
+          {cloudNotice && (
+            <div className="bg-amber-50 border border-amber-300 p-4 rounded-xl text-xs space-y-1.5">
+              <div className="flex items-center gap-2 text-amber-800 font-bold">
+                <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+                <span>Saved in Device-Local Fallback Mode</span>
+              </div>
+              <p className="text-amber-900/90 leading-relaxed">
+                {cloudNotice}
+              </p>
+            </div>
+          )}
 
           <div className="pt-2 flex flex-wrap items-center justify-end gap-3 border-t border-slate-100">
             <Link

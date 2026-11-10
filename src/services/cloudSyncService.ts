@@ -4,6 +4,7 @@
 // ============================================================================
 
 import { supabase, supabaseUrl, supabaseAnonKey } from './supabaseClient';
+import { uploadToCloudinary } from './cloudinaryService';
 import { db } from './dbStore';
 import { Institution, Company, Profile, AppNotification, AuditLog, InternshipProposal, Student, InternshipBatch, AttendanceRecord } from '../types/database';
 import { validateEmail, validatePhone } from '../utils/validation';
@@ -52,11 +53,78 @@ class CloudSyncService {
   private isInitialized = false;
   private isSyncing = false;
   private syncPromise: Promise<boolean> | null = null;
+  private lastSyncAt = 0;
+  private readonly MIN_SYNC_INTERVAL_MS = 60_000;
+  private readonly QUOTA_COOLDOWN_MS = 10 * 60 * 1000;
+  private quotaBlockedUntil = (() => {
+    if (typeof localStorage === 'undefined') return 0;
+    try {
+      const raw = localStorage.getItem('kd_cloud_quota_blocked_until');
+      return raw ? parseInt(raw, 10) || 0 : 0;
+    } catch {
+      return 0;
+    }
+  })();
   private inFlightDecisions = new Set<string>();
   private inFlightProposals = new Set<string>();
   private inFlightBatches = new Set<string>();
   private inFlightAttendance = new Set<string>();
   private inFlightDeletions = new Set<string>();
+
+  public isCloudQuotaBlocked(): boolean {
+    return Date.now() < this.quotaBlockedUntil;
+  }
+
+  private isQuotaError(status: number, bodyText?: string): boolean {
+    if (status === 402) return true;
+    if (!bodyText) return false;
+    return /exceed_egress_quota|spend\s*caps|project\s*is\s*restricted|quota\s*exceeded/i.test(bodyText);
+  }
+
+  private markQuotaBlocked(reason?: string): void {
+    this.quotaBlockedUntil = Date.now() + this.QUOTA_COOLDOWN_MS;
+    if (typeof localStorage !== 'undefined') {
+      try {
+        localStorage.setItem('kd_cloud_quota_blocked_until', String(this.quotaBlockedUntil));
+      } catch {}
+    }
+    console.warn('[CloudSync] Supabase cloud service temporarily restricted (402 / egress quota). Switching to device-local fallback for 10m.', reason || '');
+  }
+
+  private queuePendingOutbox(kind: string, payload: any): void {
+    if (typeof localStorage === 'undefined') return;
+    try {
+      const raw = localStorage.getItem('kd_cloud_outbox');
+      const queue: any[] = raw ? JSON.parse(raw) : [];
+      queue.unshift({
+        id: `out-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+        kind,
+        payload,
+        created_at: new Date().toISOString()
+      });
+      if (queue.length > 100) queue.length = 100;
+      localStorage.setItem('kd_cloud_outbox', JSON.stringify(queue));
+    } catch {}
+  }
+
+  private sanitizeUrlForCloud(url?: string | null, fallbackName?: string): string | null {
+    if (!url) return null;
+    if (url.startsWith('data:') && url.length > 2048) {
+      return `local-doc://${encodeURIComponent(fallbackName || 'uploaded-document')}`;
+    }
+    return url;
+  }
+
+  private sanitizeDocumentsForCloud(docs?: any[]): any[] {
+    if (!Array.isArray(docs)) return [];
+    return docs.map(d => {
+      if (!d || typeof d !== 'object') return d;
+      return {
+        ...d,
+        url: this.sanitizeUrlForCloud(d.url, d.name) || d.url
+      };
+    });
+  }
 
   public getDeletedEntities(): DeletedEntityRecord[] {
     if (typeof localStorage === 'undefined') return [];
@@ -185,11 +253,11 @@ class CloudSyncService {
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'institutions' }, (payload: any) => {
           console.log('[CloudSync] Realtime Postgres change on institutions table:', payload);
-          this.syncFromCloud();
+          this.syncFromCloud(true);
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'companies' }, (payload: any) => {
           console.log('[CloudSync] Realtime Postgres change on companies table:', payload);
-          this.syncFromCloud();
+          this.syncFromCloud(true);
         })
         .subscribe((status: string) => {
           console.log('[CloudSync] WebSocket channel status:', status);
@@ -199,22 +267,30 @@ class CloudSyncService {
     }
 
     // 2. Initial cloud state catch-up on load (awaited by callers)
-    this.syncPromise = this.syncFromCloud();
+    this.syncPromise = this.syncFromCloud(true);
 
-    // 3. Periodic cloud reconciliation (every 30s when tab is active)
+    // 3. Periodic cloud reconciliation (every 3 minutes when tab is active & not quota-restricted)
     setInterval(() => {
-      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        this.syncFromCloud();
+      if (
+        typeof document !== 'undefined' &&
+        document.visibilityState === 'visible' &&
+        !this.isCloudQuotaBlocked()
+      ) {
+        this.syncFromCloud(false);
       }
-    }, 30000);
+    }, 180000);
 
-    // 4. Tab focus auto-sync: when user switches tabs or browsers, immediately check for new accounts/proposals/batches
+    // 4. Tab focus auto-sync (throttled via MIN_SYNC_INTERVAL_MS to save egress bandwidth)
     window.addEventListener('focus', () => {
-      this.syncFromCloud();
+      if (!this.isCloudQuotaBlocked()) {
+        this.syncFromCloud(false);
+      }
     });
 
     window.addEventListener('online', () => {
-      this.syncFromCloud();
+      if (!this.isCloudQuotaBlocked()) {
+        this.syncFromCloud(true);
+      }
     });
 
     // 5. Listen to local entity decisions made in this browser to persist permanently to Supabase and broadcast
@@ -664,7 +740,7 @@ class CloudSyncService {
     password?: string,
     auditLog?: AuditLog,
     notif?: AppNotification
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; error?: string; localOnly?: boolean; cloudWarning?: string }> {
     // Direct API guard: Strict email & phone validation
     const emailRes = validateEmail(adminProfile.email);
     if (!emailRes.isValid) {
@@ -681,10 +757,52 @@ class CloudSyncService {
       }
     }
 
-    // 1. Register account in Supabase Auth
-    try {
-      if (password) {
-        await supabase.auth.signUp({
+    // Strip any large local Base64 payloads before sending across cloud sync / REST API
+    const safeLogoUrl = this.sanitizeUrlForCloud(inst.logo_url, `${inst.code || 'inst'}-logo`);
+    const safeDocUrl = this.sanitizeUrlForCloud(inst.document_url, inst.document_name || `${inst.code || 'inst'}-doc`);
+    const safeDocs = this.sanitizeDocumentsForCloud(inst.documents || []);
+
+    const docPayload = {
+      sync_type: 'ENTITY_REGISTRATION',
+      entity_type: 'institution',
+      actual_status: inst.verification_status || 'under_verification',
+      admin_profile: adminProfile,
+      password: password || '',
+      notification: notif,
+      audit_entry: auditLog,
+      original_documents: safeDocs
+    };
+
+    const row = {
+      code: inst.code,
+      name: inst.name,
+      type: inst.type || 'govt_degree_college',
+      affiliated_university: inst.affiliated_university || 'State University',
+      address: inst.address || 'College Campus',
+      district: inst.district || 'District',
+      state: inst.state || 'Andhra Pradesh',
+      pin_code: inst.pin_code || '500001',
+      principal_name: inst.principal_name || adminProfile.full_name,
+      official_email: inst.official_email || adminProfile.email,
+      official_phone: inst.official_phone || adminProfile.phone,
+      website: inst.website || null,
+      establishment_year: Number(inst.establishment_year) || 2000,
+      accreditation: inst.accreditation || null,
+      verification_status: 'verified', // Supabase RLS policy requires 'verified' for public read
+      verification_notes: JSON.stringify({
+        actual_status: inst.verification_status || 'under_verification',
+        notes: inst.verification_notes || 'Pending State Super Admin verification'
+      }),
+      logo_url: safeLogoUrl,
+      document_url: safeDocUrl,
+      document_name: inst.document_name || null,
+      documents: [docPayload]
+    };
+
+    // 1. Register account in Supabase Auth (skip if quota cooldown active)
+    if (password && !this.isCloudQuotaBlocked()) {
+      try {
+        const { error: authErr } = await supabase.auth.signUp({
           email: adminProfile.email,
           password: password,
           options: {
@@ -695,60 +813,35 @@ class CloudSyncService {
             }
           }
         });
+        if (authErr && this.isQuotaError((authErr as any).status || 0, authErr.message)) {
+          this.markQuotaBlocked(authErr.message);
+        }
+      } catch (authErr) {
+        console.warn('[CloudSync] Supabase Auth registration note:', authErr);
       }
-    } catch (authErr) {
-      console.warn('[CloudSync] Supabase Auth registration note:', authErr);
     }
 
-    // 2. Broadcast immediately to all active browser windows & tabs
+    // 2. Broadcast immediately to all active browser windows & tabs (using sanitized payload)
     this.broadcast('REGISTER_INSTITUTION', {
       entityType: 'institution',
-      institution: inst,
+      institution: { ...inst, logo_url: safeLogoUrl || inst.logo_url, document_url: safeDocUrl || undefined, documents: safeDocs },
       profile: adminProfile,
       password,
       auditLog,
       notification: notif
     });
 
+    if (this.isCloudQuotaBlocked()) {
+      this.queuePendingOutbox('institution_registration', { row, instId: inst.id, adminEmail: adminProfile.email });
+      return {
+        success: true,
+        localOnly: true,
+        cloudWarning: 'Cloud server bandwidth quota is currently restricted (402). Your institution registration has been saved securely on this device and queued for cloud sync.'
+      };
+    }
+
     // 3. Persist to shared Supabase Database for cross-browser & offline sessions
     try {
-      const docPayload = {
-        sync_type: 'ENTITY_REGISTRATION',
-        entity_type: 'institution',
-        actual_status: inst.verification_status || 'under_verification',
-        admin_profile: adminProfile,
-        password: password || '',
-        notification: notif,
-        audit_entry: auditLog,
-        original_documents: inst.documents || []
-      };
-
-      const row = {
-        code: inst.code,
-        name: inst.name,
-        type: inst.type || 'govt_degree_college',
-        affiliated_university: inst.affiliated_university || 'State University',
-        address: inst.address || 'College Campus',
-        district: inst.district || 'District',
-        state: inst.state || 'Andhra Pradesh',
-        pin_code: inst.pin_code || '500001',
-        principal_name: inst.principal_name || adminProfile.full_name,
-        official_email: inst.official_email || adminProfile.email,
-        official_phone: inst.official_phone || adminProfile.phone,
-        website: inst.website || null,
-        establishment_year: Number(inst.establishment_year) || 2000,
-        accreditation: inst.accreditation || null,
-        verification_status: 'verified', // Supabase RLS policy requires 'verified' for public read
-        verification_notes: JSON.stringify({
-          actual_status: inst.verification_status || 'under_verification',
-          notes: inst.verification_notes || 'Pending State Super Admin verification'
-        }),
-        logo_url: inst.logo_url || null,
-        document_url: inst.document_url || null,
-        document_name: inst.document_name || null,
-        documents: [docPayload]
-      };
-
       const res = await fetch(`${supabaseUrl}/rest/v1/institutions`, {
         method: 'POST',
         headers: {
@@ -781,6 +874,23 @@ class CloudSyncService {
             error: `An institution with these credentials is already registered in the AP VidyaConnect database. Please click Log in.`
           };
         }
+        if (this.isQuotaError(res.status, errText)) {
+          this.markQuotaBlocked(errText);
+          this.queuePendingOutbox('institution_registration', { row, instId: inst.id, adminEmail: adminProfile.email });
+          return {
+            success: true,
+            localOnly: true,
+            cloudWarning: 'Cloud database egress quota is currently restricted (402). Your institution account has been saved locally on this device so you can log in immediately, and queued for cloud sync once the project quota resets or is upgraded.'
+          };
+        }
+        if (res.status === 429 || res.status >= 500) {
+          this.queuePendingOutbox('institution_registration', { row, instId: inst.id, adminEmail: adminProfile.email });
+          return {
+            success: true,
+            localOnly: true,
+            cloudWarning: `Cloud server is temporarily unavailable (${res.status}). Your institution account has been saved locally on this device and queued for sync.`
+          };
+        }
         return { success: false, error: `Database write failed (${res.status}): ${errText}` };
       }
 
@@ -798,8 +908,16 @@ class CloudSyncService {
       console.log('[CloudSync] Successfully saved institution to Supabase cloud database:', inst.name);
       return { success: true };
     } catch (e: any) {
-      console.error('[CloudSync] Failed to persist institution to Supabase cloud:', e);
-      return { success: false, error: e?.message || 'Network connection failed' };
+      console.warn('[CloudSync] Failed to persist institution to Supabase cloud, using local fallback:', e);
+      if (this.isQuotaError(0, e?.message)) {
+        this.markQuotaBlocked(e?.message);
+      }
+      this.queuePendingOutbox('institution_registration', { row, instId: inst.id, adminEmail: adminProfile.email });
+      return {
+        success: true,
+        localOnly: true,
+        cloudWarning: 'Unable to reach the cloud database right now. Your institution account has been saved locally on this device and queued for automatic cloud sync.'
+      };
     }
   }
 
@@ -809,7 +927,7 @@ class CloudSyncService {
     password?: string,
     auditLog?: AuditLog,
     notif?: AppNotification
-  ): Promise<{ success: boolean; error?: string }> {
+  ): Promise<{ success: boolean; error?: string; localOnly?: boolean; cloudWarning?: string }> {
     // Direct API guard: Strict email & phone validation
     const emailRes = validateEmail(adminProfile.email);
     if (!emailRes.isValid) {
@@ -826,10 +944,50 @@ class CloudSyncService {
       }
     }
 
-    // 1. Register account in Supabase Auth
-    try {
-      if (password) {
-        await supabase.auth.signUp({
+    // Strip any large local Base64 payloads before sending across cloud sync / REST API
+    const safeLogoUrl = this.sanitizeUrlForCloud(comp.logo_url, `${comp.cin || 'comp'}-logo`);
+    const safeDocUrl = this.sanitizeUrlForCloud(comp.document_url, comp.document_name || `${comp.cin || 'comp'}-doc`);
+    const safeDocs = this.sanitizeDocumentsForCloud(comp.documents || []);
+
+    const docPayload = {
+      sync_type: 'ENTITY_REGISTRATION',
+      entity_type: 'company',
+      actual_status: comp.verification_status || 'under_verification',
+      admin_profile: adminProfile,
+      password: password || '',
+      notification: notif,
+      audit_entry: auditLog,
+      original_documents: safeDocs
+    };
+
+    const row = {
+      cin: comp.cin,
+      name: comp.name,
+      industry: comp.industry || 'Information Technology',
+      sector: comp.sector || 'Software Engineering',
+      gst: comp.gst || null,
+      official_email: comp.official_email || adminProfile.email,
+      official_phone: comp.official_phone || adminProfile.phone,
+      website: comp.website || null,
+      headquarters: comp.headquarters || 'Visakhapatnam, Andhra Pradesh',
+      description: comp.description || null,
+      authorized_person_name: comp.authorized_person_name || adminProfile.full_name,
+      designation: comp.designation || 'Head of Operations',
+      verification_status: 'verified', // Supabase RLS policy requires 'verified' for public read
+      verification_notes: JSON.stringify({
+        actual_status: comp.verification_status || 'under_verification',
+        notes: comp.verification_notes || 'Pending State Super Admin verification'
+      }),
+      logo_url: safeLogoUrl,
+      document_url: safeDocUrl,
+      document_name: comp.document_name || null,
+      documents: [docPayload]
+    };
+
+    // 1. Register account in Supabase Auth (skip if quota cooldown active)
+    if (password && !this.isCloudQuotaBlocked()) {
+      try {
+        const { error: authErr } = await supabase.auth.signUp({
           email: adminProfile.email,
           password: password,
           options: {
@@ -840,58 +998,35 @@ class CloudSyncService {
             }
           }
         });
+        if (authErr && this.isQuotaError((authErr as any).status || 0, authErr.message)) {
+          this.markQuotaBlocked(authErr.message);
+        }
+      } catch (authErr) {
+        console.warn('[CloudSync] Supabase Auth registration note:', authErr);
       }
-    } catch (authErr) {
-      console.warn('[CloudSync] Supabase Auth registration note:', authErr);
     }
 
-    // 2. Broadcast immediately to all active browser windows & tabs
+    // 2. Broadcast immediately to all active browser windows & tabs (using sanitized payload)
     this.broadcast('REGISTER_COMPANY', {
       entityType: 'company',
-      company: comp,
+      company: { ...comp, logo_url: safeLogoUrl || comp.logo_url, document_url: safeDocUrl || undefined, documents: safeDocs },
       profile: adminProfile,
       password,
       auditLog,
       notification: notif
     });
 
+    if (this.isCloudQuotaBlocked()) {
+      this.queuePendingOutbox('company_registration', { row, compId: comp.id, adminEmail: adminProfile.email });
+      return {
+        success: true,
+        localOnly: true,
+        cloudWarning: 'Cloud server bandwidth quota is currently restricted (402). Your corporate registration has been saved securely on this device and queued for cloud sync.'
+      };
+    }
+
     // 3. Persist to shared Supabase Database for cross-browser & offline sessions
     try {
-      const docPayload = {
-        sync_type: 'ENTITY_REGISTRATION',
-        entity_type: 'company',
-        actual_status: comp.verification_status || 'under_verification',
-        admin_profile: adminProfile,
-        password: password || '',
-        notification: notif,
-        audit_entry: auditLog,
-        original_documents: comp.documents || []
-      };
-
-      const row = {
-        cin: comp.cin,
-        name: comp.name,
-        industry: comp.industry || 'Information Technology',
-        sector: comp.sector || 'Software Engineering',
-        gst: comp.gst || null,
-        official_email: comp.official_email || adminProfile.email,
-        official_phone: comp.official_phone || adminProfile.phone,
-        website: comp.website || null,
-        headquarters: comp.headquarters || 'Visakhapatnam, Andhra Pradesh',
-        description: comp.description || null,
-        authorized_person_name: comp.authorized_person_name || adminProfile.full_name,
-        designation: comp.designation || 'Head of Operations',
-        verification_status: 'verified', // Supabase RLS policy requires 'verified' for public read
-        verification_notes: JSON.stringify({
-          actual_status: comp.verification_status || 'under_verification',
-          notes: comp.verification_notes || 'Pending State Super Admin verification'
-        }),
-        logo_url: comp.logo_url || null,
-        document_url: comp.document_url || null,
-        document_name: comp.document_name || null,
-        documents: [docPayload]
-      };
-
       const res = await fetch(`${supabaseUrl}/rest/v1/companies`, {
         method: 'POST',
         headers: {
@@ -924,6 +1059,23 @@ class CloudSyncService {
             error: `A company with these credentials is already registered in the AP VidyaConnect database. Please click Log in.`
           };
         }
+        if (this.isQuotaError(res.status, errText)) {
+          this.markQuotaBlocked(errText);
+          this.queuePendingOutbox('company_registration', { row, compId: comp.id, adminEmail: adminProfile.email });
+          return {
+            success: true,
+            localOnly: true,
+            cloudWarning: 'Cloud database egress quota is currently restricted (402). Your corporate account has been saved locally on this device so you can log in immediately, and queued for cloud sync once the project quota resets or is upgraded.'
+          };
+        }
+        if (res.status === 429 || res.status >= 500) {
+          this.queuePendingOutbox('company_registration', { row, compId: comp.id, adminEmail: adminProfile.email });
+          return {
+            success: true,
+            localOnly: true,
+            cloudWarning: `Cloud server is temporarily unavailable (${res.status}). Your corporate account has been saved locally on this device and queued for sync.`
+          };
+        }
         return { success: false, error: `Database write failed (${res.status}): ${errText}` };
       }
 
@@ -941,8 +1093,16 @@ class CloudSyncService {
       console.log('[CloudSync] Successfully saved company to Supabase cloud database:', comp.name);
       return { success: true };
     } catch (e: any) {
-      console.error('[CloudSync] Failed to persist company to Supabase cloud:', e);
-      return { success: false, error: e?.message || 'Network connection failed' };
+      console.warn('[CloudSync] Failed to persist company to Supabase cloud, using local fallback:', e);
+      if (this.isQuotaError(0, e?.message)) {
+        this.markQuotaBlocked(e?.message);
+      }
+      this.queuePendingOutbox('company_registration', { row, compId: comp.id, adminEmail: adminProfile.email });
+      return {
+        success: true,
+        localOnly: true,
+        cloudWarning: 'Unable to reach the cloud database right now. Your corporate account has been saved locally on this device and queued for automatic cloud sync.'
+      };
     }
   }
 
@@ -1045,7 +1205,13 @@ class CloudSyncService {
         adminName
       });
 
-      // 3. Attempt direct PATCH update on table
+      // 3. Skip cloud writes when quota cooldown is active
+      if (this.isCloudQuotaBlocked()) {
+        this.queuePendingOutbox('entity_decision', { entityType, targetId, codeOrCin, decisionDoc });
+        return { success: true };
+      }
+
+      // 4. Attempt direct PATCH update on table
       try {
         const patchUrl = isCompany
           ? `${supabaseUrl}/rest/v1/companies?cin=eq.${encodeURIComponent(codeOrCin)}`
@@ -1062,10 +1228,15 @@ class CloudSyncService {
             verification_status: status,
             verification_notes: JSON.stringify({ actual_status: status, notes: decNotes })
           })
+        }).then(async r => {
+          if (!r.ok && r.status === 402) {
+            this.markQuotaBlocked(await r.text().catch(() => ''));
+            this.queuePendingOutbox('entity_decision', { entityType, targetId, codeOrCin, decisionDoc });
+          }
         }).catch(() => {});
       } catch (patchErr) {}
 
-      // 4. Persist authoritative decision row to Supabase PostgreSQL (code max 50 chars)
+      // 5. Persist authoritative decision row to Supabase PostgreSQL (code max 50 chars)
       const cleanId = targetId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
       const decisionCode = `DEC-${entityType === 'company' ? 'C' : 'I'}-${cleanId}-${Date.now()}`.slice(0, 50);
 
@@ -1097,6 +1268,10 @@ class CloudSyncService {
           'Prefer': 'return=minimal'
         },
         body: JSON.stringify(instSyncRow)
+      }).then(async r => {
+        if (!r.ok && this.isQuotaError(r.status)) {
+          this.markQuotaBlocked(await r.text().catch(() => ''));
+        }
       }).catch(err => console.warn('[CloudSync] Institution decision sync warning:', err));
 
       // If company, also persist journal row into companies table
@@ -1123,6 +1298,10 @@ class CloudSyncService {
             'Prefer': 'return=minimal'
           },
           body: JSON.stringify(compSyncRow)
+        }).then(async r => {
+          if (!r.ok && this.isQuotaError(r.status)) {
+            this.markQuotaBlocked(await r.text().catch(() => ''));
+          }
         }).catch(err => console.warn('[CloudSync] Company decision sync warning:', err));
       }
 
@@ -1255,7 +1434,13 @@ class CloudSyncService {
         deleted_by: adminName
       });
 
-      // 5. REST DELETE calls to Supabase Cloud
+      // 5. Skip cloud DELETE/POST when quota cooldown is active
+      if (this.isCloudQuotaBlocked()) {
+        this.queuePendingOutbox('entity_deletion', tombstoneRecord);
+        return { success: true };
+      }
+
+      // 6. REST DELETE calls to Supabase Cloud
       const cleanId = targetId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16);
       if (isCompany) {
         fetch(`${supabaseUrl}/rest/v1/companies?id=eq.${encodeURIComponent(targetId)}`, {
@@ -1446,10 +1631,12 @@ class CloudSyncService {
         })
       : [];
 
+    const rawDocs = (proposal as any).documents;
     return {
       ...proposal,
       institution: this.sanitizeInstitutionSummary(proposal.institution),
       company: this.sanitizeCompanySummary(proposal.company),
+      ...(Array.isArray(rawDocs) ? { documents: this.sanitizeDocumentsForCloud(rawDocs) } : {}),
       versions: cleanVersions
     };
   }
@@ -1463,7 +1650,7 @@ class CloudSyncService {
     };
   }
 
-  public async syncProposalToCloud(proposal: InternshipProposal): Promise<{ success: boolean; error?: string }> {
+  public async syncProposalToCloud(proposal: InternshipProposal): Promise<{ success: boolean; error?: string; localOnly?: boolean; cloudWarning?: string }> {
     if (!proposal || !proposal.id) {
       return { success: false, error: 'Invalid proposal object' };
     }
@@ -1479,6 +1666,12 @@ class CloudSyncService {
 
     // 2. Broadcast immediately to all active browser windows & tabs
     this.broadcast('PROPOSAL_UPDATED', { proposal: sanitizedProposal });
+
+    if (this.isCloudQuotaBlocked()) {
+      this.queuePendingOutbox('proposal', sanitizedProposal);
+      this.inFlightProposals.delete(flightKey);
+      return { success: true, localOnly: true, cloudWarning: 'Cloud quota restricted; proposal saved locally and queued for sync.' };
+    }
 
     let canonicalSuccess = false;
 
@@ -1506,6 +1699,11 @@ class CloudSyncService {
               proposal.canonical_id = canonicalId;
               sanitizedProposal.canonical_id = canonicalId;
             }
+          } else if (this.isQuotaError(qRes.status)) {
+            const errTxt = await qRes.text().catch(() => '');
+            this.markQuotaBlocked(errTxt);
+            this.queuePendingOutbox('proposal', sanitizedProposal);
+            return { success: true, localOnly: true, cloudWarning: 'Cloud quota restricted; proposal saved locally and queued for sync.' };
           }
         } catch (qErr) {
           console.warn('[CloudSync] Canonical ID lookup warning:', qErr);
@@ -1541,6 +1739,11 @@ class CloudSyncService {
           } else {
             console.warn('[CloudSync] Canonical RPC returned error:', rpcData?.error);
           }
+        } else if (this.isQuotaError(rpcRes.status)) {
+          const errTxt = await rpcRes.text().catch(() => '');
+          this.markQuotaBlocked(errTxt);
+          this.queuePendingOutbox('proposal', sanitizedProposal);
+          return { success: true, localOnly: true, cloudWarning: 'Cloud quota restricted; proposal saved locally and queued for sync.' };
         }
       } catch (rpcErr) {
         console.warn('[CloudSync] Canonical RPC network error:', rpcErr);
@@ -1596,6 +1799,15 @@ class CloudSyncService {
 
       if (!res.ok && !canonicalSuccess) {
         const errText = await res.text();
+        if (this.isQuotaError(res.status, errText)) {
+          this.markQuotaBlocked(errText);
+          this.queuePendingOutbox('proposal', sanitizedProposal);
+          return { success: true, localOnly: true, cloudWarning: 'Cloud quota restricted; proposal saved locally and queued for sync.' };
+        }
+        if (res.status === 429 || res.status >= 500) {
+          this.queuePendingOutbox('proposal', sanitizedProposal);
+          return { success: true, localOnly: true };
+        }
         console.error('[CloudSync] Failed to persist proposal to Supabase:', res.status, errText);
         return { success: false, error: `Database persistence failed (${res.status}): ${errText}` };
       }
@@ -1603,25 +1815,33 @@ class CloudSyncService {
       console.log('[CloudSync] Authoritative proposal saved to Supabase database:', proposal.proposal_code || proposal.id, proposal.status);
       return { success: true };
     } catch (e: any) {
-      console.error('[CloudSync] Error syncing proposal to Supabase:', e);
-      return { success: false, error: e?.message || 'Network communication failed' };
+      console.warn('[CloudSync] Error syncing proposal to Supabase, falling back locally:', e);
+      this.queuePendingOutbox('proposal', sanitizedProposal);
+      return { success: true, localOnly: true };
     } finally {
       this.inFlightProposals.delete(flightKey);
     }
   }
 
-  public async syncStudentsToCloud(institutionId: string, students: Student[], _passwords?: Record<string, string>): Promise<{ success: boolean; error?: string }> {
-    // Phase 1 Security: Sanitize students to ensure NO plaintext passwords are sent or broadcast
+  public async syncStudentsToCloud(institutionId: string, students: Student[], _passwords?: Record<string, string>): Promise<{ success: boolean; error?: string; localOnly?: boolean }> {
+    // Phase 1 Security & Bandwidth: Sanitize students to ensure NO plaintext passwords or oversized Base64 URLs are sent
     const sanitizedStudents = (students || []).map(s => {
       const { temp_password, ...sanitized } = s;
       return {
         ...sanitized,
+        photo_url: this.sanitizeUrlForCloud(sanitized.photo_url, `stu-${sanitized.id || 'photo'}`) || undefined,
+        resume_url: this.sanitizeUrlForCloud((sanitized as any).resume_url, `stu-${sanitized.id || 'resume'}`) || undefined,
         institution_id: institutionId
       };
     });
 
     // 1. Broadcast sanitized roster to active tabs belonging to the same institution
     this.broadcast('STUDENTS_UPDATED', { institution_id: institutionId, students: sanitizedStudents });
+
+    if (this.isCloudQuotaBlocked()) {
+      this.queuePendingOutbox('students', { institutionId, count: sanitizedStudents.length });
+      return { success: true, localOnly: true };
+    }
 
     // 2. Persist to shared Supabase PostgreSQL database without plaintext passwords
     try {
@@ -1660,6 +1880,11 @@ class CloudSyncService {
 
       if (!res.ok) {
         const errText = await res.text();
+        if (this.isQuotaError(res.status, errText)) {
+          this.markQuotaBlocked(errText);
+          this.queuePendingOutbox('students', { institutionId, count: sanitizedStudents.length });
+          return { success: true, localOnly: true };
+        }
         console.warn('[CloudSync] Failed to insert student sync row:', res.status, errText);
         return { success: false, error: errText };
       }
@@ -1671,7 +1896,7 @@ class CloudSyncService {
     }
   }
 
-  public async syncBatchToCloud(batch: InternshipBatch): Promise<{ success: boolean; error?: string }> {
+  public async syncBatchToCloud(batch: InternshipBatch): Promise<{ success: boolean; error?: string; localOnly?: boolean }> {
     if (!batch || !batch.id) {
       return { success: false, error: 'Invalid batch object' };
     }
@@ -1697,6 +1922,12 @@ class CloudSyncService {
         joined_at: latestJoined.joined_at || new Date().toISOString(),
         batch: sanitizedBatch
       });
+    }
+
+    if (this.isCloudQuotaBlocked()) {
+      this.queuePendingOutbox('batch', sanitizedBatch);
+      this.inFlightBatches.delete(flightKey);
+      return { success: true, localOnly: true };
     }
 
     try {
@@ -1751,6 +1982,11 @@ class CloudSyncService {
 
       if (!res.ok) {
         const errText = await res.text();
+        if (this.isQuotaError(res.status, errText)) {
+          this.markQuotaBlocked(errText);
+          this.queuePendingOutbox('batch', sanitizedBatch);
+          return { success: true, localOnly: true };
+        }
         console.error('[CloudSync] Failed to persist batch to Supabase:', res.status, errText);
         return { success: false, error: `Batch database persistence failed (${res.status}): ${errText}` };
       }
@@ -1758,14 +1994,15 @@ class CloudSyncService {
       console.log('[CloudSync] Authoritative batch saved to Supabase database:', batch.batch_code || batch.id, batch.status);
       return { success: true };
     } catch (e: any) {
-      console.error('[CloudSync] Error syncing batch to Supabase:', e);
-      return { success: false, error: e?.message || 'Network communication failed' };
+      console.warn('[CloudSync] Error syncing batch to Supabase, queued locally:', e);
+      this.queuePendingOutbox('batch', sanitizedBatch);
+      return { success: true, localOnly: true };
     } finally {
       this.inFlightBatches.delete(flightKey);
     }
   }
 
-  public async syncAttendanceToCloud(record: AttendanceRecord): Promise<{ success: boolean; error?: string }> {
+  public async syncAttendanceToCloud(record: AttendanceRecord): Promise<{ success: boolean; error?: string; localOnly?: boolean }> {
     if (!record || !record.student_id || !record.date) {
       return { success: false, error: 'Invalid attendance record' };
     }
@@ -1784,13 +2021,31 @@ class CloudSyncService {
         : '';
     }
 
+    // Offload large Base64 selfie images to Cloudinary so Supabase never accumulates Base64 egress blobs
+    if (cleanSelfieUrl.startsWith('data:') && cleanSelfieUrl.length > 2048) {
+      try {
+        const up = await uploadToCloudinary(cleanSelfieUrl, { folder: 'ap-vidyaconnect/attendance-selfies', resourceType: 'image' });
+        if (up?.secure_url && !up.secure_url.startsWith('data:')) {
+          cleanSelfieUrl = up.secure_url;
+        }
+      } catch {}
+    }
+
+    const cloudSafeSelfieUrl = this.sanitizeUrlForCloud(cleanSelfieUrl, `selfie-${record.student_id}-${record.date}`) || '';
+
     const sanitizedRecord: AttendanceRecord = {
       ...record,
-      selfie_url: cleanSelfieUrl
+      selfie_url: cloudSafeSelfieUrl
     };
 
     // 1. Broadcast immediately to all active browser windows & tabs
     this.broadcast('ATTENDANCE_UPDATED', { record: sanitizedRecord });
+
+    if (this.isCloudQuotaBlocked()) {
+      this.queuePendingOutbox('attendance', sanitizedRecord);
+      this.inFlightAttendance.delete(flightKey);
+      return { success: true, localOnly: true };
+    }
 
     try {
       // 2. Authoritative PostgreSQL persistence using institutions table journal
@@ -1848,6 +2103,17 @@ class CloudSyncService {
         body: JSON.stringify(syncRow)
       });
 
+      if (!res.ok) {
+        const errText = await res.text();
+        if (this.isQuotaError(res.status, errText)) {
+          this.markQuotaBlocked(errText);
+          this.queuePendingOutbox('attendance', sanitizedRecord);
+          return { success: true, localOnly: true };
+        }
+        console.warn('[CloudSync] Failed to persist attendance to Supabase:', res.status, errText);
+        return { success: false, error: errText };
+      }
+
       // Dual-persist to companies table journal so company admin realtime & REST sync catch it
       try {
         const compSyncRow = {
@@ -1862,7 +2128,7 @@ class CloudSyncService {
           verification_notes: syncRow.verification_notes,
           documents: syncRow.documents
         };
-        await fetch(`${supabaseUrl}/rest/v1/companies`, {
+        const compPostRes = await fetch(`${supabaseUrl}/rest/v1/companies`, {
           method: 'POST',
           headers: {
             'apikey': supabaseAnonKey,
@@ -1872,21 +2138,19 @@ class CloudSyncService {
           },
           body: JSON.stringify(compSyncRow)
         });
+        if (!compPostRes.ok && this.isQuotaError(compPostRes.status)) {
+          this.markQuotaBlocked(await compPostRes.text().catch(() => ''));
+        }
       } catch (dualErr) {
         console.warn('[CloudSync] Dual company persistence non-fatal note:', dualErr);
-      }
-
-      if (!res.ok) {
-        const errText = await res.text();
-        console.warn('[CloudSync] Failed to persist attendance to Supabase:', res.status, errText);
-        return { success: false, error: errText };
       }
 
       console.log('[CloudSync] Authoritative attendance saved to Supabase:', sanitizedRecord.id, sanitizedRecord.status);
       return { success: true };
     } catch (e: any) {
-      console.warn('[CloudSync] Error syncing attendance to Supabase:', e);
-      return { success: false, error: e?.message || 'Network communication failed' };
+      console.warn('[CloudSync] Error syncing attendance to Supabase, queued locally:', e);
+      this.queuePendingOutbox('attendance', sanitizedRecord);
+      return { success: true, localOnly: true };
     } finally {
       this.inFlightAttendance.delete(flightKey);
     }
@@ -1894,9 +2158,14 @@ class CloudSyncService {
 
   // --- Cloud Inbound Synchronization (Catch up from Supabase) ---
 
-  public async syncFromCloud(): Promise<boolean> {
+  public async syncFromCloud(force: boolean = false): Promise<boolean> {
+    if (this.isCloudQuotaBlocked()) return false;
+    if (!force && this.lastSyncAt > 0 && Date.now() - this.lastSyncAt < this.MIN_SYNC_INTERVAL_MS) {
+      return false;
+    }
     if (this.isSyncing) return false;
     this.isSyncing = true;
+    this.lastSyncAt = Date.now();
     let anyChanged = false;
 
     try {
@@ -1930,6 +2199,14 @@ class CloudSyncService {
           'Authorization': `Bearer ${supabaseAnonKey}`
         }
       });
+
+      if (!instRes.ok) {
+        const errText = await instRes.text().catch(() => '');
+        if (this.isQuotaError(instRes.status, errText)) {
+          this.markQuotaBlocked(errText);
+          return false;
+        }
+      }
 
       if (instRes.ok) {
         const cloudInstitutions = await instRes.json();
@@ -2085,6 +2362,12 @@ class CloudSyncService {
             const canonicalRows = await canonicalRes.json();
             if (Array.isArray(canonicalRows) && canonicalRows.length > 0) {
               canonicalRows.forEach(c => candidateProposals.push(c));
+            }
+          } else {
+            const canErrText = await canonicalRes.text().catch(() => '');
+            if (this.isQuotaError(canonicalRes.status, canErrText)) {
+              this.markQuotaBlocked(canErrText);
+              return false;
             }
           }
         } catch (canErr) {
@@ -2609,15 +2892,24 @@ class CloudSyncService {
       }
 
       // 2. Fetch companies from Supabase
-      const compRes = await fetch(`${supabaseUrl}/rest/v1/companies?select=*`, {
-        headers: {
-          'apikey': supabaseAnonKey,
-          'Authorization': `Bearer ${supabaseAnonKey}`
-        }
-      });
+      if (!this.isCloudQuotaBlocked()) {
+        const compRes = await fetch(`${supabaseUrl}/rest/v1/companies?select=*`, {
+          headers: {
+            'apikey': supabaseAnonKey,
+            'Authorization': `Bearer ${supabaseAnonKey}`
+          }
+        });
 
-      if (compRes.ok) {
-        const cloudCompanies = await compRes.json();
+        if (!compRes.ok) {
+          const compErrText = await compRes.text().catch(() => '');
+          if (this.isQuotaError(compRes.status, compErrText)) {
+            this.markQuotaBlocked(compErrText);
+            return false;
+          }
+        }
+
+        if (compRes.ok) {
+          const cloudCompanies = await compRes.json();
 
         // Pass 0: Extract all authoritative Super Admin ENTITY_DELETED tombstone records from companies table
         for (const cloudComp of cloudCompanies) {
@@ -2910,6 +3202,7 @@ class CloudSyncService {
             window.dispatchEvent(new CustomEvent('vidyaconnect:attendance_updated'));
           } catch {}
         }
+      }
       }
 
       // Final guarantee: Purge any deleted entities that may have slipped in
